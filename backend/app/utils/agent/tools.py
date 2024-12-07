@@ -14,58 +14,65 @@ logger = logging.getLogger(__name__)
 
 class ParserUtils(OpenAIFunctionsAgentOutputParser):
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
-        """Parse text into agent action/finish"""
+        """Parse with enforced termination on FINAL ANSWER"""
+        try:
+            # Get clean text
+            cleaned_output = (
+                text.content.strip() if hasattr(text, "content") else text.strip()
+            )
 
-        if hasattr(text, "content"):
-            cleaned_output = text.content.strip()
-        else:
-            cleaned_output = text.strip()
-
-        # Check for action block
-        if "ACTION:" in cleaned_output:
-            try:
-                # Extract the action JSON part
-                action_part = cleaned_output.split("ACTION:", 1)[1].strip()
-
-                # Clean up common formatting issues
-                action_part = action_part.replace("}}", "}")
-                action_part = action_part.replace("{{", "{")
-
-                # Parse the JSON
-                action_dict = json.loads(action_part)
-
-                # Return both AgentAction and the raw action dict
-                return AgentAction(
-                    tool=action_dict["type"],
-                    tool_input=action_dict.get("query", action_dict.get("answer", "")),
+            # IMMEDIATE TERMINATION if we see FINAL ANSWER
+            if "FINAL ANSWER:" in cleaned_output:
+                logger.info("Final answer found - terminating chain")
+                return AgentFinish(
+                    return_values={"output": cleaned_output},
                     log=cleaned_output,
-                    raw_action=action_dict,  # Store the raw action
                 )
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse action: {e}")
-                raise ValueError(f"Could not parse action: {action_part}")
 
-        # Check for final answer
-        if "FINAL ANSWER:" in cleaned_output:
+            # Only proceed to action parsing if no final answer
+            if "ACTION:" in cleaned_output and "FINAL ANSWER:" not in cleaned_output:
+                try:
+                    action_part = cleaned_output.split("ACTION:", 1)[1].strip()
+                    action_part = action_part.replace("}}", "}").replace("{{", "{")
+
+                    action_dict = json.loads(action_part)
+                    return AgentAction(
+                        tool=action_dict["type"],
+                        tool_input=action_dict.get(
+                            "query", action_dict.get("answer", "")
+                        ),
+                        log=cleaned_output,
+                    )
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON parse error: {e}")
+                    return AgentFinish(
+                        return_values={
+                            "output": f"FINAL ANSWER: Error parsing action - {str(e)}"
+                        },
+                        log=cleaned_output,
+                    )
+
+            # Force termination for unrecognized formats
             return AgentFinish(
-                return_values={
-                    "output": cleaned_output.split("FINAL ANSWER:")[-1].strip()
-                },
+                return_values={"output": f"FINAL ANSWER: {cleaned_output}"},
                 log=cleaned_output,
             )
 
-        # If we can't parse it as an action or final answer, try to parse the whole text
-        try:
-            action_dict = json.loads(cleaned_output)
-            if "type" in action_dict:
-                return AgentAction(
-                    tool=action_dict["type"],
-                    tool_input=action_dict.get("query", action_dict.get("answer", "")),
-                    log=cleaned_output,
-                    raw_action=action_dict,
-                )
-        except:
-            raise ValueError(f"Could not parse LLM output: {cleaned_output}")
+        except Exception as e:
+            logger.error(f"Parser error: {e}")
+            return AgentFinish(
+                return_values={
+                    "output": f"FINAL ANSWER: Error in processing - {str(e)}"
+                },
+                log=str(e),
+            )
+
+    def _clean_json_string(self, json_str: str) -> str:
+        """Minimal but reliable JSON cleaning"""
+        # Remove only markdown and basic formatting issues
+        json_str = re.sub(r"```(?:json)?(.*?)```", r"\1", json_str, flags=re.DOTALL)
+        json_str = json_str.replace("}}", "}").replace("{{", "{")
+        return json_str.strip()
 
 
 class SearchUtils:

@@ -9,6 +9,9 @@ from app.models.schema.connectors.folder import (
     FileMetadata,
     FolderCreate,
 )
+from app.models.database.users import User
+from app.models.schema.base import ConnectorType
+from app.models.schema.base.connector import ConnectorStatus
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +19,18 @@ logger = logging.getLogger(__name__)
 class FolderConnectorCRUD:
 
     @staticmethod
-    async def create_connector(connector_data: FolderCreate, user) -> FolderConnector:
+    async def create_connector(
+        connector_data: FolderCreate, user: User
+    ) -> FolderConnector:
         """Create a new folder connector"""
 
         existing_for_user = await FolderConnector.find_one(
-            {"user_id": str(user.id), "enabled": True}
+            {
+                "user_id": str(user.id),
+                "connector_type": ConnectorType.LOCAL_FOLDER,
+                "status": ConnectorStatus.ACTIVE,
+                "enabled": True,
+            }
         )
         if existing_for_user:
             raise HTTPException(
@@ -39,11 +49,11 @@ class FolderConnectorCRUD:
 
         connector = FolderConnector(
             name=connector_data.name,
-            description=connector_data.description,
+            # description=connector_data.description,
             connector_type=connector_data.connector_type,
-            path=connector_data.path,
+            # path=connector_data.path,
             user_id=str(user.id),
-            config=connector_data.config,
+            # config=connector_data.config,
             supported_extensions=connector_data.supported_extensions,
             enabled=True,
             files=[],

@@ -10,6 +10,8 @@ from app.services.connectors.folder.watcher import ExecutableBuilder
 from app.models.schema.connectors.folder import WatchEvent
 from app.models.schema.base.connector import FileStatus
 from app.core.security.auth import create_api_key
+from app.models.schema.connectors.folder import FolderCreate
+from app.models.database.users import User
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ class FolderConnectorService:
     async def list_connectors(self, user_id: str):
         return await self.crud.get_user_connectors(user_id)
 
-    async def create_connector(self, connector_data, current_user):
+    async def create_connector(self, connector_data: FolderCreate, current_user: User):
         try:
             # Create connector in database
             connector = await self.crud.create_connector(connector_data, current_user)
@@ -32,7 +34,9 @@ class FolderConnectorService:
             api_key = create_api_key(str(current_user.id))
             # Build executable
             executable_builder = ExecutableBuilder(connector, api_key)
-            executable_bytes, executable_name = await executable_builder.build()
+            executable_bytes, executable_name = await executable_builder.build(
+                platform=connector_data.platform_info.os
+            )
 
             return StreamingResponse(
                 io.BytesIO(executable_bytes),

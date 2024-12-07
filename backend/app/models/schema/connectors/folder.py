@@ -8,7 +8,7 @@ from app.models.schema.base import ConnectorBase, ConnectorMetadata, FileStatus
 
 
 class FileMetadata(ConnectorMetadata):
-    file_id: Optional[str]
+    file_id: Optional[str] = ""
 
 
 class WatchEvent(BaseModel):
@@ -19,8 +19,14 @@ class WatchEvent(BaseModel):
     timestamp: int
 
 
+class PlatformInfo(BaseModel):
+    arch: str
+    os: str
+
+
 class FolderCreate(ConnectorBase):
     config: Optional[dict] = None  # For connector-specific configuration
+    platform_info: PlatformInfo
 
 
 class FolderUpdate(BaseModel):

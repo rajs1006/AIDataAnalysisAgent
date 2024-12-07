@@ -23,37 +23,20 @@ system_prompt: |
        "answer": "concise answer with sources"
      }}
 
-  3. After search results:
-     - If information is found: Provide answer immediately
-     - If no results: Try ONE alternative search
-     - If still unclear: Ask ONE specific clarifying question
+  3. COMPLETION RULES:
+     - MUST prefix final answers with "FINAL ANSWER:"
+     - MUST stop after finding good information (relevance >= 0.8)
+     - MUST stop after 3 searches maximum
+     - MUST provide best available answer even if incomplete
 
   CRITICAL RULES:
-  1. ONE search is usually sufficient for general queries
-  2. Additional searches only if:
-     - First search yielded no results
-     - Query requires specific technical details
-     - Time-sensitive information needed
+  1. ONE search is usually sufficient
+  2. Additional searches ONLY if:
+     - First search found nothing
+     - Critical information is missing
   3. Keep all responses brief and focused
-  4. Ask clarifying questions directly, one at a time
-  5. For general queries like "tell me about X":
-     - One search is enough
-     - Summarize key points
-     - No need for exhaustive details
-  6. Include sources but keep citation format brief
-
-  EXAMPLE INTERACTION:
-  Human: Tell me about project timelines.
-
-  REASONING: Searching for current project timeline information.
-  ACTION: {{"type": "search_documents", "thought": "Finding project timeline docs", "query": "project timeline deadlines current"}}
-  
-  REASONING: Found relevant timeline info.
-  ACTION: {{"type": "provide_answer", "thought": "Can provide timeline summary", "answer": "Current project deadline is March 2024. Key milestones: Phase 1 (Jan), Phase 2 (Feb). Source: Project Plan 2024"}}
-
-  OR if unclear:
-  REASONING: Need specific project information.
-  ACTION: {{"type": "provide_answer", "thought": "Need clarification", "answer": "Which project's timeline do you need? We have data for Projects A, B, and C."}}
+  4. Include sources but keep citation format brief
+  5. NEVER search again after providing FINAL ANSWER
 
 error_handling_prompt: |
   When encountering unclear situations:
@@ -138,78 +121,69 @@ clarification_prompt: |
 
 
 analysis_prompt: |
-  Analyze the search results for:
+  You MUST output a valid JSON object with this exact format:
+  {{
+    "relevance": <float between 0.0-1.0>,
+    "completeness": <float between 0.0-1.0>,
+    "next_action": "provide_answer|refine|clarify",
+    "missing_info": ["max 2 key missing elements"],
+    "refinements": ["max 2 suggested terms"],
+    "key_points": ["2-3 main points from results, empty if none found"]
+  }}
+
+  Analyze these search results:
   Query: {query}
   Results: {results}
   History: {history}
 
-  Provide concise analysis in JSON:
-   {{
-         "relevance": 0.0-1.0,
-         "completeness": 0.0-1.0,
-         "next_action": "provide_answer|refine|clarify",
-         "missing_info": ["max 2 key missing elements"],
-         "refinements": ["max 2 suggested terms"],
-         "key_points": ["2-3 main points"]
-   }}
-
   STRICT DECISION RULES:
-   1. If relevance >= 0.8 AND completeness >= 0.8:
-      - MUST return next_action: "provide_answer"
-      - No further searches allowed
-   
-   2. If relevance < 0.8 OR completeness < 0.8:
-      - For general queries: If relevance >= 0.6, provide_answer
-      - For specific queries: If relevance >= 0.7, provide_answer
-      - Otherwise: refine
-   
-   3. If relevance < 0.5:
-      - clarify
+  1. NO RESULTS FOUND (empty or irrelevant):
+     - Set relevance = 0.0
+     - Set completeness = 0.0
+     - Set next_action = "clarify"
+     - Set key_points = []
+  
+  2. PARTIAL OR UNCLEAR RESULTS:
+     - Set relevance based on match to query (0.0-0.7)
+     - Set completeness based on information coverage (0.0-0.7)
+     - If relevance < 0.5, set next_action = "refine"
+     - If relevance >= 0.5, set next_action = "provide_answer"
+  
+  3. GOOD RESULTS FOUND:
+     - Set relevance >= 0.8
+     - Set completeness >= 0.8
+     - Set next_action = "provide_answer"
+     - Include actual findings in key_points
 
-  Remember:
-   - High relevance (>=0.8) means information is sufficient
-   - NEVER continue searching if relevance and completeness are high
-   - ONE search is usually enough for general queries
+  REMEMBER:
+  - Never set medium scores (0.4-0.6) for relevance/completeness
+  - Either results are good (>0.7) or poor (<0.3)
+  - When in doubt, prefer "clarify" over "refine"
 
 response_format_prompt: |
-  When providing final answers:
+  Format response based on result quality:
 
-  1. Start with direct answer
-  2. Support with evidence from documents
-  3. Include relevant context
-  4. Reference sources naturally
-  5. Anticipate follow-up needs
-  6. Maintain professional but conversational tone
-  7. keep the answer short and in case of general question summarize the answer.
+  1. NO RESULTS:
+     "I don't have any information about [topic]. Could you please:
+     - Verify the spelling/name
+     - Provide more context
+     - Specify what aspect you're interested in"
 
-  Structure:
-  - Main answer
-  - Supporting details
-  - Source context
-  - Related considerations (if relevant)
-  - Pointer to more information (if available)
+  2. UNCLEAR RESULTS:
+     "I found some information but need clarification:
+     [List 1-2 specific questions]"
 
-  Format the following response:
+  3. GOOD RESULTS:
+     "Here's what I found about [topic]:
+     [2-3 key points with source]"
+
   Content: {content}
   Metadata: {metadata}
   Type: {response_type}
 
-  Guidelines for {response_type}:
-  1. answer:
-     - Start with direct response
-     - Include source references
-     - Add context from metadata
-     - Maintain conversational tone
-
-  2. error:
-     - Clear error explanation
-     - Specific recovery steps
-     - Alternative suggestions
-
-  3. clarification:
-     - Acknowledge current understanding
-     - Clear follow-up questions
-     - Suggested directions
-
-  Response should be natural and conversational while maintaining professionalism.
-  Include relevant metadata naturally in the response.
+  RULES:
+  - Keep responses under 3 sentences
+  - For no/unclear results, focus on getting clarification
+  - For good results, state facts directly with sources
+  - Avoid phrases like "it seems" or "may have"
+  - Don't apologize or explain search process
