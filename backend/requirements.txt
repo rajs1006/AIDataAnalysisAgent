@@ -10,22 +10,27 @@ motor==3.3.2
 qdrant-client==1.7.0
 watchfiles==0.21.0
 python-dotenv==1.0.1
-pydantic==2.6.1
-pydantic-settings==2.1.0
+httpx==0.26.0
+pymongo==4.6.1
+pydantic==2.7.4
+pydantic-settings==2.4.0
+pyinstaller==6.11.1
+python-magic==0.4.27
 pytest==8.0.0
 pytest-asyncio==0.23.5
 httpx==0.26.0
 tenacity==8.2.3
 beanie==1.27.0
-pymongo==4.6.1
 
 transformers==4.38.2
 watchdog==4.0.0
 
 # OpenAI Integration
-openai==1.12.0
-langchain==0.1.9
-langchain-openai==0.0.5
+openai==1.55.3
+langchain==0.3.9
+langchain-openai==0.2.10
+langchain-community==0.3.8
+langgraph==0.2.53
 
 # Additional required dependencies for document processing
 pdfplumber==0.9.0

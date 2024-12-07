@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 class ActionType(str, Enum):
     SEARCH_RAG = "search_rag"
-    SEARCH_VECTOR = "search_vector"
     FETCH_DOC = "fetch_doc"
     FINAL_ANSWER = "final_answer"
     CLARIFY = "clarify"
@@ -89,6 +88,7 @@ CRITICAL:
             action = self._extract_json_from_action(response_content)
             action_type = action.get("type")
 
+            print("================= ", action_type)
             if action_type == ActionType.SEARCH_RAG:
                 self.required_rag_search = True
                 search_results = await rag_functions["search_rag"]["handler"](
@@ -171,6 +171,7 @@ CRITICAL:
                 )
 
                 response_content = response.choices[0].message.content
+                print("================= ", response_content)
                 result = await self._execute_step(
                     response_content, context, rag_functions, connector, user_id
                 )

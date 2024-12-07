@@ -1,14 +1,11 @@
 from datetime import datetime
 import logging
 from typing import Dict, Any, Optional, List
-import hashlib
 import uuid
-import numpy as np
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
     PointStruct,
-    SearchRequest,
     Distance,
     VectorParams,
     Filter,
@@ -16,7 +13,7 @@ from qdrant_client.http.models import (
 from qdrant_client.models import PointIdsList
 
 from app.core.vector import TextVectorizer
-from app.models.schema.vector import VectorMetadata, VectorDocument
+from app.models.schema.vector import VectorDocument
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +22,9 @@ class VectorStore:
     def __init__(self, qdrant_client: QdrantClient):
         self.client = qdrant_client
         self.vectorizer = TextVectorizer()
-        self.default_vector_size = 768  # Default size for all-mpnet-base-v2 model
-        self.id_mapping = {}  # Store mapping between original IDs and Qdrant IDs
+        self.default_vector_size = 768
+        self.id_mapping = {}
+        self.performance_metrics = {}
 
     def _create_point_id(self, original_id: str) -> str:
         """Create a valid Qdrant point ID from the original ID."""
@@ -59,58 +57,59 @@ class VectorStore:
             raise
 
     async def store_document(
-        self, collection_name: str, doc_id: str, content: str, metadata: Dict[str, Any]
-    ) -> bool:
-        """Store document with its embedding and metadata"""
+        self,
+        collection_name: str,
+        doc_id: str,
+        content: str,
+        metadata: Dict[str, Any],
+    ) -> List[str]:
         try:
-            # Create embeddings
-            embeddings = await self.vectorizer.create_embeddings(content)
-
-            # Ensure embeddings are in the correct format
-            if hasattr(embeddings, "tolist"):
-                vector = embeddings.tolist()
-            elif (
-                isinstance(embeddings, list)
-                and len(embeddings) > 0
-                and isinstance(embeddings[0], (list, np.ndarray))
-            ):
-                vector = embeddings[0]  # Take first vector if it's a list of vectors
-            else:
-                vector = embeddings
-
-            # Create a valid Qdrant point ID
-            point_id = self._create_point_id(str(doc_id))
-
-            # Include original ID in metadata
-            metadata["original_id"] = str(doc_id)
-
-            # Create point with proper structure
-            point = PointStruct(
-                id=point_id,
-                vector=vector,
-                payload={
-                    "metadata": metadata,
-                    "content_preview": content[:200],
-                    "indexed_at": int(datetime.utcnow().timestamp() * 1000),
-                    "original_id": str(doc_id),  # Store original ID in payload
-                },
+            texts_embeddings_metadata = await self.vectorizer.create_embeddings(
+                content, use_chunking=False, metadata=metadata
             )
 
-            # Ensure collection exists with proper vector size
-            self.ensure_collection(collection_name, len(vector))
+            points = []
+            point_ids = []
+            for i, (chunk, vector, metadata) in enumerate(texts_embeddings_metadata):
+                if hasattr(vector, "tolist"):
+                    vector = vector.tolist()
 
-            # Store the point
-            self.client.upsert(collection_name=collection_name, points=[point])
+                chunk_id = f"{doc_id}_chunk_{i}"
+                point_id = self._create_point_id(chunk_id)
 
-            logger.info(
-                f"Successfully stored document. Original ID: {doc_id}, Qdrant ID: {point_id}"
-            )
+                chunk_metadata = {
+                    **metadata,
+                    "original_id": str(doc_id),
+                    "vector_chunk_index": i,
+                    "vector_chunk_id": chunk_id,
+                }
 
-            return point_id
+                point = PointStruct(
+                    id=point_id,
+                    vector=vector,
+                    payload={
+                        "metadata": chunk_metadata,
+                        "content": chunk,
+                        "content_preview": content[i * 512 : (i + 1) * 512],
+                        "indexed_at": int(datetime.utcnow().timestamp() * 1000),
+                    },
+                )
+
+                points.append(point)
+                point_ids.append(point_id)
+
+            self.ensure_collection(collection_name)
+            self.client.upsert(collection_name=collection_name, points=points)
+            logger.info("Vector upserted")
+
+            return point_ids
 
         except Exception as e:
             logger.error(f"Failed to store document in vector database: {str(e)}")
-            logger.error(f"Original ID: {doc_id}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Failed to store document in vector database: {str(e)}")
             raise
 
     async def search_similar(
@@ -119,51 +118,46 @@ class VectorStore:
         query: str,
         limit: int = 5,
         metadata_filter: Optional[Dict[str, Any]] = None,
+        include_content: bool = False,
     ) -> List[VectorDocument]:
-        """Search for similar documents"""
         try:
-            # Create query vector
-            query_vector = await self.vectorizer.create_embeddings(query)
+            query_vector_metadata = await self.vectorizer.create_embeddings(query)
 
-            # Ensure query vector is in the right format
-            if hasattr(query_vector, "tolist"):
-                query_vector = query_vector.tolist()
-            elif (
-                isinstance(query_vector, list)
-                and len(query_vector) > 0
-                and isinstance(query_vector[0], (list, np.ndarray))
-            ):
-                query_vector = query_vector[0]
+            # if hasattr(query_vector_metadata, "tolist"):
+            #     query_vector_metadata = query_vector_metadata.tolist()
+            # elif isinstance(query_vector_metadata, list) and len(query_vector_metadata) > 0:
+            #     query_vector_metadata = query_vector_metadata[0]
 
-            metadata_filter_data = Filter(
-                must=[
-                    {"key": k, "match": {"value": v}}
-                    for k, v in metadata_filter.items()
-                ]
-            )
-
-            results = self.client.search(
-                collection_name=collection_name,
-                query_vector=query_vector,
-                # query_filter=metadata_filter_data,  # Optional filter
-                # top=limit,  # Retrieve top 5 results
-                limit=limit,
-                with_payload=True,
-            )
-
-            return [
-                VectorDocument(
-                    id=result.payload.get(
-                        "original_id", result.id
-                    ),  # Use original ID if available
-                    vector=result.vector,
-                    metadata=result.payload["metadata"],
-                    content_preview=result.payload["content_preview"],
-                    indexed_at=result.payload["indexed_at"],
-                    score=result.score,
+            # metadata_filter_data = Filter(
+            #     must=[
+            #         {"key": k, "match": {"value": v}}
+            #         for k, v in (metadata_filter or {}).items()
+            #     ]
+            # )
+            for _, (_, vector, _) in enumerate(query_vector_metadata):
+                logger.debug(f"answering user query : {query}")
+                results = self.client.search(
+                    collection_name=collection_name,
+                    query_vector=vector,
+                    # query_filter=metadata_filter_data if metadata_filter else None,
+                    limit=limit,
+                    with_payload=True,
                 )
-                for result in results
-            ]
+
+                return [
+                    VectorDocument(
+                        id=result.payload.get("original_id", result.id),
+                        vector=result.vector if include_content else None,
+                        metadata=result.payload["metadata"],
+                        content=(
+                            result.payload.get("content") if include_content else None
+                        ),
+                        content_preview=result.payload["content_preview"],
+                        indexed_at=result.payload["indexed_at"],
+                        score=result.score,
+                    )
+                    for result in results
+                ]
 
         except Exception as e:
             logger.error(f"Failed to search vector database: {str(e)}")

@@ -13,6 +13,7 @@ class BaseConfig(BaseSettings):
     DEBUG: bool = True
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
+    APP_URL: str = f"http://{APP_HOST}:{APP_PORT}"
     MONGODB_URL: str
     MONGODB_DB_NAME: str = "ai_data_agent"
     SECRET_KEY: str
