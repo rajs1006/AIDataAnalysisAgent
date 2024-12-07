@@ -32,7 +32,7 @@ class OneDriveCRUD:
         existing = await OneDriveConnector.find_one(
             {
                 "user_id": str(user_id),
-                "connector_type": ConnectorType.LOCAL_FOLDER,
+                "connector_type": ConnectorType.ONEDRIVE,
                 "status": ConnectorStatus.ACTIVE,
                 "enabled": True,
             }
@@ -40,7 +40,7 @@ class OneDriveCRUD:
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Connector with this name already exists",
+                detail=f"User can only have one active onedrive connector at a time",
             )
 
         connector = OneDriveConnector(

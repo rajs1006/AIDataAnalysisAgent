@@ -34,9 +34,9 @@ class UserCRUD:
     @staticmethod
     async def get_by_email(email: str) -> Optional[User]:
         """Get user by email"""
-        return await User.find_one({"email": email})
+        return await User.find_one({"email": email, "disabled": False})
 
     @staticmethod
     async def get_by_id(user_id: str) -> Optional[User]:
         """Get user by ID"""
-        return await User.find_one({"_id": ObjectId(user_id)})
+        return await User.find_one({"_id": ObjectId(user_id), "disabled": False})
