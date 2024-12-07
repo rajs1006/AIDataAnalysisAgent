@@ -2,6 +2,7 @@ from beanie import Document, Indexed, PydanticObjectId
 from pydantic import Field
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
+from app.models.schema.base.connector import ConnectorStatus
 
 
 class BaseConnector(Document):
@@ -17,7 +18,7 @@ class BaseConnector(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_sync: Optional[datetime] = None
-    status: str = "created"  # created, active, error, disabled
+    status: str = ConnectorStatus.ACTIVE  # created, active, error, disabled
     error_message: Optional[str] = None
 
     class Settings:

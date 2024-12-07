@@ -9,6 +9,7 @@ from ..base.connector import BaseConnector
 
 class FolderConnector(BaseConnector):
     connector_type: ConnectorType = ConnectorType.LOCAL_FOLDER
+    files: List[FileMetadata] = Field(default_factory=list)
 
     async def pre_save(self):
         self.updated_at = datetime.utcnow()

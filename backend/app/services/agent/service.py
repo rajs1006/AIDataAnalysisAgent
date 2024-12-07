@@ -1,7 +1,5 @@
 from typing import List, Optional, Dict, Any
 import logging
-from pydantic import BaseModel, Field
-from datetime import datetime
 from app.crud.agent import AgentCRUD
 from app.models.schema.agent import (
     QueryRequest,
@@ -12,7 +10,6 @@ from app.models.schema.agent import (
 )
 from app.services.store.vectorizer import VectorStore
 from app.agents.openai_agent import ReActAgent
-from app.models.database.connectors import BaseConnector
 
 logger = logging.getLogger(__name__)
 
@@ -94,18 +91,6 @@ class AgentService:
                         f"Active connector not found for connector_id: {result.metadata.connector_id}"
                     )
                     continue
-                # connector_metadata = next(
-                #     (
-                #         f
-                #         for f in connector.files
-                #         if f.doc_id == result.metadata.parent_doc_id
-                #     ),
-                #     None,
-                # )
-
-                # if not connector_metadata:
-                #     logger.error(f"File metadata not found for doc_id: {result.id}")
-                #     continue
 
                 # Create search context with full content
                 search_context = SearchContext(

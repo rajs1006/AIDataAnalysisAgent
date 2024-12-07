@@ -174,7 +174,7 @@ class ReActAgent:
         """Create the agent's prompt template"""
         return ChatPromptTemplate.from_messages(
             [
-                SystemMessage(content=self.prompt_manager.get_prompt("system_prompt")),
+                SystemMessage(content=self.prompt_manager.get_system_prompt()),
                 MessagesPlaceholder(variable_name="chat_history"),
                 HumanMessage(content="{input}"),
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
@@ -205,56 +205,62 @@ class ReActAgent:
         ]
 
     async def search_documents(self, query: str) -> str:
-        """Search documents with analysis and refinement"""
+        """Search documents with decisive completion"""
         try:
             self.state.search_count += 1
 
-            # Execute search with ReActTools
+            # Execute search
             search_result = await self.tools.search_documents(
                 query=query,
                 search_rag_func=self.rag_functions["search_rag"]["handler"],
                 user_id=self.user_id,
             )
 
-            # Analyze results using analysis prompt
+            # Analyze results
             analysis = await self.prompt_executor.execute_analysis_prompt(
                 query=query,
                 results=search_result["results"],
                 history=self.state.chat_history,
             )
 
-            # Store results in state
+            # Store results
             self.state.search_results.extend(search_result["results"])
 
-            # Handle next action based on analysis
+            # DECISIVE COMPLETION CHECK
+            if (
+                analysis["relevance_score"] >= 0.8
+                and analysis["completeness_score"] >= 0.7
+            ):
+                final_answer = await self.tools.format_final_answer(
+                    query=query, results=self.state.search_results, analysis=analysis
+                )
+                return f"FINAL ANSWER: {final_answer}"
+
+            # Handle other cases
             if analysis["next_action"] == "clarify":
                 clarification = await self.prompt_executor.execute_clarification_prompt(
                     query=query, missing_info=analysis["missing_info"]
                 )
-                return f"Need clarification: {clarification}"
+                return f"FINAL ANSWER: {clarification}"
 
-            elif analysis["next_action"] == "refine":
-                # Add refinement info to state
+            if analysis["next_action"] == "refine" and self.state.search_count < 2:
                 self.state.suggested_refinements = analysis["suggested_refinements"]
                 return (
-                    f"Results found but may need refinement.\n"
-                    f"Relevance: {analysis['relevance_score']:.2f}\n"
-                    f"Suggested refinements: {', '.join(analysis['suggested_refinements'])}"
+                    f"Results need refinement. Relevance: {analysis['relevance_score']:.2f}. "
+                    f"Trying: {', '.join(analysis['suggested_refinements'])}"
                 )
 
-            else:
-                return (
-                    f"Search completed successfully.\n"
-                    f"Relevance: {analysis['relevance_score']:.2f}\n"
-                    f"Completeness: {analysis['completeness_score']:.2f}\n"
-                    f"Found {len(search_result['results'])} relevant documents."
-                )
+            # Force completion if we've searched too much
+            final_attempt = await self.tools.format_final_answer(
+                query=query, results=self.state.search_results, analysis=analysis
+            )
+            return f"FINAL ANSWER: {final_attempt}"
 
         except Exception as e:
             error_message = await self.prompt_executor.execute_error_handling_prompt(
                 error=str(e), context=f"Query: {query}"
             )
-            return error_message
+            return f"FINAL ANSWER: {error_message}"
 
     async def provide_answer(self, answer: str) -> str:
         """Provide answer with result analysis"""
@@ -268,6 +274,7 @@ class ReActAgent:
                 results=self.state.search_results,
                 history=self.state.chat_history,
             )
+            print("---", analysis)
 
             if analysis["completeness_score"] < 0.8:
                 clarification = await self.prompt_executor.execute_clarification_prompt(
@@ -308,7 +315,7 @@ class ReActAgent:
         query_params: QueryRequest,
         rag_functions: Dict,
     ) -> str:
-        """Generate response with enhanced prompt handling"""
+        """Generate response with strict termination conditions"""
         try:
             # Reset state
             self.state = ReActState()
@@ -344,13 +351,13 @@ class ReActAgent:
                 agent=agent,
                 tools=tools,
                 verbose=True,
-                max_iterations=5,
+                max_iterations=3,  # Reduced from 5 to force quicker decisions
                 handle_parsing_errors=True,
-                early_stopping_method="force",  # Prevent premature stopping
+                early_stopping_method="force",
                 return_intermediate_steps=True,
-                # parser=ParserUtils(),
             )
 
+            # Execute with strict timeout
             result = await agent_executor.ainvoke(
                 {
                     "input": query_params.query,
@@ -359,16 +366,18 @@ class ReActAgent:
                 }
             )
 
-            if not result or not result.get("output"):
-                return await self._handle_empty_result(query_params.query)
+            # Handle response formatting
+            if "FINAL ANSWER:" in str(result.get("output", "")):
+                return str(result["output"]).split("FINAL ANSWER:", 1)[1].strip()
 
-            return await self._handle_response(result["output"], query_params.query)
+            # Format any other response type
+            return await self._format_final_response(
+                result.get("output", ""), query_params.query
+            )
 
         except Exception as e:
-            error_message = await self.prompt_executor.execute_error_handling_prompt(
-                error=str(e), context=f"Processing query: {query_params.query}"
-            )
-            await self._handle_error(error_message, query_params.query)
+            logger.error(f"Agent execution error: {str(e)}")
+            return await self._handle_error(str(e), query_params.query)
 
     async def _handle_empty_result(self, query: str) -> str:
         """Handle empty results with clarification"""
@@ -409,6 +418,40 @@ class ReActAgent:
         return await self.prompt_executor.format_response(
             content=str(result), metadata=metadata, response_type="success"
         )
+    
+    async def _format_final_response(self, result: str, query: str) -> str:
+        """Format the final response ensuring consistent output"""
+        try:
+            # If we already have a final answer, pass it through
+            if "FINAL ANSWER:" in result:
+                return result.split("FINAL ANSWER:", 1)[1].strip()
+            
+            # Prepare metadata for formatting
+            metadata = {
+                "query": query,
+                "search_count": self.state.search_count,
+                "has_results": bool(self.state.search_results),
+                "sources": [r.get("source", "") for r in self.state.search_results],
+                "key_points": self.state.search_results[0].get("key_points", []) if self.state.search_results else []
+            }
+            
+            # Use the prompt executor to format the response
+            formatted_response = await self.prompt_executor.format_response(
+                content=result,
+                metadata=metadata,
+                response_type="answer" if self.state.search_results else "clarification"
+            )
+            
+            return formatted_response
+
+        except Exception as e:
+            logger.error(f"Response formatting error: {str(e)}")
+            # Ensure we always return something sensible
+            if self.state.search_results:
+                return f"Here's what I found about {query}: " + \
+                    " ".join([r.get("content", "")[:200] + "..." for r in self.state.search_results[:2]])
+            else:
+                return f"I couldn't find specific information about {query}. Could you rephrase your question?"
 
 
 def format_chat_history(history: List[Dict[str, Any]]) -> List[Dict[str, str]]:

@@ -11,6 +11,7 @@ from app.models.schema.connectors import FolderCreate
 from app.models.database.connectors import FolderConnector
 from app.services.store.vectorizer.qdrant import VectorStore
 from app.crud.folder import FolderConnectorCRUD
+# from app.models.request.folder import FolderCreate
 import logging
 
 logger = logging.getLogger(__name__)

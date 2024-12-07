@@ -41,10 +41,10 @@ class ConnectorBase(BaseModel):
     credentials: Optional[dict] = None  # For storing service account keys, etc.
     enabled: bool = True
     user_id: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_sync: Optional[datetime] = None
-    status: str
+    status: ConnectorStatus = ConnectorStatus.ACTIVE
     error_message: Optional[str] = None
     supported_extensions: List[str] = [".pdf", ".doc", ".docx", ".txt"]
 

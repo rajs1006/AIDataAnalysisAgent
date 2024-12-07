@@ -10,6 +10,8 @@ from app.models.schema.connectors.onedrive import (
     OneDriveFileMetadata,
 )
 from app.models.schema.base.connector import FileStatus
+from app.models.schema.base import ConnectorType
+from app.models.schema.base.connector import ConnectorStatus
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,12 @@ class OneDriveCRUD:
     ) -> OneDriveConnector:
         """Create a new OneDrive connector"""
         existing = await OneDriveConnector.find_one(
-            {"user_id": str(user_id), "name": connector_data.name, "enabled": True}
+            {
+                "user_id": str(user_id),
+                "connector_type": ConnectorType.LOCAL_FOLDER,
+                "status": ConnectorStatus.ACTIVE,
+                "enabled": True,
+            }
         )
         if existing:
             raise HTTPException(
