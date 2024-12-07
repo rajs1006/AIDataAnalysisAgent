@@ -42,7 +42,7 @@ class AuthService:
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="No account found with this email",
+                detail="No active account found with this email",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
