@@ -12,18 +12,9 @@ from app.models.schema.agent import (
 )
 from app.services.store.vectorizer import VectorStore
 from app.agents.openai_agent import ReActAgent
-from app.models.database.connectors import FolderConnector
+from app.models.database.connectors import BaseConnector
 
 logger = logging.getLogger(__name__)
-
-
-class SearchResult(BaseModel):
-    content: str
-    metadata: Dict[str, Any]
-    score: float
-    doc_id: str
-    connector_id: str
-    connector_name: str
 
 
 class AgentService:
@@ -56,12 +47,8 @@ class AgentService:
         try:
             context: List[SearchContext] = []
 
-            ## TODO: In future this has to be list
-            connectors = await self.crud.get_user_connectors(user_id=user_id)
-
             # Generate response using ReAct agent
             answer = await self.agent.generate_response(
-                connector=connectors[0],
                 user_id=user_id,
                 context=context,
                 query_params=query_request,
@@ -78,7 +65,6 @@ class AgentService:
 
     async def search_rag(
         self,
-        connector: FolderConnector,
         user_id: str,
         query: str,
         limit: int = 5,
@@ -87,37 +73,46 @@ class AgentService:
         try:
             # Get vector search results
             vector_results = await self.vector_store.search_similar(
-                collection_name=str(connector.id),
+                collection_name=str(user_id),
                 query=query,
                 limit=limit,
                 metadata_filter={"payload.metadata.user_id": user_id},
                 include_content=True,
             )
 
+            ## TODO: In future this has to be list
             search_contexts = []
             for result in vector_results:
                 if result.score < min_score:
                     continue
 
-                file_metadata = next(
-                    (
-                        f
-                        for f in connector.files
-                        if f.doc_id == result.metadata.parent_doc_id
-                    ),
-                    None,
+                connector = await self.crud.get_connector(
+                    connector_id=result.metadata.connector_id, user_id=user_id
                 )
-
-                if not file_metadata:
-                    logger.error(f"File metadata not found for doc_id: {result.id}")
+                if not connector:
+                    logger.error(
+                        f"Active connector not found for connector_id: {result.metadata.connector_id}"
+                    )
                     continue
+                # connector_metadata = next(
+                #     (
+                #         f
+                #         for f in connector.files
+                #         if f.doc_id == result.metadata.parent_doc_id
+                #     ),
+                #     None,
+                # )
+
+                # if not connector_metadata:
+                #     logger.error(f"File metadata not found for doc_id: {result.id}")
+                #     continue
 
                 # Create search context with full content
                 search_context = SearchContext(
                     content=result.content,
                     metadata={
                         **result.metadata.dict(),
-                        **file_metadata.dict(),
+                        # **connector_metadata.dict(),
                         "connector_name": connector.name,
                         "connector_id": str(connector.id),
                         "doc_id": result.id,

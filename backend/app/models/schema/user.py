@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
+<<<<<<< HEAD
 from bson import ObjectId
 
 
@@ -15,6 +16,10 @@ class PyObjectId(str):
         if isinstance(v, ObjectId):
             return str(v)
         return v
+=======
+from .base import PyObjectId
+from .connectors.onedrive import OneDriveAuth
+>>>>>>> b338421 (one drive connection is done)
 
 
 class UserBase(BaseModel):

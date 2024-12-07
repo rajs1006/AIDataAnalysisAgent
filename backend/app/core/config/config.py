@@ -21,6 +21,11 @@ class BaseConfig(BaseSettings):
     ALGORITHM: str = "HS256"
     QDRANT_URL: str
 
+    ONEDRIVE_CLIENT_ID: str
+    ONEDRIVE_CLIENT_SECRET: str
+    MICROSOFT_TENANT_ID: str
+    ONEDRIVE_REDIRECT_URI: str
+
     class Config:
         case_sensitive = True
         env_file = ".env"

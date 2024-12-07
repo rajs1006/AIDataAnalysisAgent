@@ -118,7 +118,7 @@ class VectorStore:
         query: str,
         limit: int = 5,
         metadata_filter: Optional[Dict[str, Any]] = None,
-        include_content: bool = False,
+        include_content: bool = True,
     ) -> List[VectorDocument]:
         try:
             query_vector_metadata = await self.vectorizer.create_embeddings(query)
@@ -143,7 +143,7 @@ class VectorStore:
                     limit=limit,
                     with_payload=True,
                 )
-
+                print(results[0])
                 return [
                     VectorDocument(
                         id=result.payload.get("original_id", result.id),

@@ -56,15 +56,6 @@ class TextVectorizer(BaseVectorizer):
                     else [None]
                 )
 
-            # if not collection_name:
-            #     return embeddings
-
-            # if hasattr(self, "vector_store"):
-            #     await self.vector_store.store_vectors(
-            #         collection_name=collection_name,
-            #         vectors=embeddings,
-            #         metadata=chunk_metadata or metadata,
-            #     )
             return zip(texts, embeddings, chunk_metadata)
 
         except Exception as e:

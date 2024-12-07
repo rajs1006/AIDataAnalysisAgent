@@ -3,8 +3,8 @@
 from typing import List
 import logging
 from qdrant_client.http.models import Filter
-
-from app.models.database.connectors.folder import FolderConnector
+from beanie import PydanticObjectId
+from app.models.database.connectors.folder import BaseConnector
 from app.models.schema.agent import SearchContext
 from app.services.store.vectorizer.qdrant import VectorStore
 
@@ -15,14 +15,15 @@ class AgentCRUD:
     # def __init__(self, vector_store: VectorStore):
     #     self.vector_store = vector_store
 
-    async def get_user_connectors(self, user_id: str) -> List[FolderConnector]:
+    async def get_connector(self, connector_id: str, user_id: str) -> BaseConnector:
         """Get all connectors for a user"""
-        return await FolderConnector.find(
+        return await BaseConnector.find_one(
             {
-                "user_id": user_id,
+                "_id": PydanticObjectId(connector_id),
+                "user_id": str(user_id),
                 "enabled": True,
             }
-        ).to_list()
+        )
 
     async def search_connector_context(
         self, connector_id: str, query: str, user_id: str, limit: int = 5

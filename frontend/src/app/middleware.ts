@@ -1,29 +1,50 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// Define public paths that don't require authentication
+const publicPaths = ["/auth", "/login", "/register", "/api/auth"];
+
 export function middleware(request: NextRequest) {
-  // Check for auth token in cookies or headers
-  const token =
-    request.cookies.get("token")?.value || request.headers.get("authorization");
-  const isAuthPage = request.nextUrl.pathname.startsWith("/auth");
+  const { pathname } = request.nextUrl;
 
-  if (!token && !isAuthPage) {
-    return NextResponse.redirect(new URL("/auth", request.url));
+  // Allow public assets and API routes
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/") ||
+    pathname.includes(".")
+  ) {
+    return NextResponse.next();
   }
 
-  if (token && isAuthPage) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  // Get token from cookie
+  const token = request.cookies.get("token")?.value;
+  const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
+
+  // Redirect unauthenticated users to auth page
+  if (!token && !isPublicPath) {
+    const url = new URL("/auth", request.url);
+    return NextResponse.redirect(url);
   }
 
-  const response = NextResponse.next();
+  // Redirect authenticated users away from auth pages
+  if (token && isPublicPath) {
+    const url = new URL("/dashboard", request.url);
+    return NextResponse.redirect(url);
+  }
 
-  // Add security headers
-  response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-Content-Type-Options", "nosniff");
-
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * 1. /_next (Next.js internals)
+     * 2. /api (API routes)
+     * 3. /static (static files)
+     * 4. /_vercel (Vercel internals)
+     * 5. All files within /public
+     */
+    "/((?!_next|api|static|_vercel|[\\w-]+\\.\\w+).*)",
+  ],
 };

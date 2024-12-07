@@ -15,8 +15,11 @@ logger = logging.getLogger(__name__)
 class ParserUtils(OpenAIFunctionsAgentOutputParser):
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
         """Parse text into agent action/finish"""
-        print("-----===================== ", text)
-        cleaned_output = text.strip()
+
+        if hasattr(text, "content"):
+            cleaned_output = text.content.strip()
+        else:
+            cleaned_output = text.strip()
 
         # Check for action block
         if "ACTION:" in cleaned_output:
@@ -25,8 +28,8 @@ class ParserUtils(OpenAIFunctionsAgentOutputParser):
                 action_part = cleaned_output.split("ACTION:", 1)[1].strip()
 
                 # Clean up common formatting issues
-                action_part = action_part.replace("}", "}}")
-                action_part = action_part.replace("{", "{{")
+                action_part = action_part.replace("}}", "}")
+                action_part = action_part.replace("{{", "{")
 
                 # Parse the JSON
                 action_dict = json.loads(action_part)
@@ -36,7 +39,7 @@ class ParserUtils(OpenAIFunctionsAgentOutputParser):
                     tool=action_dict["type"],
                     tool_input=action_dict.get("query", action_dict.get("answer", "")),
                     log=cleaned_output,
-                    raw_action=action_dict  # Store the raw action
+                    raw_action=action_dict,  # Store the raw action
                 )
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse action: {e}")
@@ -45,7 +48,9 @@ class ParserUtils(OpenAIFunctionsAgentOutputParser):
         # Check for final answer
         if "FINAL ANSWER:" in cleaned_output:
             return AgentFinish(
-                return_values={"output": cleaned_output.split("FINAL ANSWER:")[-1].strip()},
+                return_values={
+                    "output": cleaned_output.split("FINAL ANSWER:")[-1].strip()
+                },
                 log=cleaned_output,
             )
 
@@ -57,12 +62,10 @@ class ParserUtils(OpenAIFunctionsAgentOutputParser):
                     tool=action_dict["type"],
                     tool_input=action_dict.get("query", action_dict.get("answer", "")),
                     log=cleaned_output,
-                    raw_action=action_dict
+                    raw_action=action_dict,
                 )
         except:
-            pass
-
-        raise ValueError(f"Could not parse LLM output: {cleaned_output}")
+            raise ValueError(f"Could not parse LLM output: {cleaned_output}")
 
 
 class SearchUtils:
@@ -157,7 +160,6 @@ class ReActTools:
         self,
         query: str,
         search_rag_func: Any,
-        connector: Any,
         user_id: str,
         limit: int = 5,
     ) -> Dict[str, Any]:
@@ -180,7 +182,7 @@ class ReActTools:
 
             for variation in query_variations:
                 results = await search_rag_func(
-                    connector=connector, user_id=user_id, query=variation, limit=limit
+                    user_id=user_id, query=variation, limit=limit
                 )
 
                 for result in results:

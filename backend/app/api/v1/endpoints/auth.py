@@ -11,6 +11,10 @@ from app.core.security.auth import (
 )
 from app.models.schema.user import UserCreate, UserResponse, Token, RegistrationResponse
 from app.models.database.users import User
+from app.core.dependencies import get_user_crud
+from app.models.schema.connectors.onedrive import (
+    OAuthCallbackRequest,
+)
 
 router = APIRouter()
 
@@ -85,3 +89,30 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/refresh", response_model=TokenValidationResponse)
+async def validate_token(
+    current_user: User = Depends(get_current_user_api),
+    user_crud: UserCRUD = Depends(get_user_crud),
+):
+    auth_service = AuthService(user_crud)
+    return await auth_service.validate_token(current_user)
+
+
+@router.post("/oauth/callback")
+async def oauth_callback(
+    callback_data: OAuthCallbackRequest,
+    current_user: User = Depends(get_current_user),
+    user_crud: UserCRUD = Depends(get_user_crud),
+):
+    """Handle OAuth callback from Microsoft"""
+    try:
+        auth_service = AuthService(user_crud)
+        return await auth_service.handle_oauth_callback(current_user, callback_data)
+    except Exception as e:
+        # logger.error(f"OAuth callback failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"OAuth callback failed: {str(e)}",
+        )

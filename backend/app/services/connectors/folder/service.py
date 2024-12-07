@@ -7,7 +7,8 @@ from fastapi.responses import StreamingResponse
 from app.services.store.vectorizer import VectorStore
 from app.crud.folder import FolderConnectorCRUD
 from app.services.connectors.folder.watcher import ExecutableBuilder
-from app.models.schema.connectors.folder import WatchEvent, FileStatus
+from app.models.schema.connectors.folder import WatchEvent
+from app.models.schema.base.connector import FileStatus
 from app.core.security.auth import create_api_key
 
 logger = logging.getLogger(__name__)
@@ -105,7 +106,7 @@ class FolderConnectorService:
             doc_id = f"{connector.id}_{event.metadata.content_hash}"
             if event.content:
                 point_ids = await self.vector_store.store_document(
-                    collection_name=str(connector.id),
+                    collection_name=str(connector.user_id),
                     doc_id=doc_id,
                     content=event.content,
                     metadata={

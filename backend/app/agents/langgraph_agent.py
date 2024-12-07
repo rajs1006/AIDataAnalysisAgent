@@ -22,7 +22,6 @@ from app.models.schema.agent import (
     AnalysisResult,
     SearchResult,
 )
-from app.models.database.connectors import FolderConnector
 from app.prompts.prompt_manager import PromptManager
 from app.utils.agent.tools import ReActTools, ParserUtils
 from app.utils.asynctools import sync_wrapper
@@ -110,9 +109,6 @@ class PromptExecutor:
     ) -> Dict[str, Any]:
         """Execute error handling prompt for sophisticated error responses"""
         try:
-            print(
-                "------------- ================ execute_error_handling_prompt ",
-            )
             prompt = self.prompt_manager.get_prompt("error_handling_prompt").format(
                 error=error,
                 context=context,
@@ -146,11 +142,6 @@ class PromptExecutor:
     ) -> str:
         """Format various types of responses consistently"""
         try:
-            print(
-                "------------- ================ format_response ",
-                content,
-                response_type,
-            )
             format_prompt = self.prompt_manager.get_prompt(
                 "response_format_prompt"
             ).format(
@@ -172,23 +163,12 @@ class ReActAgent:
 
     def __init__(self):
         self.llm = ChatOpenAI(
-            api_key=settings.OPENAI_API_KEY, model="gpt-4", temperature=0.7
+            api_key=settings.OPENAI_API_KEY, model="gpt-4o-mini", temperature=0.7
         )
         self.prompt_manager = PromptManager()
         self.prompt_executor = PromptExecutor(self.prompt_manager, self.llm)
         self.tools = ReActTools(self.prompt_executor)
         self.state = ReActState()
-
-    # def _create_agent_prompt(self) -> ChatPromptTemplate:
-    #     """Create the agent's prompt template"""
-    #     return ChatPromptTemplate.from_messages(
-    #         [
-    #             ("system", self.prompt_manager.get_prompt("system_prompt")),
-    #             MessagesPlaceholder(variable_name="chat_history"),
-    #             ("human", "{input}"),
-    #             MessagesPlaceholder(variable_name="agent_scratchpad"),
-    #         ]
-    #     )
 
     def _create_agent_prompt(self) -> ChatPromptTemplate:
         """Create the agent's prompt template"""
@@ -201,12 +181,9 @@ class ReActAgent:
             ]
         )
 
-    async def create_tools(
-        self, rag_functions: Dict, connector: FolderConnector, user_id: str
-    ) -> List[BaseTool]:
+    async def create_tools(self, rag_functions: Dict, user_id: str) -> List[BaseTool]:
         """Create agent tools with enhanced prompt handling"""
 
-        self.connector = connector
         self.user_id = user_id
         self.rag_functions = rag_functions
 
@@ -215,14 +192,14 @@ class ReActAgent:
                 name="search_documents",
                 description="Search through documents using RAG with enhanced analysis, provide the query as input",
                 func=sync_wrapper(self.search_documents),
-                # coroutine=self.search_documents,
+                coroutine=self.search_documents,
                 return_direct=False,
             ),
             Tool(
                 name="provide_answer",
                 description="Provide final answer with completeness check, sources and key point",
                 func=sync_wrapper(self.provide_answer),
-                # coroutine=self.provide_answer,
+                coroutine=self.provide_answer,
                 return_direct=True,
             ),
         ]
@@ -236,7 +213,6 @@ class ReActAgent:
             search_result = await self.tools.search_documents(
                 query=query,
                 search_rag_func=self.rag_functions["search_rag"]["handler"],
-                connector=self.connector,
                 user_id=self.user_id,
             )
 
@@ -327,7 +303,6 @@ class ReActAgent:
 
     async def generate_response(
         self,
-        connector: FolderConnector,
         user_id: str,
         context: List[SearchContext],
         query_params: QueryRequest,
@@ -349,14 +324,20 @@ class ReActAgent:
             )
 
             # Create tools and prompt
-            tools = await self.create_tools(rag_functions, connector, user_id)
+            tools = await self.create_tools(rag_functions, user_id)
             prompt = self._create_agent_prompt()
 
-            # Create and execute agent
-            agent = create_openai_functions_agent(
-                llm=self.llm,
-                prompt=prompt,
-                tools=tools,
+            agent = (
+                {
+                    "input": lambda x: x["input"],
+                    "chat_history": lambda x: format_chat_history(x["chat_history"]),
+                    "agent_scratchpad": lambda x: format_to_openai_function_messages(
+                        x["agent_scratchpad"]
+                    ),
+                }
+                | prompt
+                | self.llm
+                | ParserUtils().parse
             )
 
             agent_executor = AgentExecutor(
@@ -365,9 +346,9 @@ class ReActAgent:
                 verbose=True,
                 max_iterations=5,
                 handle_parsing_errors=True,
-                early_stopping_method="generate",  # Prevent premature stopping
+                early_stopping_method="force",  # Prevent premature stopping
                 return_intermediate_steps=True,
-                parser=ParserUtils(),
+                # parser=ParserUtils(),
             )
 
             result = await agent_executor.ainvoke(

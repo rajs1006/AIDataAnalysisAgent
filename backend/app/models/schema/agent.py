@@ -25,8 +25,8 @@ class Source(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    answer: str
-    sources: List[Source]
+    answer: Optional[str]
+    sources: Optional[List[Source]]
 
 
 class SearchContext(BaseModel):
