@@ -1,3 +1,6 @@
+# Existing dependencies
+chardet==3.0.4
+email-validator==2.1.0
 fastapi==0.109.2
 uvicorn==0.27.1
 python-multipart==0.0.9
@@ -7,7 +10,6 @@ motor==3.3.2
 qdrant-client==1.7.0
 watchfiles==0.21.0
 python-dotenv==1.0.1
-openai==1.12.0
 pydantic==2.6.1
 pydantic-settings==2.1.0
 pytest==8.0.0
@@ -15,5 +17,30 @@ pytest-asyncio==0.23.5
 httpx==0.26.0
 tenacity==8.2.3
 beanie==1.27.0
-email-validator==2.1.0
 pymongo==4.6.1
+
+transformers==4.38.2
+watchdog==4.0.0
+
+# OpenAI Integration
+openai==1.12.0
+langchain==0.1.9
+langchain-openai==0.0.5
+
+# Additional required dependencies for document processing
+pdfplumber==0.9.0
+python-docx==1.1.0
+pytesseract==0.3.10
+Pillow==10.2.0
+
+
+# Dependencies for tkinter GUI
+tk==0.1.0
+
+# Optional but recommended for better error handling
+typing-extensions>=4.5.0
+requests>=2.31.0
+
+# Additional utilities
+# mimetype>=0.1.5
+# logging>=0.5.1.2
