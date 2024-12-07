@@ -7,6 +7,8 @@ __pycache__/
 =======
 **/.history
 
+
+**.log**
 shared_huggingface_cache/**
 .env**
 >>>>>>> a1c35f5 (working watcher builder)
