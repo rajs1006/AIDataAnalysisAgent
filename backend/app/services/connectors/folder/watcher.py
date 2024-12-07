@@ -35,7 +35,7 @@ class ExecutableBuilder:
 
     def _create_env_file(self, temp_dir: Path) -> None:
         """Create and save .env file in the temp directory"""
-        env_content = f"""SERVER_URL=http://localhost:8000
+        env_content = f"""SERVER_URL={str(settings.APP_URL)}
 CONNECTOR_ID={str(self.connector.id)}
 AUTH_TOKEN={str(self.api_key)}
 PORT={str(settings.WATCHER_PORT)}

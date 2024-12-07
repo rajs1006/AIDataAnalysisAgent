@@ -33,8 +33,9 @@ class FileMetadata(BaseModel):
     status: FileStatus = FileStatus.ACTIVE
     doc_id: Optional[str] = None
     last_indexed: Optional[datetime] = None
-    vector_id: Optional[str] = None
+    vector_ids: Optional[list] = None
     error_message: Optional[str] = None
+    total_chunks: Optional[int] = None
 
     class Config:
         use_enum_values = True

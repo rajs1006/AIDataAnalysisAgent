@@ -9,7 +9,6 @@ from app.models.schema.agent import (
     Source,
     SearchContext,
     SearchParameters,
-    DocumentParameters,
 )
 from app.services.store.vectorizer import VectorStore
 from app.agents.openai_agent import ReActAgent
@@ -92,6 +91,7 @@ class AgentService:
                 query=query,
                 limit=limit,
                 metadata_filter={"payload.metadata.user_id": user_id},
+                include_content=True,
             )
 
             search_contexts = []
@@ -100,7 +100,12 @@ class AgentService:
                     continue
 
                 file_metadata = next(
-                    (f for f in connector.files if f.doc_id == result.id), None
+                    (
+                        f
+                        for f in connector.files
+                        if f.doc_id == result.metadata.parent_doc_id
+                    ),
+                    None,
                 )
 
                 if not file_metadata:
@@ -109,13 +114,13 @@ class AgentService:
 
                 # Create search context with full content
                 search_context = SearchContext(
-                    content=file_metadata.content,
+                    content=result.content,
                     metadata={
-                        **result.metadata.__dict__,
+                        **result.metadata.dict(),
+                        **file_metadata.dict(),
                         "connector_name": connector.name,
                         "connector_id": str(connector.id),
                         "doc_id": result.id,
-                        "file_path": result.metadata.file_path,
                     },
                     score=result.score,
                 )
