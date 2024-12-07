@@ -25,7 +25,7 @@ class ExecutableBuilder:
     def _create_build_paths(self) -> BuildPaths:
         """Create and return all necessary build paths"""
         temp_dir = Path(tempfile.mkdtemp())
-        print("-----------------  ", temp_dir)
+
         return BuildPaths(
             temp_dir=temp_dir,
             build_dir=temp_dir / "build",
@@ -45,7 +45,6 @@ PORT={str(settings.WATCHER_PORT)}
         try:
             with open(env_path, "w") as f:
                 f.write(env_content)
-            print(f"Created .env file at: {env_path}")
         except Exception as e:
             logger.error(f"Failed to write .env file: {str(e)}")
             raise
@@ -90,17 +89,9 @@ PORT={str(settings.WATCHER_PORT)}
         """Build the executable using spec file and return its contents and name"""
         paths = None
         try:
-
-            # Verify dependencies first
-            # await self._verify_dependencies()
-
             # Create build paths
             paths = self._create_build_paths()
 
-            # Create and save environment file
-            # env_content = self._create_env_content()
-            # paths.env_path.write_text(env_content)
-            # print(paths.env_path.read_text())
             self._create_env_file(paths.temp_dir)
             # Generate executable name
             executable_name = self._get_executable_name(platform)
