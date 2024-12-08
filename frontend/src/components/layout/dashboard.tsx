@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/lib/store/store";
@@ -16,8 +16,12 @@ import {
   Settings,
   HardDrive,
   ChevronLeft,
-  LineChart,
-  TableIcon,
+  AlertCircle,
+  Trash2,
+  Download,
+  RefreshCw,
+  Database,
+  Cloud,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -35,10 +39,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
 import { ChatPanel } from "../chat/chat-panel";
 import { ProfileSettings } from "@/components/shared/profile-settings";
-
 import { Label } from "@/components/ui/label";
 import { OneDriveConnectorForm } from "../onedrive/connector-form";
 import { CreateConnectorDto } from "@/lib/types/connectors";
@@ -58,13 +63,11 @@ export function DashboardLayout() {
     useState<ConnectorType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showChat, setShowChat] = useState(false);
-  // const { user, logout } = useAuthStore();
   const [profileOpen, setProfileOpen] = useState(false);
 
   const router = useRouter();
   const user = useAppSelector((state) => state.auth.user);
   const dispatch = useAppDispatch();
-
   const { toast } = useToast();
 
   useEffect(() => {
@@ -306,31 +309,31 @@ export function DashboardLayout() {
         {isExpanded && (
           <motion.div
             initial={{ width: "100%" }}
-            animate={{ width: isExpanded ? "100%" : "0" }} // Initially full page width, collapse to hide completely // Initially full page width
+            animate={{ width: "50%" }}
             exit={{ width: 0 }}
             className="border-r border-[var(--accent-color)] bg-[var(--background)]"
           >
             <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between p-4 border-b border-[var(--accent-color)]">
-                <h2 className="text-xl font-semibold text-[var(--text-dark)]">
-                  Data Connectors
-                </h2>
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-xl font-semibold">Data Connectors</h2>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => {
-                    setIsExpanded(!isExpanded);
-                    setShowChat(!showChat);
-                  }}
+                  onClick={() => setIsExpanded(false)}
                 >
-                  <ChevronLeft className="h-5 w-5 text-[var(--text-dark)]" />
+                  <ChevronLeft className="h-5 w-5" />
                 </Button>
               </div>
 
-              <div className="p-4 space-y-4">
-                <Button
-                  onClick={() => handleConnectorAdd("folder")}
-                  className="w-full justify-start gap-2"
+              <Tabs defaultValue="active" className="flex-1">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="active">Active</TabsTrigger>
+                  <TabsTrigger value="create">Create New</TabsTrigger>
+                </TabsList>
+
+                <TabsContent
+                  value="active"
+                  className="p-4 flex-1 overflow-auto"
                 >
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-medium">Active Connectors</h3>
@@ -345,48 +348,34 @@ export function DashboardLayout() {
                     ))}
                 </TabsContent>
 
-              <div className="flex-1 overflow-auto p-4">
-                {connectors.map((connector) => (
-                  <div
-                    key={connector.id}
-                    className="flex items-center justify-between p-3 mb-2 rounded-lg bg-[var(--input-bg)]"
-                  >
-                    <div className="flex items-center gap-2">
-                      {connector.type === "folder" ? (
-                        <FolderUp className="h-5 w-5 text-[var(--foreground)]" />
-                      ) : (
-                        <HardDrive className="h-5 w-5 text-[var(--foreground)]" />
-                      )}
-                      <span className="text-[var(--text-dark)]">
-                        {connector.name}
-                      </span>
+                <TabsContent value="create" className="p-4">
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Add New Connector</h3>
+                    <div className="grid gap-4">
+                      {Object.values(ConnectorType).map((type) => {
+                        const Icon = CONNECTOR_ICONS[type];
+                        return (
+                          <Button
+                            key={type}
+                            variant="outline"
+                            className="justify-start"
+                            onClick={() => handleConnectorAdd(type)}
+                          >
+                            <Icon className="h-5 w-5 mr-2" />
+                            Add{" "}
+                            {type
+                              .split("_")
+                              .map(
+                                (w) => w.charAt(0).toUpperCase() + w.slice(1)
+                              )
+                              .join(" ")}
+                          </Button>
+                        );
+                      })}
                     </div>
-                    <span
-                      className={`text-sm ${
-                        connector.status === "connected"
-                          ? "text-[var(--secondary-color)]"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {connector.status}
-                    </span>
                   </div>
-                ))}
-              </div>
-
-              {/* {connectors.length > 0 && !showChat && (
-                <div className="p-4 border-t border-[var(--accent-color)]">
-                  <Button
-                    onClick={() => {
-                      setIsExpanded(false);
-                      setShowChat(true);
-                    }} // Collapse panel and show chat
-                    className="w-full bg-[var(--primary-color)]"
-                  >
-                    Analyze Data
-                  </Button>
-                </div>
-              )} */}
+                </TabsContent>
+              </Tabs>
             </div>
           </motion.div>
         )}
@@ -449,9 +438,11 @@ export function DashboardLayout() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {activeConnector === "folder"
-                ? "Add Folder Connection"
-                : "Connect Google Drive"}
+              Add{" "}
+              {activeConnectorType
+                ?.split("_")
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(" ")}
             </DialogTitle>
           </DialogHeader>
           <form
@@ -469,6 +460,8 @@ export function DashboardLayout() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ProfileSettings open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }

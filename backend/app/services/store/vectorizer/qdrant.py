@@ -12,7 +12,7 @@ from qdrant_client.http.models import (
 )
 from qdrant_client.models import PointIdsList
 
-from app.core.vector import TextVectorizer
+from app.core.vector.text import TextVectorizer
 from app.models.schema.vector import VectorDocument
 
 logger = logging.getLogger(__name__)

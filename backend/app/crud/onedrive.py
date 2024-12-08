@@ -10,7 +10,7 @@ from app.models.schema.connectors.onedrive import (
     OneDriveFileMetadata,
 )
 from app.models.schema.base.connector import FileStatus
-from app.models.schema.base import ConnectorType
+from app.models.schema.base.connector import ConnectorType
 from app.models.schema.base.connector import ConnectorStatus
 
 logger = logging.getLogger(__name__)

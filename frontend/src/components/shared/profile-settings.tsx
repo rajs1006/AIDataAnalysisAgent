@@ -1,8 +1,11 @@
 import * as React from "react";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldValues } from "react-hook-form"; // Add FieldValues import
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuthStore } from "@/lib/store/auth";
+import { useAppDispatch, useAppSelector } from "@/lib/store/store";
+import { updateUser } from "@/lib/store/auth";
+import { userService } from "@/lib/api/user";
+import { UserUpdate } from "@/lib/types/auth";
 import {
   Dialog,
   DialogContent,
@@ -24,14 +27,21 @@ const profileSchema = z.object({
 
 const securitySchema = z
   .object({
-    current_password: z.string().min(8),
-    new_password: z.string().min(8),
-    confirm_password: z.string().min(8),
+    current_password: z
+      .string()
+      .min(8, "Password must be at least 8 characters"),
+    new_password: z.string().min(8, "Password must be at least 8 characters"),
+    confirm_password: z
+      .string()
+      .min(8, "Password must be at least 8 characters"),
   })
   .refine((data) => data.new_password === data.confirm_password, {
     message: "Passwords don't match",
     path: ["confirm_password"],
   });
+
+type SecurityFormValues = z.infer<typeof securitySchema>;
+type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export function ProfileSettings({
   open,
@@ -40,10 +50,11 @@ export function ProfileSettings({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { user, setUser } = useAuthStore();
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
   const { toast } = useToast();
 
-  const profileForm = useForm({
+  const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       full_name: user?.full_name || "",
@@ -52,39 +63,59 @@ export function ProfileSettings({
     },
   });
 
-  const securityForm = useForm({
+  const securityForm = useForm<SecurityFormValues>({
     resolver: zodResolver(securitySchema),
+    defaultValues: {
+      current_password: "",
+      new_password: "",
+      confirm_password: "",
+    },
   });
 
-  const onProfileSubmit = async (data: z.infer<typeof profileSchema>) => {
+  const onProfileSubmit = async (data: ProfileFormValues) => {
     try {
-      // API call to update profile
-      setUser({ ...user, ...data });
+      const updateData: UserUpdate = {
+        full_name: data.full_name,
+        email: data.email,
+        avatar_url: data.avatar_url,
+      };
+
+      // Call API to update profile
+      await userService.updateProfile(updateData);
+      dispatch(updateUser(updateData));
+
       toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully.",
+        title: "Success",
+        description: "Profile updated successfully",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update profile",
+        description:
+          error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive",
       });
     }
   };
 
-  const onSecuritySubmit = async (data: z.infer<typeof securitySchema>) => {
+  const onSecuritySubmit = async (data: SecurityFormValues) => {
     try {
-      // API call to update password
-      toast({
-        title: "Password updated",
-        description: "Your password has been changed successfully.",
-      });
+      // Call API to update password
+      await userService.updatePassword(
+        data.current_password,
+        data.new_password
+      );
+
       securityForm.reset();
+      toast({
+        title: "Success",
+        description: "Password updated successfully",
+      });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update password",
+        description:
+          error instanceof Error ? error.message : "Failed to update password",
         variant: "destructive",
       });
     }
@@ -123,6 +154,11 @@ export function ProfileSettings({
                   {...profileForm.register("full_name")}
                   className="bg-[#4A3728]"
                 />
+                {profileForm.formState.errors.full_name && (
+                  <p className="text-red-500 text-sm">
+                    {profileForm.formState.errors.full_name.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -132,6 +168,11 @@ export function ProfileSettings({
                   {...profileForm.register("email")}
                   className="bg-[#4A3728]"
                 />
+                {profileForm.formState.errors.email && (
+                  <p className="text-red-500 text-sm">
+                    {profileForm.formState.errors.email.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -141,6 +182,11 @@ export function ProfileSettings({
                   {...profileForm.register("avatar_url")}
                   className="bg-[#4A3728]"
                 />
+                {profileForm.formState.errors.avatar_url && (
+                  <p className="text-red-500 text-sm">
+                    {profileForm.formState.errors.avatar_url.message}
+                  </p>
+                )}
               </div>
 
               <Button type="submit" className="w-full">
@@ -162,6 +208,11 @@ export function ProfileSettings({
                   {...securityForm.register("current_password")}
                   className="bg-[#4A3728]"
                 />
+                {securityForm.formState.errors.current_password && (
+                  <p className="text-red-500 text-sm">
+                    {securityForm.formState.errors.current_password.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -172,6 +223,11 @@ export function ProfileSettings({
                   {...securityForm.register("new_password")}
                   className="bg-[#4A3728]"
                 />
+                {securityForm.formState.errors.new_password && (
+                  <p className="text-red-500 text-sm">
+                    {securityForm.formState.errors.new_password.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

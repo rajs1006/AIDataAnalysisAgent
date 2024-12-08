@@ -7,7 +7,7 @@ import re
 
 from app.core.config import settings
 from app.models.schema.agent import SearchContext, QueryRequest, QueryResponse
-from app.models.database.connectors import FolderConnector
+from app.models.database.connectors.folder import FolderConnector
 
 logger = logging.getLogger(__name__)
 

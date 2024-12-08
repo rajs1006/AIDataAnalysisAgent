@@ -3,7 +3,7 @@
 from app.models.database.users import User
 from app.models.database.connectors.folder import FolderConnector
 from app.models.database.connectors.onedrive import OneDriveConnector
-from app.models.database.connectors import BaseConnector
+from app.models.database.base.connector import BaseConnector
 
 # Import any other models here
 
