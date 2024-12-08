@@ -7,8 +7,8 @@ from app.core.dependencies import (
     get_folder_crud,
 )
 from app.services.connectors.folder.service import FolderConnectorService
-from app.models.schema.connectors import FolderCreate
-from app.models.database.connectors import FolderConnector
+from app.models.schema.connectors.folder import FolderCreate
+from app.models.database.connectors.folder import FolderConnector
 from app.services.store.vectorizer.qdrant import VectorStore
 from app.crud.folder import FolderConnectorCRUD
 # from app.models.request.folder import FolderCreate

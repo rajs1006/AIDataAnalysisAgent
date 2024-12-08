@@ -5,7 +5,7 @@ from app.core.dependencies import (
     get_connector_crud,
 )
 from app.services.connectors.base import ConnectorService
-from app.models.database.connectors import BaseConnector
+from app.models.database.base.connector import BaseConnector
 from app.crud.connector import ConnectorCRUD
 import logging
 

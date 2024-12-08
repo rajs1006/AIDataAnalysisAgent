@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional, List, Union
 import numpy as np
 import logging
-from .base import BaseVectorizer
+from .document import BaseVectorizer
 
 
 logger = logging.getLogger(__name__)

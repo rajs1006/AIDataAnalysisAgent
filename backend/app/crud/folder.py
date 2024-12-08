@@ -10,7 +10,7 @@ from app.models.schema.connectors.folder import (
     FolderCreate,
 )
 from app.models.database.users import User
-from app.models.schema.base import ConnectorType
+from app.models.schema.base.connector import ConnectorType
 from app.models.schema.base.connector import ConnectorStatus
 
 logger = logging.getLogger(__name__)

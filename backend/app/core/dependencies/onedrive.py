@@ -1,4 +1,3 @@
-from fastapi import Depends
 from app.crud.onedrive import OneDriveCRUD
 from app.core.security.oauth import OneDriveOAuth
 

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
-from app.models.database.users import User
+from app.models import document_models
 from app.core.config import settings
 import logging
 
@@ -33,7 +33,9 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.on_event("startup")
 async def startup_event():
     client = AsyncIOMotorClient(settings.MONGODB_URL)
-    await init_beanie(database=client[settings.MONGODB_DB_NAME], document_models=[User])
+    await init_beanie(
+        database=client[settings.MONGODB_DB_NAME], document_models=document_models
+    )
 
 
 # @app.middleware("http")

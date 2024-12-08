@@ -1,7 +1,7 @@
 from pydantic import Field
 from datetime import datetime
 from typing import Optional, Dict, List
-from app.models.schema.base import ConnectorType
+from app.models.schema.base.connector import ConnectorType
 from app.models.schema.connectors.onedrive import (
     OneDriveFileMetadata,
 )
