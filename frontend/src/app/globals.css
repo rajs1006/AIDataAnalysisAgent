@@ -34,9 +34,10 @@ body {
   width: 100%;
   max-width: 400px;
   text-align: center;
-  display: flex;
+  display: grid;
   flex-direction: column;
   gap: 1.5rem;
+  place-self: center;
 }
 
 .card-header h1 {

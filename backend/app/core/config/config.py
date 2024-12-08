@@ -6,6 +6,7 @@ from pydantic import PostgresDsn, validator
 
 
 class BaseConfig(BaseSettings):
+    PYTHONPATH: str = "/app"
     APP_NAME: str = "AI Data Agent"
     API_V1_STR: str = "/api/v1"
     CORS_ORIGINS: list
@@ -13,12 +14,22 @@ class BaseConfig(BaseSettings):
     DEBUG: bool = True
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
+    APP_URL: str = f"http://{APP_HOST}:{APP_PORT}"
     MONGODB_URL: str
     MONGODB_DB_NAME: str = "ai_data_agent"
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    ALGORITHM: str = "HS256"
+    API_KEY_EXPIRE_MINUTES: int = 43200
+    ALGORITHM: str = "EdDSA"
+    API_ALGORITHM: str = "HS256"
     QDRANT_URL: str
+    OPENAI_API_KEY: str
+    WATCHER_PORT: int = 8001
+
+    ONEDRIVE_CLIENT_ID: str
+    ONEDRIVE_CLIENT_SECRET: str
+    MICROSOFT_TENANT_ID: str
+    ONEDRIVE_REDIRECT_URI: str
 
     class Config:
         case_sensitive = True

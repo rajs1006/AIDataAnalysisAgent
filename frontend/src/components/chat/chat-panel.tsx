@@ -1,93 +1,98 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { LineChart, BarChart, Send } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "@/lib/store/store";
+import { setLoading, addMessage, setError } from "@/lib/store/chat";
+import { chatService } from "@/lib/api/chat";
+import { Message } from "@/lib/types/chat";
+import { motion, AnimatePresence } from "framer-motion";
+import { Send, BookOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-interface Message {
-  id: string;
-  type: "user" | "assistant";
-  content: string;
-  visualization?: "table" | "chart";
-}
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageItem } from "./message-item";
+import { ChatInput } from "./chat-input";
 
 export function ChatPanel() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const dispatch = useAppDispatch();
+  const messages = useAppSelector((state) => state.chat.messages);
+  const isLoading = useAppSelector((state) => state.chat.isLoading);
   const [input, setInput] = useState("");
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading) return;
 
-    const newMessage: Message = {
+    const userMessage: Message = {
       id: Date.now().toString(),
       type: "user",
       content: input,
+      timestamp: new Date(),
     };
 
-    setMessages([...messages, newMessage]);
+    dispatch(addMessage(userMessage));
     setInput("");
+    dispatch(setLoading(true));
 
-    // Simulate AI response
-    setTimeout(() => {
-      const response: Message = {
+    try {
+      const response = await chatService.sendMessage(input);
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: response.answer,
+        sources: response.sources,
+        timestamp: new Date(),
+      };
+
+      dispatch(addMessage(assistantMessage));
+      dispatch(setError(null));
+    } catch (error) {
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
         content:
-          "This is a sample response. In the actual implementation, this would be replaced with AI-generated content based on the connected data sources.",
-        visualization: Math.random() > 0.5 ? "table" : "chart",
+          "Sorry, I encountered an error processing your request. Please try again.",
+        timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, response]);
-    }, 1000);
+
+      dispatch(addMessage(errorMessage));
+      dispatch(
+        setError(
+          error instanceof Error ? error.message : "Unknown error occurred"
+        )
+      );
+    } finally {
+      dispatch(setLoading(false));
+    }
   };
 
   return (
     <div className="flex flex-col h-full bg-[var(--background)] rounded-lg shadow-md w-full max-w-4xl mx-auto">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
+      <ScrollArea className="flex-1 p-4">
+        <AnimatePresence initial={false}>
+          {messages.map((message) => (
+            <MessageItem key={message.id} message={message} />
+          ))}
+        </AnimatePresence>
+        {isLoading && (
           <motion.div
-            key={message.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className={`flex ${
-              message.type === "user" ? "justify-end" : "justify-start"
-            }`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center justify-start gap-2 text-muted-foreground"
           >
-            <div className={`max-w-[80%] rounded-lg p-4 shadow-md $1`}>
-              <p>{message.content}</p>
-              {message.visualization && (
-                <div className="mt-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Button variant="ghost" size="sm">
-                      <LineChart className="h-4 w-4 mr-1" />
-                      Line Chart
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <BarChart className="h-4 w-4 mr-1" />
-                      Bar Chart
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Thinking...</span>
           </motion.div>
-        ))}
-      </div>
+        )}
+      </ScrollArea>
 
-      <div className="p-4 border-t border-[var(--accent-color)]">
-        <div className="flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about your data..."
-            className="bg-[var(--input-bg)] text-[var(--text-dark)]"
-            onKeyPress={(e) => e.key === "Enter" && handleSend()}
-          />
-          <Button onClick={handleSend} variant="primary">
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <ChatInput
+        input={input}
+        setInput={setInput}
+        onSend={sendMessage}
+        isLoading={isLoading}
+      />
     </div>
   );
 }
+
+export default ChatPanel;

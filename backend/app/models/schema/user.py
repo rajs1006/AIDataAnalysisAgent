@@ -1,20 +1,8 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
-from bson import ObjectId
-
-
-# Create custom type for ObjectId
-class PyObjectId(str):
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v, handler):  # Added handler parameter
-        if isinstance(v, ObjectId):
-            return str(v)
-        return v
+from app.utils.tools import PyObjectId
+from .connectors.onedrive import OneDriveAuth
 
 
 class UserBase(BaseModel):
@@ -49,6 +37,7 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
-class TokenPayload(BaseModel):
-    sub: str
-    exp: int
+class TokenValidationResponse(BaseModel):
+    access_token: PyObjectId
+    valid: bool
+    expiry_time: datetime

@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-// import { useAuthStore } from "@/lib/store/auth";
+import { useRouter } from "next/navigation";
+import { useAppDispatch, useAppSelector } from "@/lib/store/store";
+import { logout } from "@/lib/store/auth";
+import { folderService } from "@/lib/api/folder";
+import { onedriveService } from "@/lib/api/onedrive";
+import { ConnectorType } from "@/lib/types/connectors";
 import {
   Files,
   FolderUp,
@@ -11,8 +16,12 @@ import {
   Settings,
   HardDrive,
   ChevronLeft,
-  LineChart,
-  TableIcon,
+  AlertCircle,
+  Trash2,
+  Download,
+  RefreshCw,
+  Database,
+  Cloud,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -30,53 +39,268 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
 import { ChatPanel } from "../chat/chat-panel";
 import { ProfileSettings } from "@/components/shared/profile-settings";
-import { useAppSelector, useAppDispatch } from "@/lib/store/store";
-import { logout } from "@/lib/store/auth";
-import { useRouter } from "next/navigation";
+import { Label } from "@/components/ui/label";
+import { OneDriveConnectorForm } from "../onedrive/connector-form";
+import { CreateConnectorDto } from "@/lib/types/connectors";
+import { connectorService } from "@/lib/api/connector";
 
-interface Connector {
-  id: string;
-  type: "folder" | "drive";
-  name: string;
-  status: "connected" | "disconnected";
-}
+const CONNECTOR_ICONS = {
+  [ConnectorType.LOCAL_FOLDER]: FolderUp,
+  [ConnectorType.ONEDRIVE]: Cloud, // Using Cloud icon for OneDrive
+  [ConnectorType.GOOGLE_DRIVE]: Cloud,
+};
 
 export function DashboardLayout() {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [activeConnector, setActiveConnector] = useState<string | null>(null);
-  const [connectors, setConnectors] = useState<Connector[]>([]);
-  const [showChat, setShowChat] = useState(false);
+  const [folder, setFolder] = useState<Connector[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  // const { user, logout } = useAuthStore();
+  const [activeConnectorType, setActiveConnectorType] =
+    useState<ConnectorType | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const router = useRouter();
   const user = useAppSelector((state) => state.auth.user);
   const dispatch = useAppDispatch();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadConnectors();
+    const interval = setInterval(loadConnectors, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadConnectors = async () => {
+    try {
+      const fetchedConnectors = await connectorService.getConnectors();
+      setFolder(fetchedConnectors);
+    } catch (error) {
+      console.error("Failed to load connectors:", error);
+    }
+  };
+
+  const handleConnectorAdd = (type: ConnectorType) => {
+    setIsExpanded(true);
+    setActiveConnectorType(type);
+    setDialogOpen(true);
+  };
+
+  const handleConnectorSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+    connectorType: ConnectorType
+  ) => {
+    event.preventDefault();
+    setIsLoading(true);
+
+    try {
+      if (connectorType === ConnectorType.LOCAL_FOLDER) {
+        const formData = new FormData(event.currentTarget);
+        const platformInfo: PlatformInfo = {
+          os: window.navigator.platform,
+          arch: window.navigator.userAgent.includes("x64") ? "x64" : "x86",
+        };
+
+        const data: CreateConnectorDto = {
+          name: formData.get("name") as string,
+          connector_type: activeConnectorType as ConnectorType,
+          platform_info: platformInfo,
+        };
+
+        const blob = await folderService.createConnector(data);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `folder_watcher${
+          platformInfo.os.toLowerCase() === "windows" ? ".exe" : ""
+        }`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        toast({
+          title: "Success",
+          description: "Agent created and downloaded successfully",
+        });
+      } else if (connectorType === ConnectorType.ONEDRIVE) {
+        const formData = new FormData(event.currentTarget);
+        const connectorDataStr = formData.get("connectorData") as string;
+
+        if (!connectorDataStr) {
+          throw new Error("Missing connector data");
+        }
+
+        const connectorData = JSON.parse(connectorDataStr);
+
+        await onedriveService.createConnector({
+          name: connectorData.name,
+          auth: connectorData.auth,
+          folder: connectorData.folder,
+          settings: connectorData.settings,
+        });
+
+        toast({
+          title: "Success",
+          description: "OneDrive connector created successfully",
+        });
+      }
+
+      setDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create connector",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      await loadConnectors();
+    }
+  };
 
   const handleLogout = () => {
     dispatch(logout());
     router.push("/auth");
   };
 
-  const handleConnectorAdd = (type: "folder" | "drive") => {
-    setIsExpanded(true); // Expand panel for connector details
-    setActiveConnector(type);
-    setDialogOpen(true);
+  const ConnectorCard = ({ connector }: { connector: Connector }) => {
+    const Icon = CONNECTOR_ICONS[connector.type] || Files;
+    return (
+      <div className="flex flex-col p-4 mb-4 rounded-lg bg-[var(--input-bg)] border border-[var(--accent-color)]">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex items-center gap-2">
+            <Icon className="h-5 w-5 text-[var(--foreground)]" />
+            <div className="flex flex-col">
+              <span className="font-medium text-[var(--text-dark)]">
+                {connector.name}
+              </span>
+              {connector.path && (
+                <span className="text-xs text-[var(--text-dark)] opacity-60">
+                  {connector.path}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-sm px-2 py-1 rounded-full ${
+                connector.status === "active"
+                  ? "bg-green-100 text-green-800"
+                  : "bg-red-100 text-red-800"
+              }`}
+            >
+              {connector.status}
+            </span>
+          </div>
+        </div>
+
+        {connector.status === "active" && connector.metrics && (
+          <div className="grid grid-cols-3 gap-2 my-2 text-sm">
+            <div>
+              <Label className="text-xs">Memory</Label>
+              <div>
+                {(connector.metrics.memoryUsage / 1024 / 1024).toFixed(2)} MB
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Queue</Label>
+              <div>{connector.metrics.queueLength} items</div>
+            </div>
+            <div>
+              <Label className="text-xs">Uptime</Label>
+              <div>
+                {Math.floor(connector.metrics.uptime / 3600)}h{" "}
+                {Math.floor((connector.metrics.uptime % 3600) / 60)}m
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 mt-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => folderService.deleteConnector(connector.id)}
+          >
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        </div>
+      </div>
+    );
   };
 
-  const handleConnectorSubmit = (details: any) => {
-    const newConnector: Connector = {
-      id: Date.now().toString(),
-      type: activeConnector as "folder" | "drive",
-      name: details.name,
-      status: "connected",
-    };
-    setConnectors([...connectors, newConnector]);
-    setDialogOpen(false);
+  const renderConnectorForm = () => {
+    switch (activeConnectorType) {
+      case ConnectorType.LOCAL_FOLDER:
+        return (
+          <>
+            <div className="space-y-2">
+              <Label>Connection Agent</Label>
+              <Input
+                name="name"
+                required
+                placeholder="My Local Folder"
+                className="bg-[var(--input-bg)]"
+              />
+            </div>
+          </>
+        );
+      case ConnectorType.ONEDRIVE:
+        return (
+          <OneDriveConnectorForm
+            onSuccess={handleSuccess}
+            setDialogOpen={setDialogOpen}
+          />
+        );
+      default:
+        return <div>Unsupported connector type</div>;
+    }
+  };
+
+  const renderConnectorActions = (connector: Connector) => {
+    if (connector.type === ConnectorType.LOCAL_FOLDER) {
+      return (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDownloadExecutable(connector.id)}
+          >
+            <Download className="h-4 w-4 mr-1" />
+            Download Agent
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => folderService.deleteConnector(connector.id)}
+          >
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        </>
+      );
+    }
+
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => folderService.deleteConnector(connector.id)}
+      >
+        <Trash2 className="h-4 w-4 text-red-500" />
+      </Button>
+    );
+  };
+
+  const handleSuccess = () => {
+    console.log("Connector created successfully!");
+    // Dialog is already closed inside OneDriveConnectorForm
+    // So nothing else might be needed here
   };
 
   return (
@@ -85,86 +309,73 @@ export function DashboardLayout() {
         {isExpanded && (
           <motion.div
             initial={{ width: "100%" }}
-            animate={{ width: isExpanded ? "100%" : "0" }} // Initially full page width, collapse to hide completely // Initially full page width
+            animate={{ width: "50%" }}
             exit={{ width: 0 }}
             className="border-r border-[var(--accent-color)] bg-[var(--background)]"
           >
             <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between p-4 border-b border-[var(--accent-color)]">
-                <h2 className="text-xl font-semibold text-[var(--text-dark)]">
-                  Data Connectors
-                </h2>
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-xl font-semibold">Data Connectors</h2>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => {
-                    setIsExpanded(!isExpanded);
-                    setShowChat(!showChat);
-                  }}
+                  onClick={() => setIsExpanded(false)}
                 >
-                  <ChevronLeft className="h-5 w-5 text-[var(--text-dark)]" />
+                  <ChevronLeft className="h-5 w-5" />
                 </Button>
               </div>
 
-              <div className="p-4 space-y-4">
-                <Button
-                  onClick={() => handleConnectorAdd("folder")}
-                  className="w-full justify-start gap-2"
-                >
-                  <FolderUp className="h-5 w-5" />
-                  Add Folder Connection
-                </Button>
-                <Button
-                  onClick={() => handleConnectorAdd("drive")}
-                  className="w-full justify-start gap-2"
-                >
-                  <HardDrive className="h-5 w-5" />
-                  Add Google Drive
-                </Button>
-              </div>
+              <Tabs defaultValue="active" className="flex-1">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="active">Active</TabsTrigger>
+                  <TabsTrigger value="create">Create New</TabsTrigger>
+                </TabsList>
 
-              <div className="flex-1 overflow-auto p-4">
-                {connectors.map((connector) => (
-                  <div
-                    key={connector.id}
-                    className="flex items-center justify-between p-3 mb-2 rounded-lg bg-[var(--input-bg)]"
-                  >
-                    <div className="flex items-center gap-2">
-                      {connector.type === "folder" ? (
-                        <FolderUp className="h-5 w-5 text-[var(--foreground)]" />
-                      ) : (
-                        <HardDrive className="h-5 w-5 text-[var(--foreground)]" />
-                      )}
-                      <span className="text-[var(--text-dark)]">
-                        {connector.name}
-                      </span>
-                    </div>
-                    <span
-                      className={`text-sm ${
-                        connector.status === "connected"
-                          ? "text-[var(--secondary-color)]"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {connector.status}
-                    </span>
+                <TabsContent
+                  value="active"
+                  className="p-4 flex-1 overflow-auto"
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-medium">Active Connectors</h3>
+                    <Button variant="ghost" size="sm" onClick={loadConnectors}>
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
                   </div>
-                ))}
-              </div>
+                  {folder
+                    .filter((c) => c.status === "active")
+                    .map((connector) => (
+                      <ConnectorCard key={connector.id} connector={connector} />
+                    ))}
+                </TabsContent>
 
-              {/* {connectors.length > 0 && !showChat && (
-                <div className="p-4 border-t border-[var(--accent-color)]">
-                  <Button
-                    onClick={() => {
-                      setIsExpanded(false);
-                      setShowChat(true);
-                    }} // Collapse panel and show chat
-                    className="w-full bg-[var(--primary-color)]"
-                  >
-                    Analyze Data
-                  </Button>
-                </div>
-              )} */}
+                <TabsContent value="create" className="p-4">
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Add New Connector</h3>
+                    <div className="grid gap-4">
+                      {Object.values(ConnectorType).map((type) => {
+                        const Icon = CONNECTOR_ICONS[type];
+                        return (
+                          <Button
+                            key={type}
+                            variant="outline"
+                            className="justify-start"
+                            onClick={() => handleConnectorAdd(type)}
+                          >
+                            <Icon className="h-5 w-5 mr-2" />
+                            Add{" "}
+                            {type
+                              .split("_")
+                              .map(
+                                (w) => w.charAt(0).toUpperCase() + w.slice(1)
+                              )
+                              .join(" ")}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </motion.div>
         )}
@@ -227,41 +438,30 @@ export function DashboardLayout() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {activeConnector === "folder"
-                ? "Add Folder Connection"
-                : "Connect Google Drive"}
+              Add{" "}
+              {activeConnectorType
+                ?.split("_")
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(" ")}
             </DialogTitle>
           </DialogHeader>
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              handleConnectorSubmit(Object.fromEntries(formData));
-            }}
+            onSubmit={(e) => handleConnectorSubmit(e, activeConnectorType!)}
             className="space-y-4"
           >
-            <Input
-              name="name"
-              placeholder="Connection Name"
-              className="bg-[var(--input-bg)] text-[var(--text-dark)]"
-            />
-            {activeConnector === "folder" ? (
-              <Input
-                name="path"
-                placeholder="Folder Path"
-                className="bg-[var(--input-bg)] text-[var(--text-dark)]"
-              />
-            ) : (
-              <Button type="button" className="w-full">
-                Authenticate with Google
-              </Button>
-            )}
-            <Button type="submit" className="w-full">
-              Connect
+            {renderConnectorForm()}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading
+                ? "Creating..."
+                : activeConnectorType === ConnectorType.LOCAL_FOLDER
+                ? "Download Agent"
+                : "Create Connector"}
             </Button>
           </form>
         </DialogContent>
       </Dialog>
+
+      <ProfileSettings open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }
