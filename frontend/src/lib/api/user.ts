@@ -3,7 +3,7 @@ import { authService } from "./auth";
 import { UserUpdate } from "@/lib/types/auth";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || "http://35.239.18.191:8000/api/v1";
 
 export const userService = {
   async updateProfile(data: UserUpdate): Promise<any> {

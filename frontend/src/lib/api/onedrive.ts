@@ -9,7 +9,7 @@ import { ConnectorMetrics } from "../types/connectors";
 import { MicrosoftTokenResponse } from "../types/onedrive";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || "http://35.239.18.191:8000/api/v1";
 const MICROSOFT_CLIENT_ID = process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID;
 const scopes = [
   "Files.Read.All",
