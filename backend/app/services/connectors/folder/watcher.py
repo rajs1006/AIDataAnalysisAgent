@@ -88,10 +88,6 @@ PORT={str(settings.WATCHER_PORT)}
         """Build the executable using spec file and return its contents and name"""
         paths = None
         try:
-
-            # Verify dependencies first
-            # await self._verify_dependencies()
-
             # Create build paths
             paths = self._create_build_paths()
 
