@@ -23,8 +23,8 @@ jobs:
       id: auth
       uses: google-github-actions/auth@v1
       with:
-        workload_identity_provider: projects/101349614136/locations/global/workloadIdentityPools/github-actions-pool/providers/github
-        service_account: github-actions@dataanalysisagent.iam.gserviceaccount.com
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
         token_format: access_token
         audience: https://iam.googleapis.com/projects/101349614136 
 
@@ -37,7 +37,6 @@ jobs:
     - name: Configure Docker auth
       run: |
         gcloud auth configure-docker gcr.io --quiet
-        docker-credential-gcr configure-docker --registries=gcr.io
 
     - name: Build and push Frontend Docker image
       run: |
