@@ -154,7 +154,7 @@ const AuthForm: React.FC = () => {
         "a",
         {
           href: "#",
-          onClick: (e) => {
+          onClick: (e: { preventDefault: () => void }) => {
             e.preventDefault();
             setIsLogin(!isLogin);
             reset();

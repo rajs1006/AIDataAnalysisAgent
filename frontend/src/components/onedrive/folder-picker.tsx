@@ -6,7 +6,7 @@ import { useScript } from "@/hooks/use-script";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { OneDriveOptions } from "@/lib/types/onedrive";
-import { onedriveService, fetchFolderDetails } from "@/lib/api/onedrive";
+import { onedriveService } from "@/lib/api/onedrive";
 
 // PKCE Helper Functions remain the same
 async function generateCodeVerifier() {
