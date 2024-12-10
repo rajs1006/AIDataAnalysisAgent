@@ -2,7 +2,7 @@ import { authService } from "./auth";
 import { CreateConnectorDto, ConnectorMetrics } from "../types/connectors";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || "http://35.239.18.191:8000/api/v1";
 
 class FolderService {
   async createConnector(data: CreateConnectorDto): Promise<Blob> {
