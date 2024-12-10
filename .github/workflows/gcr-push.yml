@@ -1,0 +1,47 @@
+name: Build and Push to GCR
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Google Auth
+      id: auth
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v0
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    - name: Configure Docker for GCP
+      run: gcloud auth configure-docker gcr.io
+
+    - name: Build and push Frontend Docker image
+      run: |
+        docker build ./frontend -t gcr.io/$PROJECT_ID/frontend:latest -t gcr.io/$PROJECT_ID/frontend:${{ github.sha }}
+        docker push gcr.io/$PROJECT_ID/frontend:latest
+        docker push gcr.io/$PROJECT_ID/frontend:${{ github.sha }}
+
+    - name: Build and push Backend Docker image
+      run: |
+        docker build ./backend -t gcr.io/$PROJECT_ID/backend:latest -t gcr.io/$PROJECT_ID/backend:${{ github.sha }}
+        docker push gcr.io/$PROJECT_ID/backend:latest
+        docker push gcr.io/$PROJECT_ID/backend:${{ github.sha }}
