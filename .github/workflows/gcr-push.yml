@@ -1,4 +1,4 @@
-name: Build and Push to GCR
+name: Build and Push to Artifact Registry
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: europe-west10
 
 jobs:
   build-and-push:
@@ -14,11 +15,11 @@ jobs:
     permissions:
       contents: read
       id-token: write
-
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-
+    
     - name: Google Auth
       id: auth
       uses: google-github-actions/auth@v1
@@ -26,27 +27,25 @@ jobs:
         workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
         service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
         token_format: access_token
-        audience: https://iam.googleapis.com/projects/101349614136 
-
+        audience: https://iam.googleapis.com/projects/101349614136
+    
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
-        install_components: 'docker-credential-gcr'
-
+    
     - name: Configure Docker auth
       run: |
-        gcloud auth configure-docker gcr.io --quiet
-
+        gcloud auth configure-docker europe-west10-docker.pkg.dev --quiet
+    
     - name: Build and push Frontend Docker image
       run: |
-        docker build ./frontend -t gcr.io/$PROJECT_ID/frontend:latest -t gcr.io/$PROJECT_ID/frontend:${{ github.sha }}
-        docker push gcr.io/$PROJECT_ID/frontend:latest
-        docker push gcr.io/$PROJECT_ID/frontend:${{ github.sha }}
-
+        docker build ./frontend -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:latest -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:${{ github.sha }}
+        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:latest
+        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:${{ github.sha }}
+    
     - name: Build and push Backend Docker image
       run: |
-        docker build ./backend -t gcr.io/$PROJECT_ID/backend:latest -t gcr.io/$PROJECT_ID/backend:${{ github.sha }}
-        docker push gcr.io/$PROJECT_ID/backend:latest
-        docker push gcr.io/$PROJECT_ID/backend:${{ github.sha }}
-        
+        docker build ./backend -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/backend:latest -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/backend:${{ github.sha }}
+        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/backend:latest
+        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/backend:${{ github.sha }}
