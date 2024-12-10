@@ -6,7 +6,8 @@ import {
   ConnectorMetrics,
 } from "../types/connectors";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 class ConnectorService {
   async getConnectors(): Promise<Connector[]> {
