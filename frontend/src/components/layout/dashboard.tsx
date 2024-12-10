@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector } from "@/lib/store/store";
 import { logout } from "@/lib/store/auth";
 import { folderService } from "@/lib/api/folder";
 import { onedriveService } from "@/lib/api/onedrive";
-import { ConnectorType } from "@/lib/types/connectors";
+import { Connector, ConnectorType, PlatformInfo } from "@/lib/types/connectors";
 import {
   Files,
   FolderUp,
@@ -170,7 +170,7 @@ export function DashboardLayout() {
   };
 
   const ConnectorCard = ({ connector }: { connector: Connector }) => {
-    const Icon = CONNECTOR_ICONS[connector.type] || Files;
+    const Icon = CONNECTOR_ICONS[connector.type as ConnectorType] || Files;
     return (
       <div className="flex flex-col p-4 mb-4 rounded-lg bg-[var(--input-bg)] border border-[var(--accent-color)]">
         <div className="flex justify-between items-start mb-3">
@@ -254,8 +254,16 @@ export function DashboardLayout() {
       case ConnectorType.ONEDRIVE:
         return (
           <OneDriveConnectorForm
-            onSuccess={handleSuccess}
-            setDialogOpen={setDialogOpen}
+            onSubmit={function (connectorData: {
+              name: string;
+              auth: any;
+              folder: any;
+              settings: { sync_mode: string };
+            }): Promise<void> {
+              throw new Error("Function not implemented.");
+            }}
+            isSubmitting={false} // onSuccess={handleSuccess}
+            // setDialogOpen={setDialogOpen}
           />
         );
       default:
@@ -263,205 +271,216 @@ export function DashboardLayout() {
     }
   };
 
-  const renderConnectorActions = (connector: Connector) => {
-    if (connector.type === ConnectorType.LOCAL_FOLDER) {
-      return (
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDownloadExecutable(connector.id)}
-          >
-            <Download className="h-4 w-4 mr-1" />
-            Download Agent
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => folderService.deleteConnector(connector.id)}
-          >
-            <Trash2 className="h-4 w-4 text-red-500" />
-          </Button>
-        </>
-      );
-    }
+  // const renderConnectorActions = (connector: Connector) => {
+  //   if (connector.type === ConnectorType.LOCAL_FOLDER) {
+  //     return (
+  //       <>
+  //         <Button
+  //           variant="outline"
+  //           size="sm"
+  //           onClick={() => handleDownloadExecutable(connector.id)}
+  //         >
+  //           <Download className="h-4 w-4 mr-1" />
+  //           Download Agent
+  //         </Button>
+  //         <Button
+  //           variant="ghost"
+  //           size="sm"
+  //           onClick={() => folderService.deleteConnector(connector.id)}
+  //         >
+  //           <Trash2 className="h-4 w-4 text-red-500" />
+  //         </Button>
+  //       </>
+  //     );
+  //   }
 
-    return (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => folderService.deleteConnector(connector.id)}
-      >
-        <Trash2 className="h-4 w-4 text-red-500" />
-      </Button>
-    );
-  };
+  //   return (
+  //     <Button
+  //       variant="ghost"
+  //       size="sm"
+  //       onClick={() => folderService.deleteConnector(connector.id)}
+  //     >
+  //       <Trash2 className="h-4 w-4 text-red-500" />
+  //     </Button>
+  //   );
+  // };
 
-  const handleSuccess = () => {
-    console.log("Connector created successfully!");
-    // Dialog is already closed inside OneDriveConnectorForm
-    // So nothing else might be needed here
-  };
+  // const handleSuccess = () => {
+  //   console.log("Connector created successfully!");
+  //   // Dialog is already closed inside OneDriveConnectorForm
+  //   // So nothing else might be needed here
+  // };
 
   return (
-    <div className="flex h-screen w-full bg-[var(--background)]">
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ width: "100%" }}
-            animate={{ width: "50%" }}
-            exit={{ width: 0 }}
-            className="border-r border-[var(--accent-color)] bg-[var(--background)]"
-          >
-            <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="text-xl font-semibold">Data Connectors</h2>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsExpanded(false)}
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-              </div>
-
-              <Tabs defaultValue="active" className="flex-1">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="active">Active</TabsTrigger>
-                  <TabsTrigger value="create">Create New</TabsTrigger>
-                </TabsList>
-
-                <TabsContent
-                  value="active"
-                  className="p-4 flex-1 overflow-auto"
-                >
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-medium">Active Connectors</h3>
-                    <Button variant="ghost" size="sm" onClick={loadConnectors}>
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {folder
-                    .filter((c) => c.status === "active")
-                    .map((connector) => (
-                      <ConnectorCard key={connector.id} connector={connector} />
-                    ))}
-                </TabsContent>
-
-                <TabsContent value="create" className="p-4">
-                  <div className="space-y-4">
-                    <h3 className="font-medium">Add New Connector</h3>
-                    <div className="grid gap-4">
-                      {Object.values(ConnectorType).map((type) => {
-                        const Icon = CONNECTOR_ICONS[type];
-                        return (
-                          <Button
-                            key={type}
-                            variant="outline"
-                            className="justify-start"
-                            onClick={() => handleConnectorAdd(type)}
-                          >
-                            <Icon className="h-5 w-5 mr-2" />
-                            Add{" "}
-                            {type
-                              .split("_")
-                              .map(
-                                (w) => w.charAt(0).toUpperCase() + w.slice(1)
-                              )
-                              .join(" ")}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="flex-1 flex flex-col">
-        <header className="h-16 border-b border-[var(--accent-color)] bg-[var(--background)] px-4 flex items-center justify-between">
-          {!isExpanded && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setIsExpanded(!isExpanded);
-                setShowChat(!showChat);
-              }}
+    <>
+      <div className="flex h-screen w-full bg-[var(--background)]">
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ width: "100%" }}
+              animate={{ width: "50%" }}
+              exit={{ width: 0 }}
+              className="border-r border-[var(--accent-color)] bg-[var(--background)]"
             >
-              <Menu className="h-6 w-6 text-[var(--text-dark)]" />
-            </Button>
-          )}
+              <div className="flex h-full flex-col">
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h2 className="text-xl font-semibold">Data Connectors</h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsExpanded(false)}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                </div>
 
-          <div className="ml-auto">
-            <DropdownMenu>
-              <DropdownMenuTrigger className="focus:outline-none">
-                <Avatar className="h-8 w-8 border-2 border-[#C68B59]">
-                  <AvatarImage src={user?.avatar_url} />
-                  <AvatarFallback className="bg-[var(--input-bg)] text-[var(--text-dark)]">
-                    {user?.full_name?.substring(0, 2).toUpperCase() || "U"}
-                  </AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="text-[var(--text-dark)]">
-                  {user?.full_name}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setProfileOpen(true)}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Profile Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="text-red-500"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
+                <Tabs defaultValue="active" className="flex-1">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="active">Active</TabsTrigger>
+                    <TabsTrigger value="create">Create New</TabsTrigger>
+                  </TabsList>
 
-        <main className="flex-1 overflow-hidden w-full flex items-center justify-center bg-[var(--background)]">
-          {showChat && (
-            <ChatPanel className="chatbot-style-panel p-6 bg-white rounded-lg shadow-md w-3/4 max-w-4xl" />
+                  <TabsContent
+                    value="active"
+                    className="p-4 flex-1 overflow-auto"
+                  >
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-medium">Active Connectors</h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={loadConnectors}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {folder
+                      .filter((c) => c.status === "active")
+                      .map((connector) => (
+                        <ConnectorCard
+                          key={connector.id}
+                          connector={connector}
+                        />
+                      ))}
+                  </TabsContent>
+
+                  <TabsContent value="create" className="p-4">
+                    <div className="space-y-4">
+                      <h3 className="font-medium">Add New Connector</h3>
+                      <div className="grid gap-4">
+                        {Object.values(ConnectorType).map((type) => {
+                          const Icon = CONNECTOR_ICONS[type];
+                          return (
+                            <Button
+                              key={type}
+                              variant="outline"
+                              className="justify-start"
+                              onClick={() => handleConnectorAdd(type)}
+                            >
+                              <Icon className="h-5 w-5 mr-2" />
+                              Add{" "}
+                              {type
+                                .split("_")
+                                .map(
+                                  (w) => w.charAt(0).toUpperCase() + w.slice(1)
+                                )
+                                .join(" ")}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </motion.div>
           )}
-        </main>
+        </AnimatePresence>
+
+        <div className="flex-1 flex flex-col">
+          <header className="h-16 border-b border-[var(--accent-color)] bg-[var(--background)] px-4 flex items-center justify-between">
+            {!isExpanded && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setIsExpanded(!isExpanded);
+                  setShowChat(!showChat);
+                }}
+              >
+                <Menu className="h-6 w-6 text-[var(--text-dark)]" />
+              </Button>
+            )}
+
+            <div className="ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger className="focus:outline-none">
+                  <Avatar className="h-8 w-8 border-2 border-[#C68B59]">
+                    <AvatarImage src={user?.avatar_url} />
+                    <AvatarFallback className="bg-[var(--input-bg)] text-[var(--text-dark)]">
+                      {user?.full_name?.substring(0, 2).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-[var(--text-dark)]">
+                    {user?.full_name}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setProfileOpen(true)}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Profile Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-red-500"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </header>
+
+          <main className="flex-1 overflow-hidden w-full flex items-center justify-center bg-[var(--background)]">
+            {showChat && (
+              <ChatPanel
+              // className="chatbot-style-panel p-6 bg-white rounded-lg shadow-md w-3/4 max-w-4xl" />
+              />
+            )}
+          </main>
+        </div>
+
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Add{" "}
+                {activeConnectorType
+                  ?.split("_")
+                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                  .join(" ")}
+              </DialogTitle>
+            </DialogHeader>
+            <form
+              onSubmit={(e) => handleConnectorSubmit(e, activeConnectorType!)}
+              className="space-y-4"
+            >
+              {renderConnectorForm()}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading
+                  ? "Creating..."
+                  : activeConnectorType === ConnectorType.LOCAL_FOLDER
+                  ? "Download Agent"
+                  : "Create Connector"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <ProfileSettings open={profileOpen} onOpenChange={setProfileOpen} />
       </div>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Add{" "}
-              {activeConnectorType
-                ?.split("_")
-                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                .join(" ")}
-            </DialogTitle>
-          </DialogHeader>
-          <form
-            onSubmit={(e) => handleConnectorSubmit(e, activeConnectorType!)}
-            className="space-y-4"
-          >
-            {renderConnectorForm()}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading
-                ? "Creating..."
-                : activeConnectorType === ConnectorType.LOCAL_FOLDER
-                ? "Download Agent"
-                : "Create Connector"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <ProfileSettings open={profileOpen} onOpenChange={setProfileOpen} />
-    </div>
+    </>
   );
 }

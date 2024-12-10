@@ -36,7 +36,7 @@ export function ChatInput({
         <Button
           onClick={onSend}
           disabled={isLoading || !input.trim()}
-          variant="primary"
+          // variant="primary"
         >
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />

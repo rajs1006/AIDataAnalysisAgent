@@ -45,8 +45,8 @@ export function useScript(src: string): ScriptStatus {
 }
 
 // Add type definition for window
-declare global {
-  interface Window {
-    OneDrive?: any;
-  }
-}
+// declare global {
+//   interface Window {
+//     OneDrive?: any;
+//   }
+// }
