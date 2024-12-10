@@ -50,3 +50,4 @@ jobs:
         docker build ./backend -t gcr.io/$PROJECT_ID/backend:latest -t gcr.io/$PROJECT_ID/backend:${{ github.sha }}
         docker push gcr.io/$PROJECT_ID/backend:latest
         docker push gcr.io/$PROJECT_ID/backend:${{ github.sha }}
+        
