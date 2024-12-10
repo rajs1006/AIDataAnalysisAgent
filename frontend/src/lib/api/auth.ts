@@ -26,6 +26,7 @@ export const authService = {
   },
 
   async register(userData: UserCreate): Promise<User> {
+    console.log("API_URL REGISTER : ", API_URL);
     const response = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -47,7 +48,7 @@ export const authService = {
     const formData = new URLSearchParams();
     formData.append("username", email);
     formData.append("password", password);
-
+    console.log("API_URL LOGIN : ", API_URL);
     const response = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
