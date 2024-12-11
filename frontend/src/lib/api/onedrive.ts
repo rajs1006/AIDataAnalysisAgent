@@ -101,7 +101,7 @@ class OneDriveService {
       body: JSON.stringify({
         token: tokenData,
         code: code,
-        redirect_uri: `${window.location.origin}/auth/callback/onedrive/`,
+        redirect_uri: `${redirect_uri}`,
         code_verifier: codeVerifier,
         scopes: scopes,
       }),
@@ -156,29 +156,6 @@ class OneDriveService {
     };
   }
 
-  // async handleAuthCallback(code: string): Promise<OneDriveAuth> {
-  //   const response = await fetch(
-  //     `${API_URL}/connectors/onedrive/oauth/callback`,
-  //     {
-  //       method: "POST",
-  //       headers: {
-  //         ...authService.getAuthHeader(),
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         code,
-  //         redirect_uri: `${window.location.origin}/auth/callback/onedrive`,
-  //       }),
-  //     }
-  //   );
-
-  //   if (!response.ok) {
-  //     const error = await response.json();
-  //     throw new Error(error.detail || "Failed to exchange auth code");
-  //   }
-
-  //   return response.json();
-  // }
 
   async createConnector(config: OneDriveConnectorConfig): Promise<void> {
     // Now the config.auth will contain the tokens from Microsoft
