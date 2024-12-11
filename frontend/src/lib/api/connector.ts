@@ -10,10 +10,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "/dataagent/api/v1";
 
 class ConnectorService {
   async getConnectors(): Promise<Connector[]> {
-    const response = await fetch(`${API_URL}/connectors`, {
+    const response = await fetch(`${API_URL}/connectors/`, {
       headers: authService.getAuthHeader() as HeadersInit,
     });
-1
+    1;
     if (!response.ok) {
       throw new Error("Failed to fetch connectors");
     }

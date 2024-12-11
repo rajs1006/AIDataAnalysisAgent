@@ -5,7 +5,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "/dataagent/api/v1";
 
 class FolderService {
   async createConnector(data: CreateConnectorDto): Promise<Blob> {
-    const response = await fetch(`${API_URL}/connectors/folder`, {
+    const response = await fetch(`${API_URL}/connectors/folder/`, {
       method: "POST",
       headers: {
         ...authService.getAuthHeader(),

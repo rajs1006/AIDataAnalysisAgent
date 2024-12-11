@@ -427,7 +427,7 @@ class TokenManager:
             try:
                 logger.debug("Attempting to validate/refresh token")
                 response = requests.post(
-                    f"{self.server_url}/api/v1/auth/refresh",
+                    f"{self.server_url}/auth/refresh",
                     headers={
                         "Authorization": f"Bearer {self.token}",
                         "Content-Type": "application/json",
@@ -509,7 +509,7 @@ class FolderWatcher:
 
         # Load configuration
         load_env_file()
-        
+
         self.server_url = os.getenv("SERVER_URL")
         self.connector_id = os.getenv("CONNECTOR_ID")
         self.port = int(os.getenv("PORT", "3000"))
@@ -684,7 +684,7 @@ class FolderWatcher:
         try:
             _, token = self.token_manager.get_valid_token()
             response = requests.get(
-                f"{self.server_url}/api/v1/connectors/folder/{self.connector_id}/status",
+                f"{self.server_url}/connectors/folder/{self.connector_id}/status",
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
@@ -790,7 +790,7 @@ class FolderWatcher:
 
             _, token = self.token_manager.get_valid_token()
             response = requests.post(
-                f"{self.server_url}/api/v1/connectors/folder/watch",
+                f"{self.server_url}/connectors/folder/watch",
                 json=payload,
                 headers={
                     "Authorization": f"Bearer {token}",

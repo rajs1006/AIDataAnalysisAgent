@@ -20,7 +20,7 @@ const scopes = [
 
 class OneDriveService {
   buildAuthUrl(codeChallenge: string): string {
-    const redirect_uri = `${window.location.origin}/auth/callback/onedrive`;
+    const redirect_uri = `${window.location.origin}/auth/callback/onedrive/`;
     console.log(redirect_uri, " : redirect_uri");
     console.log("code_challenge : ", codeChallenge);
     return (
