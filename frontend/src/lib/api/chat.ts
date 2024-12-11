@@ -12,7 +12,7 @@ export const chatService = {
       max_tokens: 500,
     };
 
-    const response = await fetch(`${API_URL}/agent/chat/`, {
+    const response = await fetch(`${API_URL}/agent/chat`, {
       method: "POST",
       headers: {
         ...authService.getAuthHeader(),
