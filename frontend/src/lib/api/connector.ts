@@ -13,7 +13,7 @@ class ConnectorService {
     const response = await fetch(`${API_URL}/connectors`, {
       headers: authService.getAuthHeader() as HeadersInit,
     });
-
+1
     if (!response.ok) {
       throw new Error("Failed to fetch connectors");
     }
