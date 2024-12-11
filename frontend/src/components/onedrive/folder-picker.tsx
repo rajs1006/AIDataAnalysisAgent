@@ -69,7 +69,10 @@ export const OneDriveFolderPicker = () => {
         });
         return;
       }
-
+      console.log(
+        "process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID!  : ",
+        process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID
+      );
       const options: OneDriveOptions = {
         clientId: process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID!,
         action: "query",
