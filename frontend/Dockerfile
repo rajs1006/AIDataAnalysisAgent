@@ -11,7 +11,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
-ENV NEXT_PUBLIC_API_URL=http://35.239.18.191:8000/api/v1
+ENV NEXT_PUBLIC_API_URL=http://agent.andrual.com/api/v1
 ENV NEXT_PUBLIC_MICROSOFT_CLIENT_ID=651d3657-6c2d-4912-96ee-671000eac3fa
 ENV NEXT_PUBLIC_MICROSOFT_AUTH_URL=https://login.microsoftonline.com/common/oauth2/v2.0/authorize?
 ENV NEXT_PUBLIC_MICROSOFT_TENANT_ID=0cb9b4fd-5d18-4112-9dee-ec19b0bb72f8
