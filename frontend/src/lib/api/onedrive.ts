@@ -17,10 +17,10 @@ const scopes = [
   // "Files.ReadWrite.All",
   "offline_access",
 ];
+const redirect_uri = `${window.location.origin}/auth/callback/onedrive`;
 
 class OneDriveService {
   buildAuthUrl(codeChallenge: string): string {
-    const redirect_uri = `${window.location.origin}/auth/callback/onedrive/`;
     console.log(redirect_uri, " : redirect_uri");
     console.log("code_challenge : ", codeChallenge);
     return (
@@ -68,7 +68,7 @@ class OneDriveService {
           client_id: MICROSOFT_CLIENT_ID!,
           scope: `${scopes.join(" ")}`,
           code: code,
-          redirect_uri: `${window.location.origin}/auth/callback/onedrive`,
+          redirect_uri: `${encodeURIComponent(redirect_uri)}`,
           grant_type: "authorization_code",
           code_verifier: codeVerifier,
         }),
