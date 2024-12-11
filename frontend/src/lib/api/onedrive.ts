@@ -9,7 +9,7 @@ import { ConnectorMetrics } from "../types/connectors";
 import { MicrosoftTokenResponse } from "../types/onedrive";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://35.239.18.191:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || "http://agent.andrual.com/api/v1";
 const MICROSOFT_CLIENT_ID = process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID;
 console.log("MICROSOFT_CLIENT_ID:  ", MICROSOFT_CLIENT_ID);
 const scopes = [
@@ -22,8 +22,8 @@ const scopes = [
 class OneDriveService {
   buildAuthUrl(codeChallenge: string): string {
     const redirect_uri = `${window.location.origin}/auth/callback/onedrive`;
-    console.log(redirect_uri ,  " : redirect_uri")
-    console.log("code_challenge : ", codeChallenge)
+    console.log(redirect_uri, " : redirect_uri");
+    console.log("code_challenge : ", codeChallenge);
     return (
       `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
       `client_id=${MICROSOFT_CLIENT_ID}` +
