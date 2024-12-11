@@ -68,7 +68,7 @@ class OneDriveService {
           client_id: MICROSOFT_CLIENT_ID!,
           scope: `${scopes.join(" ")}`,
           code: code,
-          redirect_uri: `${encodeURIComponent(redirect_uri)}`,
+          redirect_uri: `${redirect_uri}`,
           grant_type: "authorization_code",
           code_verifier: codeVerifier,
         }),
