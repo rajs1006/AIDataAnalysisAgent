@@ -149,11 +149,13 @@ export const OneDriveFolderPicker = () => {
 
     setIsProcessing(true);
     try {
+      console.log("code verifier")
       const codeVerifier = await generateCodeVerifier();
       setVerifier(codeVerifier);
       const codeChallenge = await generateCodeChallenge(codeVerifier);
-
+      console.log("code channeneg");
       const popup = onedriveService.createAuthPopup(codeChallenge);
+      console.log("code popup");
       if (!popup) {
         throw new Error("Popup blocked. Please enable popups for this site.");
       }
