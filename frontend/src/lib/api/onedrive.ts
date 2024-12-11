@@ -8,8 +8,7 @@ import {
 import { ConnectorMetrics } from "../types/connectors";
 import { MicrosoftTokenResponse } from "../types/onedrive";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://agent.andrual.com/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/dataagent/api/v1";
 const MICROSOFT_CLIENT_ID = process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID;
 console.log("MICROSOFT_CLIENT_ID:  ", MICROSOFT_CLIENT_ID);
 const scopes = [

@@ -1,8 +1,7 @@
 // src/lib/api/auth.ts
 import { User, UserCreate, Token } from "@/lib/types/auth";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://agent.andrual.com/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/dataagent/api/v1";
 
 // function setAuthToken(token: string) {
 //   document.cookie = `token=${token}; path=/; secure; samesite=strict; max-age=3600`;
