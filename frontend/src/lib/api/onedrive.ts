@@ -101,7 +101,7 @@ class OneDriveService {
       body: JSON.stringify({
         token: tokenData,
         code: code,
-        redirect_uri: `${window.location.origin}/auth/callback/onedrive`,
+        redirect_uri: `${window.location.origin}/auth/callback/onedrive/`,
         code_verifier: codeVerifier,
         scopes: scopes,
       }),
@@ -182,7 +182,7 @@ class OneDriveService {
 
   async createConnector(config: OneDriveConnectorConfig): Promise<void> {
     // Now the config.auth will contain the tokens from Microsoft
-    const response = await fetch(`${API_URL}/connectors/onedrive`, {
+    const response = await fetch(`${API_URL}/connectors/onedrive/`, {
       method: "POST",
       headers: {
         ...authService.getAuthHeader(),
