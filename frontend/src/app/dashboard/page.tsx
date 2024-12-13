@@ -1,18 +1,24 @@
-import { Metadata } from "next";
-import { DashboardLayout } from "@/components/layout/dashboard";
-import { ProtectedRoute } from "@/components/layout/protected-route";
+// src/app/dashboard/page.tsx
+"use client";
 
-export const metadata: Metadata = {
-  title: "Dashboard - AI Data Agent",
-  description: "AI Data Agent Dashboard",
-};
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAppSelector } from "@/lib/store/store";
+import { DashboardLayout } from "@/components/dashboard/layout";
 
 export default function DashboardPage() {
-  return (
-    <ProtectedRoute>
-      <DashboardLayout />
-      {/* <div>Chat component will go here</div>
-      </DashboardLayout> */}
-    </ProtectedRoute>
-  );
+  const router = useRouter();
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/auth");
+    }
+  }, [isAuthenticated, router]);
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return <DashboardLayout />;
 }

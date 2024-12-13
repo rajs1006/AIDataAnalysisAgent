@@ -68,3 +68,13 @@ declare global {
     OneDrive: OneDriveSDK;
   }
 }
+
+import { Connector } from "./base";
+import { OneDriveAuth } from "../onedrive";
+
+export interface OneDriveConnector extends Connector {
+  type: "onedrive";
+  folder_id: string;
+  folder_path: string;
+  auth: OneDriveAuth;
+}
