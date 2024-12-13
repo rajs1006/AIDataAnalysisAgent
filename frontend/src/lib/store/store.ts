@@ -3,12 +3,14 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 import authReducer from "./auth";
 import chatReducer from "./chat";
 import onedriveReducer from "./onedrive";
+import historyReducer from "./history"
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     chat: chatReducer,
     onedrive: onedriveReducer,
+    history: historyReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
