@@ -1,17 +1,20 @@
 import { OneDriveFolderInfo } from "./onedrive";
 
 export interface Connector {
-  type: any;
-  id: string;
-  name: string;
+  config: null;
   connector_type: ConnectorType;
-  path?: string;
-  status: "active" | "inactive" | "error";
   created_at: string;
+  description: null;
+  enabled: boolean;
+  error_message: null;
+  last_sync: null;
+  name: string;
+  path: null;
+  status: "active";
+  supported_extensions: string[];
   updated_at: string;
-  last_sync: string;
-  watch_enabled: boolean;
-  metrics?: ConnectorMetrics;
+  user_id: string;
+  _id: string;
 }
 
 export interface PlatformInfo {

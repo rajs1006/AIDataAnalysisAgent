@@ -68,13 +68,13 @@ export function ChatInput() {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Ask me anything about your data..."
-        className="min-h-[60px] resize-none bg-[var(--background)]"
+        className="min-h-[60px] resize-none bg-[var(--background)] text-slate-700"
         rows={1}
       />
       <Button 
         onClick={sendMessage}
         disabled={isLoading || !input.trim()}
-        className="h-[60px] px-4 bg-[var(--accent-color)] hover:bg-[var(--accent-color-hover)]"
+        className="h-[60px] w-[100px] px-4 bg-blue-500 hover:bg-blue-600"
       >
         <Send className="h-5 w-5" />
       </Button>

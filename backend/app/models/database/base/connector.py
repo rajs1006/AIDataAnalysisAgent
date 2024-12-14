@@ -3,6 +3,7 @@ from pydantic import Field
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 from app.models.schema.base.connector import ConnectorStatus
+from app.models.schema.base.connector import ConnectorType
 
 
 class BaseConnector(Document):
@@ -12,6 +13,7 @@ class BaseConnector(Document):
     name: str = Field(..., min_length=1, max_length=255)
     path: Optional[str] = None
     description: Optional[str] = None
+    connector_type: Optional[ConnectorType] = None  # Add this field
     config: Optional[Dict] = None
     supported_extensions: List[str] = [".pdf", ".doc", ".docx", ".txt"]
     enabled: bool = True

@@ -24,7 +24,7 @@ export default function RootLayout({
           <QueryClientProvider client={queryClient}>
             <ThemeProvider
               attribute="class"
-              defaultTheme="dark"
+              defaultTheme="system"
               enableSystem={false}
             >
               {children}

@@ -72,7 +72,7 @@ export function DashboardLayout() {
 
   useEffect(() => {
     loadConnectors();
-    const interval = setInterval(loadConnectors, 30000); // Refresh every 30s
+    const interval = setInterval(loadConnectors, 3600000); // Refresh every hour
     return () => clearInterval(interval);
   }, []);
 
@@ -172,10 +172,16 @@ export function DashboardLayout() {
   const ConnectorCard = ({ connector }: { connector: Connector }) => {
     const Icon = CONNECTOR_ICONS[connector.type as ConnectorType] || Files;
     return (
-      <div className="flex flex-col p-4 mb-4 rounded-lg bg-[var(--input-bg)] border border-[var(--accent-color)]">
+      <div className="group flex flex-col p-4 mb-4 rounded-lg bg-[var(--input-bg)] border border-[var(--accent-color)] relative">
         <div className="flex justify-between items-start mb-3">
           <div className="flex items-center gap-2">
-            <Icon className="h-5 w-5 text-[var(--foreground)]" />
+            <Icon
+              className={`h-5 w-5 ${
+                connector.status === "active"
+                  ? "text-green-500"
+                  : "text-[var(--foreground)]"
+              }`}
+            />
             <div className="flex flex-col">
               <span className="font-medium text-[var(--text-dark)]">
                 {connector.name}
@@ -222,15 +228,14 @@ export function DashboardLayout() {
           </div>
         )}
 
-        <div className="flex justify-end gap-2 mt-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => folderService.deleteConnector(connector.id)}
-          >
-            <Trash2 className="h-4 w-4 text-red-500" />
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => folderService.deleteConnector(connector._id)}
+          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute top-2 right-2"
+        >
+          <Trash2 className="h-4 w-4 text-red-500" />
+        </Button>
       </div>
     );
   };
@@ -358,7 +363,7 @@ export function DashboardLayout() {
                       .filter((c) => c.status === "active")
                       .map((connector) => (
                         <ConnectorCard
-                          key={connector.id}
+                          key={connector._id}
                           connector={connector}
                         />
                       ))}

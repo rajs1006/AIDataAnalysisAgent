@@ -1,8 +1,13 @@
 // src/components/chat/interface.tsx
-import React from "react";
+import React, { useState } from "react";
 import { ChatHistory } from "./history/index";
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircleOff, Copy } from "lucide-react";
+import {
+  MessageCircleOff,
+  CopyPlus,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { connectorService } from "@/lib/api/connector";
 import { MessageList } from "./message-list";
 import { ChatInput } from "./input";
@@ -11,14 +16,21 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 
 export function ChatInterface() {
-  const { data: connectors = [] } = useQuery({
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+  const { data: connectors = [], refetch } = useQuery({
     queryKey: ["connectors"],
     queryFn: () => connectorService.getConnectors(),
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 1000, // Refetch after 1 second
   });
   const messages = useAppSelector((state) => state.chat.messages);
   const { toast } = useToast();
 
-  const hasActiveConnector = connectors.some((c) => c.status === "active");
+  const hasActiveConnector =
+    connectors &&
+    connectors.length > 0 &&
+    connectors.some((c) => c.status === "active" || c.status === "connected");
   const lastAnswer = messages
     .filter((m) => m.type === "assistant")
     .pop()?.content;
@@ -55,13 +67,31 @@ export function ChatInterface() {
   return (
     <div className="flex h-full gap-6">
       {/* Chat History */}
-      <div className="w-72 border rounded-lg bg-slate-50">
-        <ChatHistory />
-      </div>
+      {/* <div
+        className={`${
+          isHistoryCollapsed ? "w-12" : "w-72"
+        } transition-all duration-300 border rounded-lg bg-card shadow-sm flex flex-col`}
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          className="clickable-button hover:bg-transparent self-end m-2"
+          onClick={() => setIsHistoryCollapsed(!isHistoryCollapsed)}
+        >
+          {isHistoryCollapsed ? (
+            <ChevronRight className="h-5 w-5 text-accent" />
+          ) : (
+            <ChevronLeft className="h-5 w-5 text-accent" />
+          )}
+        </Button>
+        <div className={`${isHistoryCollapsed ? "hidden" : "block"} flex-1`}>
+          <ChatHistory />
+        </div>
+      </div> */}
 
       {/* Chat Interface */}
       <div className="flex-1 flex">
-        <div className="flex-1 flex flex-col rounded-lg border bg-slate-100">
+        <div className="flex-1 flex flex-col rounded-lg border bg-card shadow-sm">
           <div className="flex-1 overflow-hidden">
             <MessageList />
           </div>
@@ -72,11 +102,16 @@ export function ChatInterface() {
 
         {/* Answer Box */}
         {lastAnswer && (
-          <div className="w-96 ml-6 flex flex-col rounded-lg border">
+          <div className="w-96 ml-6 flex flex-col rounded-lg border bg-card shadow-sm">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-medium">Latest Answer</h3>
-              <Button variant="ghost" size="icon" onClick={copyToClipboard}>
-                <Copy className="h-4 w-4" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="clickable-button hover:bg-transparent"
+                onClick={copyToClipboard}
+              >
+                <CopyPlus className="h-5 w-5 text-accent" />
               </Button>
             </div>
             <div className="p-4 flex-1 overflow-auto">

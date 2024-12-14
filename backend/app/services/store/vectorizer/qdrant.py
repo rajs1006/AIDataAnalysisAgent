@@ -65,7 +65,7 @@ class VectorStore:
     ) -> List[str]:
         try:
             texts_embeddings_metadata = await self.vectorizer.create_embeddings(
-                content, use_chunking=False, metadata=metadata
+                content, use_chunking=True, metadata=metadata
             )
 
             points = []
@@ -143,7 +143,7 @@ class VectorStore:
                     limit=limit,
                     with_payload=True,
                 )
-                print(results[0])
+
                 return [
                     VectorDocument(
                         id=result.payload.get("original_id", result.id),

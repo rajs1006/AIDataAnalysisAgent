@@ -1,7 +1,6 @@
 import { Source, QueryRequest, QueryResponse } from "../types/chat";
 import { authService } from "./auth";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "/dataagent/api/v1";
+import { API_URL } from "../utils";
 
 export const chatService = {
   async sendMessage(query: string): Promise<QueryResponse> {

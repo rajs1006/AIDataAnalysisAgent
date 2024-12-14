@@ -7,8 +7,8 @@ import {
 } from "../types/onedrive";
 import { ConnectorMetrics } from "../types/connectors";
 import { MicrosoftTokenResponse } from "../types/onedrive";
+import { API_URL } from "../utils";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "/dataagent/api/v1";
 const MICROSOFT_CLIENT_ID = process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID;
 console.log("MICROSOFT_CLIENT_ID:  ", MICROSOFT_CLIENT_ID);
 const scopes = [
@@ -155,7 +155,6 @@ class OneDriveService {
       drive_id: folderData.parentReference?.driveId || "",
     };
   }
-
 
   async createConnector(config: OneDriveConnectorConfig): Promise<void> {
     // Now the config.auth will contain the tokens from Microsoft

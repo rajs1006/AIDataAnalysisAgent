@@ -59,7 +59,7 @@ export function ChatHistory() {
       <div className="p-4 border-b border-[#333333]">
         <Button 
           onClick={handleNewChat} 
-          className="w-full flex items-center gap-2"
+          className="w-full flex items-center gap-2 bg-blue-500 hover:bg-blue-700"
           variant="outline"
         >
           <Plus className="h-4 w-4" />

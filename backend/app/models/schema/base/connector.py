@@ -3,6 +3,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field, validator
 from pathlib import Path
 from datetime import datetime
+from beanie import Document, Indexed, PydanticObjectId
 
 
 class ConnectorType(str, Enum):
@@ -80,3 +81,12 @@ class ConnectorMetadata(BaseModel):
     class Config:
         use_enum_values = True
         json_encoders = {datetime: lambda v: int(v.timestamp() * 1000) if v else None}
+
+
+class ConnectorUpdate(BaseModel):
+    id: PydanticObjectId
+    enabled: Optional[bool] = None
+    status: Optional[str] = None
+
+    class Config:
+        extra = "forbid"
