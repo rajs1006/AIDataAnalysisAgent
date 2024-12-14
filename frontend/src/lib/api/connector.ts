@@ -5,20 +5,39 @@ import {
   CreateConnectorDto,
   ConnectorMetrics,
 } from "../types/connectors";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "/dataagent/api/v1";
+import { API_URL } from "../utils";
 
 class ConnectorService {
   async getConnectors(): Promise<Connector[]> {
     const response = await fetch(`${API_URL}/connectors/`, {
       headers: authService.getAuthHeader() as HeadersInit,
     });
-    1;
+
     if (!response.ok) {
       throw new Error("Failed to fetch connectors");
     }
 
     return response.json();
+  }
+
+  async deleteConnector(connector: Connector): Promise<void> {
+    console.log("connector : ", connector);
+    const response = await fetch(`${API_URL}/connectors/`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authService.getAuthHeader() as HeadersInit),
+      },
+      body: JSON.stringify({
+        id: String(connector._id),
+        enabled: false,
+        status: "inactive",
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to delete connector");
+    }
   }
 }
 

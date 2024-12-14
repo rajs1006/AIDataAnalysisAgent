@@ -87,10 +87,13 @@ class AgentService:
                     connector_id=result.metadata.connector_id, user_id=user_id
                 )
                 if not connector:
-                    logger.error(
+                    logger.warning(
                         f"Active connector not found for connector_id: {result.metadata.connector_id}"
                     )
                     continue
+                logger.info(
+                    f"Processing results for active connector_id: {result.metadata.connector_id} "
+                )
 
                 # Create search context with full content
                 search_context = SearchContext(

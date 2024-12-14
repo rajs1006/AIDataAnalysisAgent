@@ -1,11 +1,6 @@
 // src/lib/api/auth.ts
 import { User, UserCreate, Token } from "@/lib/types/auth";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "/dataagent/api/v1";
-
-// function setAuthToken(token: string) {
-//   document.cookie = `token=${token}; path=/; secure; samesite=strict; max-age=3600`;
-// }
+import { API_URL } from "../utils";
 
 export function setAuthToken(token: string) {
   // Store in localStorage and set cookie consistently

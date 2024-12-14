@@ -1,9 +1,7 @@
 # app/services/auth_service.py
+from fastapi import HTTPException, status
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
-
-from fastapi import HTTPException, status
-
 from app.core.security.auth import (
     create_access_token,
     verify_password,
@@ -14,6 +12,9 @@ from app.models.database.users import User
 from app.models.schema.connectors.onedrive import (
     OAuthCallbackRequest,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -113,13 +114,12 @@ class AuthService:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to update user data {str(e)}",
                 )
-            print("-0000000  updated")
             return "OAuth update successful", user
 
         except HTTPException:
             raise
         except Exception as e:
-            # logger.error(f"OAuth callback failed for user {user_id}: {str(e)}")
+            logger.error(f"OAuth callback failed for user {user.email}: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Internal server error during OAuth callback processing {str(e)}",

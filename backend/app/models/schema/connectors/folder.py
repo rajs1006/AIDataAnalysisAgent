@@ -33,18 +33,6 @@ class FolderCreate(ConnectorBase):
     platform_info: PlatformInfo
 
 
-class FolderUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    path: Optional[str] = None
-    enabled: Optional[bool] = None
-    supported_extensions: Optional[List[str]] = None
-    config: Optional[Dict] = None
-
-    class Config:
-        extra = "forbid"
-
-
 class FolderResponse(ConnectorBase):
     id: str
     files: List[FileMetadata] = []

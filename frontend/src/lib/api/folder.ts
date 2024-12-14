@@ -1,7 +1,6 @@
 import { authService } from "./auth";
 import { CreateConnectorDto, ConnectorMetrics } from "../types/connectors";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "/dataagent/api/v1";
+import { API_URL } from "../utils";
 
 class FolderService {
   async createConnector(data: CreateConnectorDto): Promise<Blob> {

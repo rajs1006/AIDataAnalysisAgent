@@ -1,8 +1,7 @@
 // src/lib/api/user.ts
 import { authService } from "./auth";
 import { UserUpdate } from "@/lib/types/auth";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "/dataagent/api/v1";
+import { API_URL } from "../utils";
 
 export const userService = {
   async updateProfile(data: UserUpdate): Promise<any> {
