@@ -89,6 +89,11 @@ export function ConnectorGrid() {
     setIsLoading(true);
 
     try {
+      // Reset any previous scroll position to show the chat interface
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
       if (selectedConnector === ConnectorType.LOCAL_FOLDER) {
         const formData = new FormData(event.currentTarget);
         const platformInfo = {
