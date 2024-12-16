@@ -11,7 +11,7 @@ export function DashboardLayout() {
       <div className="flex-1 flex overflow-hidden pt-16">
         {/* Left Sidebar (ChatConnectors) */}
         <div className="hidden lg:flex flex-col gap-6 w-132 border-r border-gray-800">
-          <h2 className="text-lg font-medium text-slate-600 text-center">
+          <h2 className="h-3 text-xl font-bold text-slate-600 text-center">
             Chat Integrations
           </h2>
           <ChatConnectors />
@@ -29,7 +29,7 @@ export function DashboardLayout() {
 
           <div className="border-t border-[#0e0e0e] p-6">
             <div className="max-w-[1200px] mx-auto text-center">
-              <h2 className="text-lg font-medium text-slate-600 text-center ">
+              <h2 className="h-10 text-xl font-bold text-slate-600 text-center ">
                 Data Connectors
               </h2>
               <ConnectorGrid />
