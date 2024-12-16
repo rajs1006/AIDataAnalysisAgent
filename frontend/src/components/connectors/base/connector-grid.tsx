@@ -237,7 +237,7 @@ export function ConnectorGrid() {
             >
               <button
                 onClick={() => handleConnectorClick(type)}
-                className="w-full flex flex-col p-6 rounded-lg border transition-colors  border-[var(--secondary)] hover:bg-[var(--accent-foreground)]"
+                className="w-full flex flex-col p-6 rounded-lg border transition-colors  border-[var(--secondary)] hover:bg-blue-700"
               >
                 {/* Add ACTIVE label if connector is active */}
                 {isActive && (
@@ -264,9 +264,9 @@ export function ConnectorGrid() {
                     setActiveConnector(existingConnector);
                     setDeleteDialogOpen(true);
                   }}
-                  className="absolute top-0 right-2 p-1.5 rounded-full bg-red-100 hover:bg-red-200 transition-colors"
+                  className="absolute top-0 right-2 p-1.5 rounded-full bg-transparent transition-colors"
                 >
-                  <X className="h-4 w-4 text-red-600" />
+                  <X className="h-4 w-8 text-red-950" />
                 </button>
               )}
             </div>
