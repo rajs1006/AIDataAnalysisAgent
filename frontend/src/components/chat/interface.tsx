@@ -1,5 +1,5 @@
 // src/components/chat/interface.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ChatHistory } from "./history/index";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 
 export function ChatInterface() {
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+  const chatRef = useRef<HTMLDivElement>(null);
   const { data: connectors = [], refetch } = useQuery({
     queryKey: ["connectors"],
     queryFn: () => connectorService.getConnectors(),
@@ -35,6 +36,17 @@ export function ChatInterface() {
     .filter((m) => m.type === "assistant")
     .pop()?.content;
 
+  // Auto-focus and scroll to chat interface when connectors change
+  useEffect(() => {
+    if (hasActiveConnector && chatRef.current) {
+      chatRef.current.scrollIntoView({ behavior: "smooth" });
+      const input = chatRef.current.querySelector("input");
+      if (input) {
+        input.focus();
+      }
+    }
+  }, [hasActiveConnector]);
+
   const copyToClipboard = async () => {
     if (lastAnswer) {
       try {
@@ -51,18 +63,18 @@ export function ChatInterface() {
     }
   };
 
-  if (!hasActiveConnector) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <MessageCircleOff className="h-8 w-8 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium mb-2">No Active Data Connectors</h3>
-        <p className="text-muted-foreground max-w-md">
-          Please set up and activate at least one data connector to start
-          chatting with your data.
-        </p>
-      </div>
-    );
-  }
+  // if (!hasActiveConnector) {
+  //   return (
+  //     <div className="flex flex-col items-center justify-center h-full text-center p-4">
+  //       <MessageCircleOff className="h-8 w-8 text-muted-foreground mb-4" />
+  //       <h3 className="text-lg font-medium mb-2">No Active Data Connectors</h3>
+  //       <p className="text-muted-foreground max-w-md">
+  //         Please set up and activate at least one data connector to start
+  //         chatting with your data.
+  //       </p>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="flex h-full gap-6">
@@ -90,7 +102,7 @@ export function ChatInterface() {
       </div> */}
 
       {/* Chat Interface */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex" ref={chatRef}>
         <div className="flex-1 flex flex-col rounded-lg border bg-card shadow-sm">
           <div className="flex-1 overflow-hidden">
             <MessageList />

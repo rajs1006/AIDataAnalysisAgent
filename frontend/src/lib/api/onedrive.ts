@@ -10,14 +10,19 @@ import { MicrosoftTokenResponse } from "../types/onedrive";
 import { API_URL } from "../utils";
 
 const MICROSOFT_CLIENT_ID = process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID;
-console.log("MICROSOFT_CLIENT_ID:  ", MICROSOFT_CLIENT_ID);
 const scopes = [
   "Files.Read.All",
   // "Files.SelectedOperations.Selected",
   // "Files.ReadWrite.All",
   "offline_access",
 ];
-const redirect_uri = `${window.location.origin}/auth/callback/onedrive`;
+
+let redirect_uri = "/auth/callback/onedrive";
+if (typeof window !== "undefined") {
+  redirect_uri = `${window.location.origin}/auth/callback/onedrive`;
+}
+
+// const redirect_uri = `${window.location.origin}/auth/callback/onedrive`;
 
 class OneDriveService {
   buildAuthUrl(codeChallenge: string): string {

@@ -1,6 +1,11 @@
 import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/lib/store/store";
-import { setChats, addChat, removeChat, setActiveChat } from "@/lib/store/history";
+import {
+  setChats,
+  addChat,
+  removeChat,
+  setActiveChat,
+} from "@/lib/store/history";
 import { historyService } from "@/lib/api/history";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -57,8 +62,8 @@ export function ChatHistory() {
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b">
-        <Button 
-          onClick={handleNewChat} 
+        <Button
+          onClick={handleNewChat}
           className="w-full flex items-center gap-2"
           variant="outline"
         >
@@ -67,13 +72,13 @@ export function ChatHistory() {
         </Button>
       </div>
 
-      <ScrollArea className="flex-1">
+      {/* <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
           {chats.map((chat) => (
             <button
               key={chat.id}
               onClick={() => dispatch(setActiveChat(chat.id))}
-              className={\`w-full p-3 text-left rounded-lg flex items-center justify-between group \${
+              className={`w-full p-3 text-left rounded-lg flex items-center justify-between group \${
                 activeChat === chat.id
                   ? "bg-blue-500 text-white"
                   : "hover:bg-gray-100"
@@ -97,7 +102,7 @@ export function ChatHistory() {
             </button>
           ))}
         </div>
-      </ScrollArea>
+      </ScrollArea> */}
     </div>
   );
 }

@@ -18,13 +18,9 @@ async function generateCodeVerifier() {
 }
 
 async function generateCodeChallenge(verifier: string) {
-  console.log("1")
   const encoder = new TextEncoder();
-  console.log("2 ", encoder);
   const data = encoder.encode(verifier);
-  console.log("3 ", data);
   const hash = await crypto.subtle.digest("SHA-256", data);
-  console.log("3 ", data);
   const hashArray = Array.from(new Uint8Array(hash) as unknown as number[]);
   const base64Hash = btoa(String.fromCharCode.apply(null, hashArray));
   return base64Hash.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -153,14 +149,11 @@ export const OneDriveFolderPicker = () => {
 
     setIsProcessing(true);
     try {
-      console.log("code verifier")
       const codeVerifier = await generateCodeVerifier();
       setVerifier(codeVerifier);
-      console.log("code verifier 2");
       const codeChallenge = await generateCodeChallenge(codeVerifier);
-      console.log("code challenge");
       const popup = onedriveService.createAuthPopup(codeChallenge);
-      console.log("code popup");
+
       if (!popup) {
         throw new Error("Popup blocked. Please enable popups for this site.");
       }

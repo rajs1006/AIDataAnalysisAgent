@@ -170,7 +170,7 @@ export function DashboardLayout() {
   };
 
   const ConnectorCard = ({ connector }: { connector: Connector }) => {
-    const Icon = CONNECTOR_ICONS[connector.type as ConnectorType] || Files;
+    const Icon = CONNECTOR_ICONS[connector as unknown as ConnectorType] || Files;
     return (
       <div className="group flex flex-col p-4 mb-4 rounded-lg bg-[var(--input-bg)] border border-[var(--accent-color)] relative">
         <div className="flex justify-between items-start mb-3">
@@ -206,7 +206,7 @@ export function DashboardLayout() {
           </div>
         </div>
 
-        {connector.status === "active" && connector.metrics && (
+        {/* {connector.status === "active" && connector.metrics && (
           <div className="grid grid-cols-3 gap-2 my-2 text-sm">
             <div>
               <Label className="text-xs">Memory</Label>
@@ -226,7 +226,7 @@ export function DashboardLayout() {
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         <Button
           variant="ghost"

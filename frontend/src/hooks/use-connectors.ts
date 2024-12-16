@@ -21,7 +21,7 @@ export function useConnectors() {
   };
 
   const refreshConnectors = () => {
-    queryClient.invalidateQueries(["connectors"]);
+    queryClient.invalidateQueries({ queryKey: ["connectors"] });
   };
 
   return {
