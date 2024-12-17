@@ -6,6 +6,7 @@ import {
   ConnectorMetrics,
 } from "../types/connectors";
 import { API_URL } from "../utils";
+import { boolean } from "zod";
 
 class ConnectorService {
   async getConnectors(): Promise<Connector[]> {
@@ -20,8 +21,7 @@ class ConnectorService {
     return response.json();
   }
 
-  async deleteConnector(connector: Connector): Promise<void> {
-    console.log("connector : ", connector);
+  async updateConnector(connector: Connector): Promise<void> {
     const response = await fetch(`${API_URL}/connectors/`, {
       method: "PUT",
       headers: {
@@ -30,14 +30,22 @@ class ConnectorService {
       },
       body: JSON.stringify({
         id: String(connector._id),
-        enabled: false,
-        status: "inactive",
+        enabled: Boolean(connector.enabled),
+        status: String(connector.status),
       }),
     });
 
     if (!response.ok) {
-      throw new Error("Failed to delete connector");
+      throw new Error("Failed to update connector");
     }
+  }
+
+  async deleteConnector(connector: Connector): Promise<void> {
+    return this.updateConnector({
+      ...connector,
+      enabled: false,
+      status: "inactive",
+    });
   }
 }
 

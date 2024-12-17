@@ -6,15 +6,20 @@ import { Message } from "@/lib/types/chat";
 import { Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useConnectors } from "@/hooks/use-connectors";
+import { useConversation } from "@/hooks/use-conversation";
 
 export function ChatInput() {
   const dispatch = useAppDispatch();
   const isLoading = useAppSelector((state) => state.chat.isLoading);
   const [input, setInput] = useState("");
+  const { sendMessage: sendConversationMessage } = useConversation();
+  const { hasActiveConnector } = useConnectors();
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
+    // Create and show user message in UI
     const userMessage: Message = {
       id: Date.now().toString(),
       type: "user",
@@ -22,12 +27,16 @@ export function ChatInput() {
       timestamp: new Date(),
     };
 
-    dispatch(addMessage(userMessage));
     setInput("");
     dispatch(setLoading(true));
+    dispatch(addMessage(userMessage));
 
     try {
-      const response = await chatService.sendMessage(input);
+      // Get current conversation ID 
+      const conversationId = await sendConversationMessage(input);
+      
+      // Send to chat service for processing with conversation ID
+      const response = await chatService.sendMessage(input, conversationId);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -78,11 +87,15 @@ export function ChatInput() {
       />
       <Button
         onClick={sendMessage}
-        disabled={isLoading || !input.trim()}
-        className="h-[60px] w-[100px] px-4 bg-blue-500 hover:bg-blue-600"
+        disabled={isLoading || !input.trim() || !hasActiveConnector}
+        className="h-[60px] w-[120px] px-4 bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center gap-2"
       >
+        {/* console.log("isLoading else ", isLoading) */}
         {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <>
+            <Loader2 className="h-5 w-5 animate-spin text-white" />
+            <span className="text-black font-bold">Retrieving</span>
+          </>
         ) : (
           <Send className="h-5 w-5" />
         )}

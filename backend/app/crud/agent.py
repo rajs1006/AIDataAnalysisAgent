@@ -15,7 +15,8 @@ class AgentCRUD:
     # def __init__(self, vector_store: VectorStore):
     #     self.vector_store = vector_store
 
-    async def get_connector(self, connector_id: str, user_id: str) -> BaseConnector:
+    @staticmethod
+    async def get_connector(connector_id: str, user_id: str) -> BaseConnector:
         """Get all connectors for a user"""
         return await BaseConnector.find_one(
             {
@@ -25,8 +26,9 @@ class AgentCRUD:
             }
         )
 
+    @staticmethod
     async def search_connector_context(
-        self, connector_id: str, query: str, user_id: str, limit: int = 5
+        connector_id: str, query: str, user_id: str, limit: int = 5
     ) -> List[SearchContext]:
         """Search for context within a specific connector"""
         # Use vector store's built-in search functionality

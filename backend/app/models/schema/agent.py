@@ -1,6 +1,7 @@
 # app/models/schema/agent.py
 
 from typing import List, Optional, Dict, Any
+from uuid import UUID
 from pydantic import BaseModel, Field
 from enum import Enum
 
@@ -13,6 +14,7 @@ class SearchParameters(BaseModel):
 
 class QueryRequest(BaseModel):
     query: str = Field(..., description="User's question")
+    conversation_id: Optional[str] = Field(None, description="ID of the conversation")
     model: str = Field(default="gpt-4-1106-preview", description="OpenAI model to use")
     temperature: float = Field(default=0.7, ge=0, le=2, description="Model temperature")
     max_tokens: int = Field(default=500, ge=1, description="Maximum response tokens")

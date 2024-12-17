@@ -1,10 +1,12 @@
 // src/components/chat/interface.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { ChatHistory } from "./history/index";
-import { useQuery } from "@tanstack/react-query";
+import { useConnectors } from "@/hooks/use-connectors";
+import { useConversation } from "@/hooks/use-conversation";
 import {
   MessageCircleOff,
   CopyPlus,
+  Copy,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -18,20 +20,12 @@ import { useToast } from "@/components/ui/use-toast";
 export function ChatInterface() {
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
-  const { data: connectors = [], refetch } = useQuery({
-    queryKey: ["connectors"],
-    queryFn: () => connectorService.getConnectors(),
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    staleTime: 1000, // Refetch after 1 second
-  });
+  const { hasActiveConnector } = useConnectors();
+  const { currentConversationId, sendMessage, startNewConversation } = useConversation();
   const messages = useAppSelector((state) => state.chat.messages);
   const { toast } = useToast();
 
-  const hasActiveConnector =
-    connectors &&
-    connectors.length > 0 &&
-    connectors.some((c) => c.status === "active" || c.status === "connected");
+  // hasActiveConnector is now provided by useConnectors hook
   const lastAnswer = messages
     .filter((m) => m.type === "assistant")
     .pop()?.content;
@@ -63,18 +57,18 @@ export function ChatInterface() {
     }
   };
 
-  // if (!hasActiveConnector) {
-  //   return (
-  //     <div className="flex flex-col items-center justify-center h-full text-center p-4">
-  //       <MessageCircleOff className="h-8 w-8 text-muted-foreground mb-4" />
-  //       <h3 className="text-lg font-medium mb-2">No Active Data Connectors</h3>
-  //       <p className="text-muted-foreground max-w-md">
-  //         Please set up and activate at least one data connector to start
-  //         chatting with your data.
-  //       </p>
-  //     </div>
-  //   );
-  // }
+  if (!hasActiveConnector) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+        <MessageCircleOff className="h-8 w-8 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-medium mb-2">No Active Data Connectors</h3>
+        <p className="text-muted-foreground max-w-md">
+          Please set up and activate at least one data connector to start
+          chatting with your data.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full gap-6">
@@ -123,7 +117,7 @@ export function ChatInterface() {
                 className="clickable-button hover:bg-transparent"
                 onClick={copyToClipboard}
               >
-                <CopyPlus className="h-5 w-5 text-accent" />
+                <Copy className="h-5 w-5 text-accent" />
               </Button>
             </div>
             <div className="p-4 flex-1 overflow-auto">

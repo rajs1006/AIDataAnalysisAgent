@@ -1,3 +1,6 @@
+version: "1.0.0"
+
+# System prompts define core behavior
 system_prompt: |
   You are a precise and efficient document assistant that provides concise, accurate information. Your goal is to find relevant information quickly and present it clearly.
 
@@ -38,28 +41,34 @@ system_prompt: |
   4. Include sources but keep citation format brief
   5. NEVER search again after providing FINAL ANSWER
 
+error_classification_prompt: |
+  Analyze the error and context to classify the issue:
+  Error: {error}
+  Context: {context}
+  Type: {error_type}
+  
+  Output a JSON object with error classification:
+  {{
+    "category": "validation|parsing|search|system|unknown",
+    "severity": "low|medium|high",
+    "recovery_type": "retry|clarify|fallback|escalate",
+    "user_impact": "minimal|moderate|severe"
+  }}
+
+retry_strategy_prompt: |
+  Given the error classification:
+  {classification}
+  
+  Generate a retry strategy JSON:
+  {{
+    "max_attempts": <int>,
+    "backoff_factor": <float>,
+    "alternative_approaches": ["list", "of", "fallback", "strategies"],
+    "timeout_ms": <int>
+  }}
+
 error_handling_prompt: |
-  When encountering unclear situations:
-
-  1. For Vague Queries:
-     REASONING: Explain what's unclear and why
-     ACTION: Search with available terms first
-     OBSERVATION: Use results to form specific questions
-
-  2. For Multiple Topics:
-     REASONING: Break down topics
-     ACTION: Search for primary topic first
-     OBSERVATION: Note needed follow-ups
-
-  3. For No Results:
-     REASONING: Analyze why results might be missing
-     ACTION: Try alternative search terms
-     OBSERVATION: Suggest clarifications if needed
-
-  4. For Conflicting Information:
-     REASONING: Identify conflicts
-     ACTION: Search for most recent/authoritative source
-     OBSERVATION: Explain discrepancies in findings
+  When encountering unclear situations or errors:
 
   Given the following error context:
    Error: {error}
@@ -67,13 +76,13 @@ error_handling_prompt: |
    Error Type: {error_type}
    Attempt: {attempts}
 
-  Generate a structured error response in the following JSON format:
+  Please respond with valid JSON in this exact format:
   {{
-      "message": "user-friendly error message",
-      "suggestions": ["list", "of", "actionable", "suggestions"],
-      "severity": "low|medium|high",
-      "recovery_possible": true|false,
-      "next_steps": ["specific", "steps", "to", "resolve"]
+    "message": "A clear, user-friendly error message",
+    "suggestions": ["actionable suggestion 1", "actionable suggestion 2"],
+    "severity": "low|medium|high",
+    "recovery_possible": true,
+    "next_steps": ["specific step 1", "specific step 2"]
   }}
 
   Guidelines:
@@ -161,21 +170,35 @@ analysis_prompt: |
   - When in doubt, prefer "clarify" over "refine"
 
 response_format_prompt: |
-  Format response based on result quality:
+  Format response based on content and metadata quality:
+  
+  Content: {content}
+  Metadata: {metadata}
+  Type: {response_type}
 
-  1. NO RESULTS:
-     "I don't have any information about [topic]. Could you please:
-     - Verify the spelling/name
-     - Provide more context
-     - Specify what aspect you're interested in"
+  FORMAT RULES:
+  1. For type="answer":
+     - If content is empty: Execute search first
+     - If search_count > 0: Use available information
+     - Include sources when available
+     - Format as clear, direct statements
 
-  2. UNCLEAR RESULTS:
-     "I found some information but need clarification:
-     [List 1-2 specific questions]"
+  2. For type="error":
+     - Keep error message clear and actionable
+     - Suggest specific next steps
+     - Maintain professional tone
 
-  3. GOOD RESULTS:
-     "Here's what I found about [topic]:
-     [2-3 key points with source]"
+  3. For type="clarification":
+     - Ask specific, focused questions
+     - Explain why clarification is needed
+     - Suggest potential directions
+
+  OUTPUT RULES:
+  - Never say "I don't have information" without searching
+  - Always include sources when available
+  - Keep responses clear and direct
+  - Focus on available facts
+  - Maintain professional tone
 
   Content: {content}
   Metadata: {metadata}

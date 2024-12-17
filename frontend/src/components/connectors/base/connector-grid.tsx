@@ -1,9 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
-import { connectorService } from "@/lib/api/connector";
+import { useState } from "react";
 import { folderService } from "@/lib/api/folder";
 import { onedriveService } from "@/lib/api/onedrive";
 import { Connector, ConnectorType } from "@/lib/types/connectors";
+import { useConnectors } from "@/hooks/use-connectors";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +11,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Cloud, FolderUp, AlertTriangle, X } from "lucide-react";
+import { Cloud, FolderUp, AlertTriangle, X, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,11 +26,14 @@ export function ConnectorGrid() {
   const [activeConnector, setActiveConnector] = useState<Connector | null>(
     null
   );
-  const [isLoading, setIsLoading] = useState(false);
-  const [connectors, setConnectors] = useState<Connector[]>([]);
+  const [loadingConnectorType, setLoadingConnectorType] =
+    useState<ConnectorType | null>(null);
   const [hoveredConnector, setHoveredConnector] =
     useState<ConnectorType | null>(null);
   const { toast } = useToast();
+
+  const { connectors, refreshConnectors, deleteConnector, isDeleting } =
+    useConnectors();
 
   // Helper function to determine connector type from the API response
   const getConnectorType = (connector: Connector): ConnectorType => {
@@ -48,25 +50,7 @@ export function ConnectorGrid() {
     return ConnectorType.ONEDRIVE;
   };
 
-  const loadConnectors = async () => {
-    try {
-      const fetchedConnectors = await connectorService.getConnectors();
-      setConnectors(fetchedConnectors);
-    } catch (error) {
-      console.error("Failed to load connectors:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load connectors",
-        variant: "destructive",
-      });
-    }
-  };
-
-  useEffect(() => {
-    loadConnectors();
-    const interval = setInterval(loadConnectors, 3600000); // Check every hour (fixed from 36000)
-    return () => clearInterval(interval);
-  }, []);
+  // Connectors are now managed by the useConnectors hook
 
   const handleConnectorClick = (type: ConnectorType) => {
     const existingConnector = connectors.find(
@@ -86,13 +70,16 @@ export function ConnectorGrid() {
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
-    setIsLoading(true);
+    // Close dialog immediately
+    setDialogOpen(false);
+    // Set loading state for this specific connector
+    setLoadingConnectorType(selectedConnector);
 
     try {
       // Reset any previous scroll position to show the chat interface
       window.scrollTo({
         top: 0,
-        behavior: 'smooth'
+        behavior: "smooth",
       });
       if (selectedConnector === ConnectorType.LOCAL_FOLDER) {
         const formData = new FormData(event.currentTarget);
@@ -141,7 +128,7 @@ export function ConnectorGrid() {
       }
 
       setDialogOpen(false);
-      loadConnectors();
+      refreshConnectors();
     } catch (error) {
       toast({
         title: "Error",
@@ -150,7 +137,7 @@ export function ConnectorGrid() {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoadingConnectorType(null);
     }
   };
 
@@ -158,8 +145,7 @@ export function ConnectorGrid() {
     if (!activeConnector) return;
 
     try {
-      await connectorService.deleteConnector(activeConnector);
-      setConnectors(connectors.filter((c) => c._id !== activeConnector._id));
+      await deleteConnector(activeConnector);
       toast({
         title: "Success",
         description: "Connector deleted successfully",
@@ -200,7 +186,7 @@ export function ConnectorGrid() {
                 currentTarget: { formData },
               } as any);
             }}
-            isSubmitting={isLoading}
+            isSubmitting={loadingConnectorType === ConnectorType.ONEDRIVE}
           />
         );
       default:
@@ -245,10 +231,17 @@ export function ConnectorGrid() {
                 className="w-full flex flex-col p-6 rounded-lg border transition-colors  border-[var(--secondary)] hover:bg-blue-700"
               >
                 {/* Add ACTIVE label if connector is active */}
-                {isActive && (
-                  <span className="absolute top-2 right-2 px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
-                    ACTIVE
+                {loadingConnectorType === type ? (
+                  <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    SETTING UP
                   </span>
+                ) : (
+                  isActive && (
+                    <span className="absolute top-2 right-2 px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
+                      ACTIVE
+                    </span>
+                  )
                 )}
                 <div className="flex items-center gap-3 mb-2">
                   <Icon className="h-5 w-5 text-[var(--text-dark)]" />
@@ -293,8 +286,8 @@ export function ConnectorGrid() {
           </DialogHeader>
           <form onSubmit={handleConnectorSubmit} className="space-y-4">
             {renderConnectorForm()}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Creating..." : "Create Connector"}
+            <Button type="submit" className="w-full">
+              Create Connector
             </Button>
           </form>
         </DialogContent>

@@ -10,7 +10,7 @@ export interface Connector {
   last_sync: null;
   name: string;
   path: null;
-  status: "active";
+  status: string;
   supported_extensions: string[];
   updated_at: string;
   user_id: string;

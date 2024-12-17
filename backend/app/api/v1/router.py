@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import auth, agent
+from .endpoints import auth, agent, conversation
 from .endpoints.connectors import folder
 from .endpoints.connectors import onedrive
 from .endpoints.connectors import base
@@ -14,4 +14,7 @@ api_router.include_router(
 )
 api_router.include_router(
     onedrive.router, prefix="/connectors/onedrive", tags=["connectors.onedrive"]
+)
+api_router.include_router(
+    conversation.router, prefix="/conversations", tags=["conversations"]
 )

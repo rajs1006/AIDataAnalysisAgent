@@ -3,12 +3,13 @@ import { authService } from "./auth";
 import { API_URL } from "../utils";
 
 export const chatService = {
-  async sendMessage(query: string): Promise<QueryResponse> {
+  async sendMessage(query: string, conversationId: string): Promise<QueryResponse> {
     const request: QueryRequest = {
       query,
       model: "gpt-4-1106-preview",
       temperature: 0.7,
       max_tokens: 500,
+      conversation_id: conversationId,
     };
 
     const response = await fetch(`${API_URL}/agent/chat`, {

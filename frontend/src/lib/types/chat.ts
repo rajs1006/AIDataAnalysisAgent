@@ -6,6 +6,18 @@ export interface Message {
   timestamp: Date;
 }
 
+export interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  messages: Message[];
+}
+
+export interface ConversationCreate {
+  title?: string;
+}
+
 export interface ChatState {
   messages: Message[];
   isLoading: boolean;
@@ -23,6 +35,7 @@ export interface QueryRequest {
   model: string;
   temperature: number;
   max_tokens: number;
+  conversation_id: string;
 }
 
 export interface QueryResponse {

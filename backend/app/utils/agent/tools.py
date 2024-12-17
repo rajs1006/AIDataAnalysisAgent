@@ -154,14 +154,177 @@ class SearchUtils:
         return "\n".join(metadata)
 
 
+class QuestionDecomposer:
+    """Decomposes complex questions into simpler sub-questions"""
+
+    def __init__(self):
+        self.question_types = {
+            "what": self._handle_what,
+            "how": self._handle_how,
+            "why": self._handle_why,
+            "when": self._handle_when,
+            "where": self._handle_where,
+            "who": self._handle_who,
+            "comparison": self._handle_comparison,
+            "list": self._handle_list,
+        }
+
+    def decompose(self, query: str) -> List[str]:
+        """Break down complex queries into sub-questions"""
+        # Clean and normalize query
+        query = query.strip().lower()
+
+        # Detect query type
+        query_type = self._detect_query_type(query)
+
+        # Handle based on type
+        if query_type in self.question_types:
+            return self.question_types[query_type](query)
+
+        # Default handling for unrecognized types
+        return [query]
+
+    def _detect_query_type(self, query: str) -> str:
+        """Detect the type of question"""
+        # Check for comparison keywords
+        if any(word in query for word in ["compare", "difference", "versus", "vs"]):
+            return "comparison"
+
+        # Check for list keywords
+        if any(word in query for word in ["list", "enumerate", "what are"]):
+            return "list"
+
+        # Check question words
+        for word in ["what", "how", "why", "when", "where", "who"]:
+            if query.startswith(word):
+                return word
+
+        return "what"  # Default type
+
+    def _handle_what(self, query: str) -> List[str]:
+        """Handle 'what' questions"""
+        # For definition questions
+        if "what is" in query or "what are" in query:
+            return [
+                query,
+                f"Define {query.replace('what is', '').replace('what are', '').strip()}",
+            ]
+        return [query]
+
+    def _handle_how(self, query: str) -> List[str]:
+        """Handle 'how' questions"""
+        sub_questions = [query]
+
+        # For process questions
+        if "how to" in query:
+            topic = query.replace("how to", "").strip()
+            sub_questions.extend(
+                [
+                    f"What are the steps to {topic}?",
+                    f"What are common mistakes when {topic}?",
+                    f"What tools or resources are needed to {topic}?",
+                ]
+            )
+
+        return sub_questions
+
+    def _handle_why(self, query: str) -> List[str]:
+        """Handle 'why' questions"""
+        topic = query.replace("why", "").strip()
+        return [
+            query,
+            f"What are the reasons for {topic}?",
+            f"What factors contribute to {topic}?",
+        ]
+
+    def _handle_when(self, query: str) -> List[str]:
+        """Handle 'when' questions"""
+        return [query]  # Simple temporal questions usually don't need decomposition
+
+    def _handle_where(self, query: str) -> List[str]:
+        """Handle 'where' questions"""
+        return [query]  # Location questions usually don't need decomposition
+
+    def _handle_who(self, query: str) -> List[str]:
+        """Handle 'who' questions"""
+        return [query]  # Identity questions usually don't need decomposition
+
+    def _handle_comparison(self, query: str) -> List[str]:
+        """Handle comparison questions"""
+        # Extract comparison elements
+        elements = self._extract_comparison_elements(query)
+        if len(elements) < 2:
+            return [query]
+
+        return [
+            query,
+            f"What are the key features of {elements[0]}?",
+            f"What are the key features of {elements[1]}?",
+            f"What are the main differences between {elements[0]} and {elements[1]}?",
+        ]
+
+    def _handle_list(self, query: str) -> List[str]:
+        """Handle list-type questions"""
+        topic = (
+            query.replace("list", "")
+            .replace("enumerate", "")
+            .replace("what are", "")
+            .strip()
+        )
+        return [
+            query,
+            f"What are the most important {topic}?",
+            f"What are common or well-known {topic}?",
+        ]
+
+    def _extract_comparison_elements(self, query: str) -> List[str]:
+        """Extract elements being compared"""
+        for separator in ["vs", "versus", "compare", "difference between"]:
+            if separator in query:
+                parts = query.split(separator)
+                if len(parts) == 2:
+                    return [p.strip() for p in parts]
+        return []
+
+
+class SearchCache:
+    """Cache for search results to avoid redundant searches"""
+
+    def __init__(self, max_size: int = 100):
+        self.cache = {}
+        self.max_size = max_size
+        self.query_variations = {}
+
+    def get(self, query: str) -> Optional[Dict[str, Any]]:
+        """Get cached results for a query"""
+        normalized_query = self._normalize_query(query)
+        return self.cache.get(normalized_query)
+
+    def set(self, query: str, results: Dict[str, Any]):
+        """Cache results for a query"""
+        if len(self.cache) >= self.max_size:
+            # Remove oldest entry
+            oldest_query = next(iter(self.cache))
+            del self.cache[oldest_query]
+
+        normalized_query = self._normalize_query(query)
+        self.cache[normalized_query] = results
+
+    def _normalize_query(self, query: str) -> str:
+        """Normalize query for consistent caching"""
+        return " ".join(sorted(query.lower().split()))
+
+
 class ReActTools:
-    """Enhanced tools with integrated prompt handling"""
+    """Enhanced tools with integrated prompt handling and caching"""
 
     def __init__(self, prompt_executor):
         self.prior_searches = []
         self.relevance_threshold = 0.6
         self.search_utils = SearchUtils()
         self.prompt_executor = prompt_executor
+        self.search_cache = SearchCache()
+        self.question_decomposer = QuestionDecomposer()
 
     async def search_documents(
         self,
@@ -169,10 +332,16 @@ class ReActTools:
         search_rag_func: Any,
         user_id: str,
         limit: int = 5,
+        timeout_ms: int = 10000,
     ) -> Dict[str, Any]:
         """Execute RAG search with enhanced analysis"""
         try:
-            # Process typos and variations
+            # Check cache first
+            cached_results = self.search_cache.get(query)
+            if cached_results:
+                return cached_results
+
+            # Process typos and generate variations
             typo_info = self.search_utils._process_typos(
                 query, [s for s in self.prior_searches]
             )
@@ -183,39 +352,45 @@ class ReActTools:
             # Track history
             self.prior_searches.append(query)
 
-            # Execute searches
+            # Decompose query if complex
             all_results = []
             total_score = 0
 
+            # Execute search for main query and its variations
             for variation in query_variations:
-                results = await search_rag_func(
-                    user_id=user_id, query=variation, limit=limit
-                )
-
-                for result in results:
-                    # Extract key points using analysis prompt
-                    analysis = await self.prompt_executor.execute_analysis_prompt(
-                        query=variation,
-                        results=[{"content": result.content}],
-                        history=[{"query": query}],
+                # Execute search with timeout
+                try:
+                    results = await search_rag_func(
+                        user_id=user_id, query=variation, limit=limit
                     )
 
-                    all_results.append(
-                        {
-                            "content": result.content,
-                            "score": result.score,
-                            "key_points": analysis.get("key_points", []),
-                            "source": result.metadata.get("file_path", "Unknown"),
-                            "query_variation": variation,
-                            "relevance": analysis.get("relevance_score", 0),
-                        }
-                    )
-                    total_score += result.score
+                    for result in results:
+                        # Extract key points using analysis prompt
+                        analysis = await self.prompt_executor.execute_analysis_prompt(
+                            query=variation,
+                            results=[{"content": result.content}],
+                            history=[{"query": query}],
+                        )
 
-            # Deduplicate and sort
+                        all_results.append(
+                            {
+                                "content": result.content,
+                                "score": result.score,
+                                "key_points": analysis.get("key_points", []),
+                                "source": result.metadata.get("file_path", "Unknown"),
+                                "query_variation": variation,
+                                "relevance": analysis.get("relevance_score", 0),
+                            }
+                        )
+                        total_score += result.score
+
+                except Exception as e:
+                    logger.error(f"Error in search variation {variation}: {str(e)}")
+                    continue
+
+            # Deduplicate and sort results
             unique_results = self._deduplicate_results(all_results)
-
-            return {
+            final_results = {
                 "results": unique_results,
                 "total_results": len(unique_results),
                 "average_score": total_score / len(all_results) if all_results else 0,
@@ -224,6 +399,10 @@ class ReActTools:
                     typo_info, query_variations
                 ),
             }
+
+            # Cache the results
+            self.search_cache.set(query, final_results)
+            return final_results
 
         except Exception as e:
             logger.error(f"Search error: {str(e)}")
@@ -251,41 +430,58 @@ class ReActTools:
 
         return unique_results
 
-    # async def analyze_results(
-    #     self, search_results: Dict[str, Any], original_query: str
-    # ) -> AnalysisResult:
-    #     """Analyze search results using analysis prompt"""
-    #     try:
-    #         # Get analysis from prompt executor
-    #         analysis = await self.prompt_executor.execute_analysis_prompt(
-    #             query=original_query,
-    #             results=search_results["results"],
-    #             history=[{"query": original_query}],
-    #         )
+    async def analyze_results(
+        self, search_results: Dict[str, Any], original_query: str
+    ) -> AnalysisResult:
+        """Analyze search results using analysis prompt"""
+        try:
+            # Return default result if no results
+            if not search_results.get("results"):
+                return AnalysisResult(
+                    relevance_score=0.0,
+                    key_points=[],
+                    missing_info=["No results found"],
+                    source_reference="",
+                    completeness_score=0.0,
+                    next_action="clarify",
+                )
 
-    #         # Extract key information
-    #         all_content = " ".join([r["content"] for r in search_results["results"]])
-    #         source_ref = "; ".join(set(r["source"] for r in search_results["results"]))
+            # Get analysis from prompt executor
+            analysis = await self.prompt_executor.execute_analysis_prompt(
+                query=original_query,
+                results=search_results["results"],
+                history=[{"query": original_query}],
+            )
 
-    #         return AnalysisResult(
-    #             relevance_score=analysis["relevance_score"],
-    #             key_points=analysis.get("key_points", []),
-    #             missing_info=analysis.get("missing_info", []),
-    #             source_reference=source_ref,
-    #             completeness_score=analysis.get("completeness_score", 0),
-    #             next_action=analysis.get("next_action", "clarify"),
-    #         )
+            # Handle empty or invalid analysis
+            if not analysis or not isinstance(analysis, dict):
+                logger.error(f"Invalid analysis result: {analysis}")
+                raise ValueError("Analysis returned invalid result")
 
-    #     except Exception as e:
-    #         logger.error(f"Analysis error: {str(e)}")
-    #         return AnalysisResult(
-    #             relevance_score=0.0,
-    #             key_points=[],
-    #             missing_info=["Error analyzing results"],
-    #             source_reference="",
-    #             completeness_score=0.0,
-    #             next_action="error",
-    #         )
+            # Extract key information
+            source_ref = "; ".join(
+                set(r.get("source", "Unknown") for r in search_results["results"])
+            )
+
+            return AnalysisResult(
+                relevance_score=float(analysis.get("relevance_score", 0.0)),
+                key_points=analysis.get("key_points", []),
+                missing_info=analysis.get("missing_info", []),
+                source_reference=source_ref,
+                completeness_score=float(analysis.get("completeness_score", 0.0)),
+                next_action=analysis.get("next_action", "clarify"),
+            )
+
+        except Exception as e:
+            logger.error(f"Analysis error: {str(e)}")
+            return AnalysisResult(
+                relevance_score=0.0,
+                key_points=[],
+                missing_info=[f"Error analyzing results: {str(e)}"],
+                source_reference="",
+                completeness_score=0.0,
+                next_action="error",
+            )
 
     async def format_final_answer(
         self, query: str, results: List[Dict], analysis: Dict[str, Any]

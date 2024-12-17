@@ -59,12 +59,9 @@ class ConnectorCRUD:
                 )
 
             # Update the fields you want to change
-            print("before ", existing_connector)
             connector_updated = connector.dict(exclude_none=True)
             for key, value in connector_updated.items():
                 setattr(existing_connector, key, value)
-
-            print("adter ", existing_connector)
 
             # Save the updated connector
             # Use pre_save hook and save
