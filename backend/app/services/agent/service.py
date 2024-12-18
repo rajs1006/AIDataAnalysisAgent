@@ -1,5 +1,8 @@
 from typing import List, Optional, Dict, Any
 import logging
+from uuid import UUID
+from datetime import datetime
+import traceback
 from app.crud.agent import AgentCRUD
 from app.models.schema.agent import (
     QueryRequest,
@@ -10,6 +13,10 @@ from app.models.schema.agent import (
 )
 from app.services.store.vectorizer import VectorStore
 from app.agents.openai_agent import ReActAgent
+from app.crud.conversation import ConversationCRUD
+from app.models.schema.conversation import MessageCreate
+from app.services.conversation.service import ConversationService
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +27,12 @@ class AgentService:
         agent: ReActAgent,
         agent_crud: AgentCRUD,
         vector_store: VectorStore,
+        conversation_service: Optional[ConversationService] = None,
     ):
         self.agent = agent
         self.crud = agent_crud
         self.vector_store = vector_store
+        self.conversation_service = conversation_service
         self.rag_functions = self._initialize_rag_functions()
 
     def _initialize_rag_functions(self) -> List[Dict[str, Any]]:
@@ -43,6 +52,36 @@ class AgentService:
         """Process user query using ReAct agent with RAG control"""
         try:
             context: List[SearchContext] = []
+            conversation_history = []
+
+            # If conversation_id is provided and we have conversation service
+            if query_request.conversation_id and self.conversation_service:
+                # Validate conversation exists and belongs to user
+                await self.conversation_service.validate_conversation(
+                    conversation_id=query_request.conversation_id, user_id=user_id
+                )
+
+                # Get conversation history
+                conversation_data = (
+                    await self.conversation_service.load_conversation_history(
+                        conversation_id=query_request.conversation_id,
+                        user_id=user_id,
+                        page=1,
+                        page_size=10,  # Get last 10 messages for context
+                    )
+                )
+                conversation_history = [
+                    {"role": msg["role"], "content": msg["content"]}
+                    for msg in conversation_data["messages"][-10:]
+                ]
+
+                # Store user message
+                await self.conversation_service.add_message(
+                    conversation_id=query_request.conversation_id,
+                    user_id=user_id,
+                    role="user",
+                    data=MessageCreate(content=query_request.query),
+                )
 
             # Generate response using ReAct agent
             answer = await self.agent.generate_response(
@@ -50,13 +89,37 @@ class AgentService:
                 context=context,
                 query_params=query_request,
                 rag_functions=self.rag_functions,
-                # rag_handlers=rag_handlers,
+                conversation_history=conversation_history,
             )
+
+            # Store assistant's response if using conversations
+            if query_request.conversation_id and self.conversation_service:
+                await self.conversation_service.add_message(
+                    conversation_id=query_request.conversation_id,
+                    user_id=user_id,
+                    role="assistant",
+                    data=MessageCreate(content=answer),
+                )
+
+                # Let the conversation service handle message count and summarization
+                if self.conversation_service:
+                    # Use conversation service to handle summarization
+                    summary = await self.conversation_service.summarize_conversation(
+                        conversation_id=query_request.conversation_id,
+                        user_id=user_id,
+                        agent=self.agent,
+                    )
+
+                    if summary:
+                        logger.info(
+                            f"Generated summary for conversation {query_request.conversation_id}"
+                        )
 
             sources = self.extract_sources(context)
             return QueryResponse(answer=answer, sources=sources)
 
         except Exception as e:
+            traceback.print_exc()
             logger.error(f"Error processing query: {str(e)}")
             raise
 
@@ -100,7 +163,6 @@ class AgentService:
                     content=result.content,
                     metadata={
                         **result.metadata.dict(),
-                        # **connector_metadata.dict(),
                         "connector_name": connector.name,
                         "connector_id": str(connector.id),
                         "doc_id": result.id,

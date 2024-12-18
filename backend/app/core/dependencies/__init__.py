@@ -3,3 +3,4 @@ from .vector import *
 from .cruds import *
 from .agent import *
 from .onedrive import *
+from .service import *

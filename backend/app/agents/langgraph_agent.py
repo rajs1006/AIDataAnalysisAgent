@@ -128,7 +128,13 @@ class PromptExecutor:
             }
         except Exception as e:
             logger.error(f"Error handling prompt execution failed: {str(e)}")
-            return error
+            return {
+                "message": str(error) if isinstance(error, str) else "An unexpected error occurred",
+                "suggestions": ["Please try again with a different query"],
+                "severity": "high",
+                "recovery_possible": False,
+                "next_steps": ["Contact support if the issue persists"]
+            }
             # return {
             #     "message": f"An unexpected error occurred: {error}",
             #     "suggestions": ["Please try again with a different query"],
@@ -158,8 +164,51 @@ class PromptExecutor:
             return content
 
 
+class AgentMetrics:
+    """Track agent performance metrics"""
+
+    def __init__(self):
+        self.search_latencies = []
+        self.relevance_scores = []
+        self.completion_scores = []
+        self.error_counts = {"validation": 0, "parsing": 0, "search": 0, "system": 0}
+        self.retry_counts = {}
+
+    def add_search_latency(self, latency_ms: float):
+        self.search_latencies.append(latency_ms)
+
+    def add_relevance_score(self, score: float):
+        self.relevance_scores.append(score)
+
+    def add_completion_score(self, score: float):
+        self.completion_scores.append(score)
+
+    def add_error(self, error_type: str):
+        if error_type in self.error_counts:
+            self.error_counts[error_type] += 1
+
+    def get_average_metrics(self) -> Dict[str, float]:
+        return {
+            "avg_latency": (
+                sum(self.search_latencies) / len(self.search_latencies)
+                if self.search_latencies
+                else 0
+            ),
+            "avg_relevance": (
+                sum(self.relevance_scores) / len(self.relevance_scores)
+                if self.relevance_scores
+                else 0
+            ),
+            "avg_completion": (
+                sum(self.completion_scores) / len(self.completion_scores)
+                if self.completion_scores
+                else 0
+            ),
+        }
+
+
 class ReActAgent:
-    """ReAct agent with enhanced prompt handling"""
+    """ReAct agent with enhanced prompt handling and state management"""
 
     def __init__(self):
         self.llm = ChatOpenAI(
@@ -169,6 +218,12 @@ class ReActAgent:
         self.prompt_executor = PromptExecutor(self.prompt_manager, self.llm)
         self.tools = ReActTools(self.prompt_executor)
         self.state = ReActState()
+        self.metrics = AgentMetrics()
+        self.error_recovery = {
+            "max_retries": 3,
+            "backoff_factor": 1.5,
+            "timeout_ms": 10000,
+        }
 
     def _create_agent_prompt(self) -> ChatPromptTemplate:
         """Create the agent's prompt template"""
@@ -205,62 +260,81 @@ class ReActAgent:
         ]
 
     async def search_documents(self, query: str) -> str:
-        """Search documents with decisive completion"""
-        try:
-            self.state.search_count += 1
+        """Search documents with enhanced error handling and recovery"""
+        start_time = datetime.utcnow()
+        retries = 0
+        last_error = None
 
-            # Execute search
-            search_result = await self.tools.search_documents(
-                query=query,
-                search_rag_func=self.rag_functions["search_rag"]["handler"],
-                user_id=self.user_id,
-            )
+        while retries < self.error_recovery["max_retries"]:
+            try:
+                self.state.search_count += 1
 
-            # Analyze results
-            analysis = await self.prompt_executor.execute_analysis_prompt(
-                query=query,
-                results=search_result["results"],
-                history=self.state.chat_history,
-            )
+                # Validate query
+                if not query.strip():
+                    return "FINAL ANSWER: Please provide a valid search query."
 
-            # Store results
-            self.state.search_results.extend(search_result["results"])
+                # Execute search with timeout
+                search_result = await self.tools.search_documents(
+                    query=query,
+                    search_rag_func=self.rag_functions["search_rag"]["handler"],
+                    user_id=self.user_id,
+                    timeout_ms=self.error_recovery["timeout_ms"],
+                )
 
-            # DECISIVE COMPLETION CHECK
-            if (
-                analysis["relevance_score"] >= 0.8
-                and analysis["completeness_score"] >= 0.7
-            ):
-                final_answer = await self.tools.format_final_answer(
+                # Get recent context from chat history
+                recent_history = self.state.chat_history[-2:] if len(self.state.chat_history) > 1 else []
+                
+                # Analyze results with context
+                analysis = await self.prompt_executor.execute_analysis_prompt(
+                    query=query,
+                    results=search_result["results"],
+                    history=recent_history,
+                )
+
+                # Store results
+                self.state.search_results.extend(search_result["results"])
+
+                # DECISIVE COMPLETION CHECK
+                if (
+                    analysis["relevance_score"] >= 0.8
+                    and analysis["completeness_score"] >= 0.7
+                ):
+                    final_answer = await self.tools.format_final_answer(
+                        query=query,
+                        results=self.state.search_results,
+                        analysis=analysis,
+                    )
+                    return f"FINAL ANSWER: {final_answer}"
+
+                # Handle other cases
+                if analysis["next_action"] == "clarify":
+                    clarification = (
+                        await self.prompt_executor.execute_clarification_prompt(
+                            query=query, missing_info=analysis["missing_info"]
+                        )
+                    )
+                    return f"FINAL ANSWER: {clarification}"
+
+                if analysis["next_action"] == "refine" and self.state.search_count < 2:
+                    self.state.suggested_refinements = analysis["suggested_refinements"]
+                    return (
+                        f"Results need refinement. Relevance: {analysis['relevance_score']:.2f}. "
+                        f"Trying: {', '.join(analysis['suggested_refinements'])}"
+                    )
+
+                # Force completion if we've searched too much
+                final_attempt = await self.tools.format_final_answer(
                     query=query, results=self.state.search_results, analysis=analysis
                 )
-                return f"FINAL ANSWER: {final_answer}"
+                return f"FINAL ANSWER: {final_attempt}"
 
-            # Handle other cases
-            if analysis["next_action"] == "clarify":
-                clarification = await self.prompt_executor.execute_clarification_prompt(
-                    query=query, missing_info=analysis["missing_info"]
+            except Exception as e:
+                error_message = (
+                    await self.prompt_executor.execute_error_handling_prompt(
+                        error=str(e), context=f"Query: {query}"
+                    )
                 )
-                return f"FINAL ANSWER: {clarification}"
-
-            if analysis["next_action"] == "refine" and self.state.search_count < 2:
-                self.state.suggested_refinements = analysis["suggested_refinements"]
-                return (
-                    f"Results need refinement. Relevance: {analysis['relevance_score']:.2f}. "
-                    f"Trying: {', '.join(analysis['suggested_refinements'])}"
-                )
-
-            # Force completion if we've searched too much
-            final_attempt = await self.tools.format_final_answer(
-                query=query, results=self.state.search_results, analysis=analysis
-            )
-            return f"FINAL ANSWER: {final_attempt}"
-
-        except Exception as e:
-            error_message = await self.prompt_executor.execute_error_handling_prompt(
-                error=str(e), context=f"Query: {query}"
-            )
-            return f"FINAL ANSWER: {error_message}"
+                return f"FINAL ANSWER: {error_message}"
 
     async def provide_answer(self, answer: str) -> str:
         """Provide answer with result analysis"""
@@ -274,7 +348,6 @@ class ReActAgent:
                 results=self.state.search_results,
                 history=self.state.chat_history,
             )
-            print("---", analysis)
 
             if analysis["completeness_score"] < 0.8:
                 clarification = await self.prompt_executor.execute_clarification_prompt(
@@ -314,6 +387,7 @@ class ReActAgent:
         context: List[SearchContext],
         query_params: QueryRequest,
         rag_functions: Dict,
+        conversation_history: List[Dict],
     ) -> str:
         """Generate response with strict termination conditions"""
         try:
@@ -321,7 +395,8 @@ class ReActAgent:
             self.state = ReActState()
             self.tools = ReActTools(self.prompt_executor)
 
-            # Add query to history
+            # Add conversation history first, then new query
+            self.state.chat_history.extend(conversation_history)
             self.state.chat_history.append(
                 {
                     "role": "user",
@@ -357,23 +432,30 @@ class ReActAgent:
                 return_intermediate_steps=True,
             )
 
-            # Execute with strict timeout
+            # Reset search state
+            self.state.search_results = []
+            self.state.has_final_answer = False
+            self.state.search_count = 0
+
+            # Execute with strict timeout and state tracking
             result = await agent_executor.ainvoke(
                 {
                     "input": query_params.query,
                     "chat_history": self.state.chat_history,
                     "agent_scratchpad": [],
-                }
+                },
+                {"state": self.state}  # Pass state to track across iterations
             )
 
-            # Handle response formatting
-            if "FINAL ANSWER:" in str(result.get("output", "")):
-                return str(result["output"]).split("FINAL ANSWER:", 1)[1].strip()
-
-            # Format any other response type
-            return await self._format_final_response(
-                result.get("output", ""), query_params.query
-            )
+            # Format the response for UI
+            response = str(result.get("output", ""))
+            if "FINAL ANSWER:" in response:
+                # Strip the prefix and return clean answer
+                return response.split("FINAL ANSWER:", 1)[1].strip()
+            
+            # If no FINAL ANSWER prefix, format appropriately
+            formatted_response = await self._handle_response(response, query_params.query)
+            return formatted_response
 
         except Exception as e:
             logger.error(f"Agent execution error: {str(e)}")
@@ -418,40 +500,79 @@ class ReActAgent:
         return await self.prompt_executor.format_response(
             content=str(result), metadata=metadata, response_type="success"
         )
-    
-    async def _format_final_response(self, result: str, query: str) -> str:
-        """Format the final response ensuring consistent output"""
+
+    async def summarize_conversation(
+        self,
+        conversation_history: List[Dict[str, str]],
+        summary_type: str = "concise",
+    ) -> str:
+        """
+        Generate an AI-powered summary of the conversation history.
+
+        Args:
+            conversation_history: List of conversation messages
+            summary_type: Type of summary to generate ("concise" or "detailed")
+
+        Returns:
+            str: Generated summary
+        """
         try:
-            # If we already have a final answer, pass it through
-            if "FINAL ANSWER:" in result:
-                return result.split("FINAL ANSWER:", 1)[1].strip()
-            
-            # Prepare metadata for formatting
-            metadata = {
-                "query": query,
-                "search_count": self.state.search_count,
-                "has_results": bool(self.state.search_results),
-                "sources": [r.get("source", "") for r in self.state.search_results],
-                "key_points": self.state.search_results[0].get("key_points", []) if self.state.search_results else []
-            }
-            
-            # Use the prompt executor to format the response
-            formatted_response = await self.prompt_executor.format_response(
-                content=result,
-                metadata=metadata,
-                response_type="answer" if self.state.search_results else "clarification"
+            if not conversation_history:
+                return "No conversation history to summarize."
+
+            # Create summary prompt based on type
+            if summary_type == "concise":
+                system_prompt = (
+                    "Generate a brief, focused summary of this conversation. "
+                    "Highlight only the most important points, decisions, and outcomes. "
+                    "Keep the summary clear and actionable."
+                )
+                max_tokens = 150
+            else:
+                system_prompt = (
+                    "Create a comprehensive summary of this conversation. "
+                    "Include main topics discussed, key decisions made, important context, "
+                    "and any action items or next steps identified. "
+                    "Organize the summary in a clear, structured format."
+                )
+                max_tokens = 500
+
+            # Format conversation for the prompt
+            conversation_text = "\n".join(
+                [f"{msg['role']}: {msg['content']}" for msg in conversation_history]
             )
-            
-            return formatted_response
+
+            # Generate summary using the LLM
+            summary = await self.llm.ainvoke(
+                [
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=conversation_text),
+                ]
+            )
+
+            # Extract key information for metadata
+            key_points = await self.llm.ainvoke(
+                [
+                    SystemMessage(
+                        content="Extract 3-5 key points from this conversation summary:"
+                    ),
+                    HumanMessage(content=summary.content),
+                ]
+            )
+
+            return {
+                "summary": summary.content,
+                "key_points": key_points.content.split("\n"),
+                "metadata": {
+                    "type": summary_type,
+                    "message_count": len(conversation_history),
+                    "generated_at": datetime.utcnow().isoformat(),
+                },
+            }
 
         except Exception as e:
-            logger.error(f"Response formatting error: {str(e)}")
-            # Ensure we always return something sensible
-            if self.state.search_results:
-                return f"Here's what I found about {query}: " + \
-                    " ".join([r.get("content", "")[:200] + "..." for r in self.state.search_results[:2]])
-            else:
-                return f"I couldn't find specific information about {query}. Could you rephrase your question?"
+            logger.error(f"Error generating conversation summary: {str(e)}")
+            return None
 
 
 def format_chat_history(history: List[Dict[str, Any]]) -> List[Dict[str, str]]:

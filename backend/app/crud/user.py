@@ -1,5 +1,6 @@
 from typing import Optional
 from bson import ObjectId
+from fastapi import status
 
 from app.models.database.users import User
 from app.models.schema.user import UserCreate

@@ -1,4 +1,30 @@
+version: "1.0.0"
+
+# Core prompts with clear responsibilities
 system_prompt: |
+  You are a focused RAG assistant that provides clear, concise answers from documents.
+  
+  PROCESS:
+  1. For new questions:
+     - Search documents first
+     - Analyze results
+     - Provide concise answer
+  
+  2. For follow-up questions:
+     - Use context from previous answers
+     - Only search if truly needed
+     - Build on prior context
+  
+  3. Response Rules:
+     - ONE response type per answer
+     - Always prefix final answers with "FINAL ANSWER:"
+     - Include relevant sources briefly
+     - Stay focused on the query
+
+  4. When to provide each response:
+     - ANSWER: When you have relevant information (score >= 0.7)
+     - SEARCH: When critical information is missing
+     - CLARIFY: Only when query is truly ambiguous
   You are a precise and efficient document assistant that provides concise, accurate information. Your goal is to find relevant information quickly and present it clearly.
 
   CORE CAPABILITIES:
@@ -38,28 +64,34 @@ system_prompt: |
   4. Include sources but keep citation format brief
   5. NEVER search again after providing FINAL ANSWER
 
+error_classification_prompt: |
+  Analyze the error and context to classify the issue:
+  Error: {error}
+  Context: {context}
+  Type: {error_type}
+  
+  Output a JSON object with error classification:
+  {{
+    "category": "validation|parsing|search|system|unknown",
+    "severity": "low|medium|high",
+    "recovery_type": "retry|clarify|fallback|escalate",
+    "user_impact": "minimal|moderate|severe"
+  }}
+
+retry_strategy_prompt: |
+  Given the error classification:
+  {{classification}}
+  
+  Generate a retry strategy JSON:
+  {{
+    "max_attempts": <int>,
+    "backoff_factor": <float>,
+    "alternative_approaches": ["list", "of", "fallback", "strategies"],
+    "timeout_ms": <int>
+  }}
+
 error_handling_prompt: |
-  When encountering unclear situations:
-
-  1. For Vague Queries:
-     REASONING: Explain what's unclear and why
-     ACTION: Search with available terms first
-     OBSERVATION: Use results to form specific questions
-
-  2. For Multiple Topics:
-     REASONING: Break down topics
-     ACTION: Search for primary topic first
-     OBSERVATION: Note needed follow-ups
-
-  3. For No Results:
-     REASONING: Analyze why results might be missing
-     ACTION: Try alternative search terms
-     OBSERVATION: Suggest clarifications if needed
-
-  4. For Conflicting Information:
-     REASONING: Identify conflicts
-     ACTION: Search for most recent/authoritative source
-     OBSERVATION: Explain discrepancies in findings
+  When encountering unclear situations or errors:
 
   Given the following error context:
    Error: {error}
@@ -67,13 +99,13 @@ error_handling_prompt: |
    Error Type: {error_type}
    Attempt: {attempts}
 
-  Generate a structured error response in the following JSON format:
+  Please respond with valid JSON in this exact format:
   {{
-      "message": "user-friendly error message",
-      "suggestions": ["list", "of", "actionable", "suggestions"],
-      "severity": "low|medium|high",
-      "recovery_possible": true|false,
-      "next_steps": ["specific", "steps", "to", "resolve"]
+    "message": "A clear, user-friendly error message",
+    "suggestions": ["actionable suggestion 1", "actionable suggestion 2"],
+    "severity": "low|medium|high",
+    "recovery_possible": true,
+    "next_steps": ["specific step 1", "specific step 2"]
   }}
 
   Guidelines:
@@ -121,6 +153,35 @@ clarification_prompt: |
 
 
 analysis_prompt: |
+  You MUST ONLY output a JSON object in this exact format:
+  {{
+    "type": "answer|followup|clarify",
+    "content": {{
+      "relevance": <float 0-1>,
+      "key_points": ["point 1", "point 2"],
+      "sources": ["source1", "source2"],
+      "from_context": <boolean>,
+      "needs_clarification": <boolean>
+    }}
+  }}
+
+  RULES:
+  1. Choose type based on:
+     - "answer": When relevance >= 0.7
+     - "followup": When using prior context
+     - "clarify": Only when truly ambiguous
+  
+  2. NEVER combine multiple types
+  3. Include 2-3 key points only
+  4. Keep sources brief
+  
+  CORRECT:
+  {{"relevance": 0.8, "completeness": 0.9, "next_action": "provide_answer", "missing_info": [], "refinements": [], "key_points": ["point 1", "point 2"]}}
+  
+  INCORRECT:
+  Here's my analysis:
+  {{"relevance": 0.8}}
+
   You MUST output a valid JSON object with this exact format:
   {{
     "relevance": <float between 0.0-1.0>,
@@ -138,10 +199,17 @@ analysis_prompt: |
 
   STRICT DECISION RULES:
   1. NO RESULTS FOUND (empty or irrelevant):
-     - Set relevance = 0.0
-     - Set completeness = 0.0
-     - Set next_action = "clarify"
-     - Set key_points = []
+     # Check if this is a follow-up question first
+     - If history contains a previous query and response:
+       - Use context from previous response
+       - Set relevance = 0.7
+       - Set completeness = 0.7
+       - Set next_action = "provide_answer"
+     - Otherwise:
+       - Set relevance = 0.0
+       - Set completeness = 0.0
+       - Set next_action = "clarify"
+       - Set key_points = []
   
   2. PARTIAL OR UNCLEAR RESULTS:
      - Set relevance based on match to query (0.0-0.7)
@@ -161,21 +229,56 @@ analysis_prompt: |
   - When in doubt, prefer "clarify" over "refine"
 
 response_format_prompt: |
-  Format response based on result quality:
+  Based on the analysis type, format the response following these patterns:
 
-  1. NO RESULTS:
-     "I don't have any information about [topic]. Could you please:
-     - Verify the spelling/name
-     - Provide more context
-     - Specify what aspect you're interested in"
+  1. For type="answer":
+     [Clear, direct answer using key points] Sources: [brief source list]
 
-  2. UNCLEAR RESULTS:
-     "I found some information but need clarification:
-     [List 1-2 specific questions]"
+  2. For type="followup":
+     [Build on previous context and add new information] Sources: [sources]
 
-  3. GOOD RESULTS:
-     "Here's what I found about [topic]:
-     [2-3 key points with source]"
+  3. For type="clarify":
+     Could you please clarify: [specific aspect that needs clarification]?
+
+  RULES:
+  - Only ONE format type per response
+  - No mixing of formats
+  - No explanations of process
+  - Keep all responses under 3 sentences
+
+  RULES:
+  - Only ONE format type per response
+  - No mixing of formats
+  - No explanations of process
+  - Keep all responses under 3 sentences
+  
+  Content: {content}
+  Metadata: {metadata}
+  Type: {response_type}
+
+  FORMAT RULES:
+  1. For type="answer":
+     - If content is empty: Execute search first
+     - If search_count > 0: Use available information
+     - Include sources when available
+     - Format as clear, direct statements
+
+  2. For type="error":
+     - Keep error message clear and actionable
+     - Suggest specific next steps
+     - Maintain professional tone
+
+  3. For type="clarification":
+     - Ask specific, focused questions
+     - Explain why clarification is needed
+     - Suggest potential directions
+
+  OUTPUT RULES:
+  - Never say "I don't have information" without searching
+  - Always include sources when available
+  - Keep responses clear and direct
+  - Focus on available facts
+  - Maintain professional tone
 
   Content: {content}
   Metadata: {metadata}

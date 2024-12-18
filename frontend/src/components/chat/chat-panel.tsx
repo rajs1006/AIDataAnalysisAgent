@@ -33,7 +33,7 @@ export function ChatPanel() {
     dispatch(setLoading(true));
 
     try {
-      const response = await chatService.sendMessage(input);
+      const response = await chatService.sendMessage(input, "");
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),

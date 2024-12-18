@@ -3,6 +3,7 @@ from typing import List
 from app.core.dependencies import (
     get_current_user,
     get_connector_crud,
+    get_connector_service,
 )
 from app.services.connectors.base import ConnectorService
 from app.models.database.connectors.connector import Connectors
@@ -14,20 +15,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class service:
-    def __init__(self, connector_crud: ConnectorCRUD):
-        self.service = ConnectorService(connector_crud)
+# class service:
+#     def __init__(self, connector_crud: ConnectorCRUD):
+#         self.service = ConnectorService(connector_crud)
 
 
 @router.get("/", response_model=List[Connectors])
 async def list_connectors(
     current_user=Depends(get_current_user),
-    connector_crud: ConnectorCRUD = Depends(get_connector_crud),
+    # connector_crud: ConnectorCRUD = Depends(get_connector_crud),
+    connector_service: ConnectorService = Depends(get_connector_service),
 ):
     """List all active folder connectors for the current user"""
     try:
-        endpoint = service(connector_crud)
-        return await endpoint.service.list_connectors(current_user.id)
+        # endpoint = service(connector_crud)
+        return await connector_service.list_connectors(current_user.id)
     except Exception as e:
         logger.error(f"Error listing connectors: {str(e)}")
         raise HTTPException(
@@ -40,12 +42,13 @@ async def list_connectors(
 async def update_connector_status(
     connector: ConnectorUpdate,
     current_user=Depends(get_current_user),
-    connector_crud: ConnectorCRUD = Depends(get_connector_crud),
+    # connector_crud: ConnectorCRUD = Depends(get_connector_crud),
+    connector_service: ConnectorService = Depends(get_connector_service),
 ):
     """Update connector status"""
     try:
-        endpoint = service(connector_crud)
-        await endpoint.service.update_connector_status(connector, current_user.id)
+        # endpoint = service(connector_crud)
+        await connector_service.update_connector_status(connector, current_user.id)
     except HTTPException:
         raise
     except Exception as e:

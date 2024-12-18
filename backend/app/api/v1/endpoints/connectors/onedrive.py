@@ -6,6 +6,7 @@ from app.core.dependencies import (
     get_current_user,
     get_vector_store,
     get_onedrive_crud,
+    get_onedrive_service,
 )
 from app.services.connectors.onedrive.service import OneDriveService
 from app.models.schema.connectors.onedrive import (
@@ -20,11 +21,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def get_onedrive_service(
-    onedrive_crud: OneDriveCRUD = Depends(get_onedrive_crud),
-    vector_store: VectorStore = Depends(get_vector_store),
-) -> OneDriveService:
-    return OneDriveService(onedrive_crud, vector_store)
+# def get_onedrive_service(
+#     onedrive_crud: OneDriveCRUD = Depends(get_onedrive_crud),
+#     vector_store: VectorStore = Depends(get_vector_store),
+# ) -> OneDriveService:
+#     return OneDriveService(onedrive_crud, vector_store)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -72,7 +73,7 @@ async def sync_connector(
 ):
     """Manually trigger connector sync"""
     try:
-        await service.sync_folder(connector_id)
+        await service.sync_folder(connector_id, current_user.id)
         return {"status": "success"}
     except Exception as e:
         logger.error(f"Manual sync failed: {str(e)}")
