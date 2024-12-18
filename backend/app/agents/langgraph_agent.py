@@ -129,7 +129,7 @@ class PromptExecutor:
         except Exception as e:
             logger.error(f"Error handling prompt execution failed: {str(e)}")
             return {
-                "message": f"An unexpected error occurred: {str(error)}",
+                "message": str(error) if isinstance(error, str) else "An unexpected error occurred",
                 "suggestions": ["Please try again with a different query"],
                 "severity": "high",
                 "recovery_possible": False,
@@ -148,20 +148,6 @@ class PromptExecutor:
     ) -> str:
         """Format various types of responses consistently"""
         try:
-            # For empty content with no search attempt, encourage search
-            if not content and metadata.get("search_count", 0) == 0:
-                return "Let me search for information about that."
-                
-            # For empty content but with search attempts, format appropriately
-            if not content and metadata.get("search_count", 0) > 0:
-                result = await self.execute_clarification_prompt(
-                    query=metadata.get("query", ""),
-                    missing_info=["No relevant information found"],
-                    context={"search_attempts": metadata.get("search_count", 0)}
-                )
-                return json.dumps(result)  # Convert dict to string
-
-            # For non-empty content, use format prompt
             format_prompt = self.prompt_manager.get_prompt(
                 "response_format_prompt"
             ).format(
@@ -295,11 +281,14 @@ class ReActAgent:
                     timeout_ms=self.error_recovery["timeout_ms"],
                 )
 
-                # Analyze results
+                # Get recent context from chat history
+                recent_history = self.state.chat_history[-2:] if len(self.state.chat_history) > 1 else []
+                
+                # Analyze results with context
                 analysis = await self.prompt_executor.execute_analysis_prompt(
                     query=query,
                     results=search_result["results"],
-                    history=self.state.chat_history,
+                    history=recent_history,
                 )
 
                 # Store results
@@ -398,7 +387,7 @@ class ReActAgent:
         context: List[SearchContext],
         query_params: QueryRequest,
         rag_functions: Dict,
-        conversation_history: List[Dict[str, str]],
+        conversation_history: List[Dict],
     ) -> str:
         """Generate response with strict termination conditions"""
         try:
@@ -406,7 +395,8 @@ class ReActAgent:
             self.state = ReActState()
             self.tools = ReActTools(self.prompt_executor)
 
-            # Add query to history
+            # Add conversation history first, then new query
+            self.state.chat_history.extend(conversation_history)
             self.state.chat_history.append(
                 {
                     "role": "user",
@@ -414,7 +404,6 @@ class ReActAgent:
                     "timestamp": datetime.utcnow().isoformat(),
                 }
             )
-            self.state.chat_history.extend(conversation_history)
 
             # Create tools and prompt
             tools = await self.create_tools(rag_functions, user_id)
@@ -443,23 +432,30 @@ class ReActAgent:
                 return_intermediate_steps=True,
             )
 
-            # Execute with strict timeout
+            # Reset search state
+            self.state.search_results = []
+            self.state.has_final_answer = False
+            self.state.search_count = 0
+
+            # Execute with strict timeout and state tracking
             result = await agent_executor.ainvoke(
                 {
                     "input": query_params.query,
                     "chat_history": self.state.chat_history,
                     "agent_scratchpad": [],
-                }
+                },
+                {"state": self.state}  # Pass state to track across iterations
             )
 
-            # Handle response formatting
-            if "FINAL ANSWER:" in str(result.get("output", "")):
-                return str(result["output"]).split("FINAL ANSWER:", 1)[1].strip()
-
-            # Format any other response type
-            return await self._format_final_response(
-                result.get("output", ""), query_params.query
-            )
+            # Format the response for UI
+            response = str(result.get("output", ""))
+            if "FINAL ANSWER:" in response:
+                # Strip the prefix and return clean answer
+                return response.split("FINAL ANSWER:", 1)[1].strip()
+            
+            # If no FINAL ANSWER prefix, format appropriately
+            formatted_response = await self._handle_response(response, query_params.query)
+            return formatted_response
 
         except Exception as e:
             logger.error(f"Agent execution error: {str(e)}")
@@ -490,28 +486,6 @@ class ReActAgent:
         return await self.prompt_executor.format_response(
             content=str(error), metadata=metadata, response_type="error"
         )
-
-    async def _format_final_response(self, result: str, query: str) -> str:
-        """Format the final response before returning to user"""
-        try:
-            if not result:
-                return await self._handle_empty_result(query)
-
-            # Add metrics
-            metadata = {
-                "query": query,
-                "search_count": self.state.search_count,
-                "has_results": bool(self.state.search_results),
-                "metrics": self.metrics.get_average_metrics(),
-            }
-
-            return await self.prompt_executor.format_response(
-                content=result, metadata=metadata, response_type="answer"
-            )
-
-        except Exception as e:
-            logger.error(f"Error formatting final response: {str(e)}")
-            return await self._handle_error(str(e), query)
 
     async def _handle_response(self, result: str, query: str) -> str:
         """Handle errors gracefully with formatted responses"""

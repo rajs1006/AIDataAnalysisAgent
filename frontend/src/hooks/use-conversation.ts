@@ -35,10 +35,19 @@ export function useConversation() {
           if (!conversationId) return null;
         }
 
-        // Send message to backend
+        // Create message for UI
+        const message: Message = {
+          id: Date.now().toString(),
+          type: "user",
+          content,
+          timestamp: new Date(),
+        };
+
+        // Add message to UI
+        dispatch(addMessage(message));
 
         // Send message to backend
-        const message = await conversationService.addMessage(
+        await conversationService.addMessage(
           conversationId,
           content
         );

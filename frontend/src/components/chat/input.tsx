@@ -19,21 +19,16 @@ export function ChatInput() {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
-    // Create and show user message in UI
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: "user",
-      content: input,
-      timestamp: new Date(),
-    };
-
     setInput("");
     dispatch(setLoading(true));
-    dispatch(addMessage(userMessage));
 
     try {
       // Get current conversation ID 
       const conversationId = await sendConversationMessage(input);
+      
+      if (!conversationId) {
+        throw new Error("Failed to create conversation");
+      }
       
       // Send to chat service for processing with conversation ID
       const response = await chatService.sendMessage(input, conversationId);

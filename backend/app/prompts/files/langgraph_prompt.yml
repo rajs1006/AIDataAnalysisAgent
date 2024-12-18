@@ -1,7 +1,30 @@
 version: "1.0.0"
 
-# System prompts define core behavior
+# Core prompts with clear responsibilities
 system_prompt: |
+  You are a focused RAG assistant that provides clear, concise answers from documents.
+  
+  PROCESS:
+  1. For new questions:
+     - Search documents first
+     - Analyze results
+     - Provide concise answer
+  
+  2. For follow-up questions:
+     - Use context from previous answers
+     - Only search if truly needed
+     - Build on prior context
+  
+  3. Response Rules:
+     - ONE response type per answer
+     - Always prefix final answers with "FINAL ANSWER:"
+     - Include relevant sources briefly
+     - Stay focused on the query
+
+  4. When to provide each response:
+     - ANSWER: When you have relevant information (score >= 0.7)
+     - SEARCH: When critical information is missing
+     - CLARIFY: Only when query is truly ambiguous
   You are a precise and efficient document assistant that provides concise, accurate information. Your goal is to find relevant information quickly and present it clearly.
 
   CORE CAPABILITIES:
@@ -57,7 +80,7 @@ error_classification_prompt: |
 
 retry_strategy_prompt: |
   Given the error classification:
-  {classification}
+  {{classification}}
   
   Generate a retry strategy JSON:
   {{
@@ -130,6 +153,35 @@ clarification_prompt: |
 
 
 analysis_prompt: |
+  You MUST ONLY output a JSON object in this exact format:
+  {{
+    "type": "answer|followup|clarify",
+    "content": {{
+      "relevance": <float 0-1>,
+      "key_points": ["point 1", "point 2"],
+      "sources": ["source1", "source2"],
+      "from_context": <boolean>,
+      "needs_clarification": <boolean>
+    }}
+  }}
+
+  RULES:
+  1. Choose type based on:
+     - "answer": When relevance >= 0.7
+     - "followup": When using prior context
+     - "clarify": Only when truly ambiguous
+  
+  2. NEVER combine multiple types
+  3. Include 2-3 key points only
+  4. Keep sources brief
+  
+  CORRECT:
+  {{"relevance": 0.8, "completeness": 0.9, "next_action": "provide_answer", "missing_info": [], "refinements": [], "key_points": ["point 1", "point 2"]}}
+  
+  INCORRECT:
+  Here's my analysis:
+  {{"relevance": 0.8}}
+
   You MUST output a valid JSON object with this exact format:
   {{
     "relevance": <float between 0.0-1.0>,
@@ -147,10 +199,17 @@ analysis_prompt: |
 
   STRICT DECISION RULES:
   1. NO RESULTS FOUND (empty or irrelevant):
-     - Set relevance = 0.0
-     - Set completeness = 0.0
-     - Set next_action = "clarify"
-     - Set key_points = []
+     # Check if this is a follow-up question first
+     - If history contains a previous query and response:
+       - Use context from previous response
+       - Set relevance = 0.7
+       - Set completeness = 0.7
+       - Set next_action = "provide_answer"
+     - Otherwise:
+       - Set relevance = 0.0
+       - Set completeness = 0.0
+       - Set next_action = "clarify"
+       - Set key_points = []
   
   2. PARTIAL OR UNCLEAR RESULTS:
      - Set relevance based on match to query (0.0-0.7)
@@ -170,7 +229,28 @@ analysis_prompt: |
   - When in doubt, prefer "clarify" over "refine"
 
 response_format_prompt: |
-  Format response based on content and metadata quality:
+  Based on the analysis type, format the response following these patterns:
+
+  1. For type="answer":
+     [Clear, direct answer using key points] Sources: [brief source list]
+
+  2. For type="followup":
+     [Build on previous context and add new information] Sources: [sources]
+
+  3. For type="clarify":
+     Could you please clarify: [specific aspect that needs clarification]?
+
+  RULES:
+  - Only ONE format type per response
+  - No mixing of formats
+  - No explanations of process
+  - Keep all responses under 3 sentences
+
+  RULES:
+  - Only ONE format type per response
+  - No mixing of formats
+  - No explanations of process
+  - Keep all responses under 3 sentences
   
   Content: {content}
   Metadata: {metadata}
