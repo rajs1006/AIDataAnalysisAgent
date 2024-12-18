@@ -29,25 +29,45 @@ class ParserUtils(OpenAIFunctionsAgentOutputParser):
                     log=cleaned_output,
                 )
 
-            # Only proceed to action parsing if no final answer
+            # Verify required format elements
+            if "REASONING:" not in cleaned_output:
+                raise ValueError("Missing REASONING section")
+
+            # Only proceed to action parsing if proper format
             if "ACTION:" in cleaned_output and "FINAL ANSWER:" not in cleaned_output:
                 try:
-                    action_part = cleaned_output.split("ACTION:", 1)[1].strip()
-                    action_part = action_part.replace("}}", "}").replace("{{", "{")
+                    # Extract and validate reasoning
+                    reasoning = (
+                        cleaned_output.split("REASONING:", 1)[1]
+                        .split("ACTION:", 1)[0]
+                        .strip()
+                    )
+                    if not reasoning:
+                        raise ValueError("Empty REASONING section")
 
-                    action_dict = json.loads(action_part)
+                    # Extract and clean action JSON
+                    action_part = cleaned_output.split("ACTION:", 1)[1].strip()
+                    action_json = self._clean_and_validate_json(action_part)
+
+                    # Validate required fields
+                    if "type" not in action_json:
+                        raise ValueError("Missing required field 'type' in action")
+
+                    # Get tool input with validation
+                    tool_input = action_json.get("query", action_json.get("answer", ""))
+                    if not tool_input:
+                        raise ValueError("Missing required input (query or answer)")
+
                     return AgentAction(
-                        tool=action_dict["type"],
-                        tool_input=action_dict.get(
-                            "query", action_dict.get("answer", "")
-                        ),
+                        tool=action_json["type"],
+                        tool_input=tool_input,
                         log=cleaned_output,
                     )
-                except json.JSONDecodeError as e:
-                    logger.error(f"JSON parse error: {e}")
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.error(f"Action parsing error: {e}")
                     return AgentFinish(
                         return_values={
-                            "output": f"FINAL ANSWER: Error parsing action - {str(e)}"
+                            "output": f"FINAL ANSWER: Error in action format - {str(e)}"
                         },
                         log=cleaned_output,
                     )
@@ -67,12 +87,37 @@ class ParserUtils(OpenAIFunctionsAgentOutputParser):
                 log=str(e),
             )
 
-    def _clean_json_string(self, json_str: str) -> str:
-        """Minimal but reliable JSON cleaning"""
-        # Remove only markdown and basic formatting issues
-        json_str = re.sub(r"```(?:json)?(.*?)```", r"\1", json_str, flags=re.DOTALL)
-        json_str = json_str.replace("}}", "}").replace("{{", "{")
-        return json_str.strip()
+    def _clean_and_validate_json(self, json_str: str) -> Dict:
+        """Clean and validate JSON with strict formatting"""
+        # Remove markdown and normalize braces
+        cleaned = re.sub(r"```(?:json)?(.*?)```", r"\1", json_str, flags=re.DOTALL)
+        cleaned = cleaned.replace("}}", "}").replace("{{", "{")
+        cleaned = cleaned.strip()
+
+        try:
+            # Parse JSON
+            parsed = json.loads(cleaned)
+
+            # Validate structure
+            if not isinstance(parsed, dict):
+                raise ValueError("JSON must be an object")
+
+            # Validate required fields based on type
+            if parsed.get("type") == "search_documents":
+                if not parsed.get("query"):
+                    raise ValueError("Search action requires 'query' field")
+            elif parsed.get("type") == "provide_answer":
+                if not parsed.get("answer"):
+                    raise ValueError("Answer action requires 'answer' field")
+            else:
+                raise ValueError(f"Invalid action type: {parsed.get('type')}")
+
+            return parsed
+
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON format: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"JSON validation failed: {str(e)}")
 
 
 class SearchUtils:
@@ -364,6 +409,10 @@ class ReActTools:
                         user_id=user_id, query=variation, limit=limit
                     )
 
+                    # If no results found, continue to next variation
+                    if not results:
+                        continue
+
                     for result in results:
                         # Extract key points using analysis prompt
                         analysis = await self.prompt_executor.execute_analysis_prompt(
@@ -372,14 +421,34 @@ class ReActTools:
                             history=[{"query": query}],
                         )
 
+                        # Boost relevance for general queries with good matches
+                        relevance_score = analysis["content"].get("relevance", 0)
+                        if any(
+                            word in query.lower().split()
+                            for word in ["who", "what", "tell", "describe", "explain"]
+                        ):
+                            # Boost score if we have CV-like content or biographical info
+                            content_lower = result.content.lower()
+                            if any(
+                                term in content_lower
+                                for term in [
+                                    "experience",
+                                    "education",
+                                    "background",
+                                    "skills",
+                                    "about me",
+                                ]
+                            ):
+                                relevance_score = max(0.8, relevance_score)
+
                         all_results.append(
                             {
                                 "content": result.content,
                                 "score": result.score,
-                                "key_points": analysis.get("key_points", []),
+                                "key_points": analysis["content"].get("key_points", []),
                                 "source": result.metadata.get("file_path", "Unknown"),
                                 "query_variation": variation,
-                                "relevance": analysis.get("relevance_score", 0),
+                                "relevance": relevance_score,
                             }
                         )
                         total_score += result.score
@@ -387,6 +456,22 @@ class ReActTools:
                 except Exception as e:
                     logger.error(f"Error in search variation {variation}: {str(e)}")
                     continue
+
+            # If no results found after all variations, return clarification
+            if not all_results:
+                clarification = await self.prompt_executor.execute_clarification_prompt(
+                    query=query,
+                    missing_info=["No relevant information found in the documents"],
+                )
+                return {
+                    "results": [],
+                    "total_results": 0,
+                    "average_score": 0,
+                    "search_query": query,
+                    "metadata": "No results found in documents",
+                    "needs_clarification": True,
+                    "clarification": clarification,
+                }
 
             # Deduplicate and sort results
             unique_results = self._deduplicate_results(all_results)
@@ -430,70 +515,83 @@ class ReActTools:
 
         return unique_results
 
-    async def analyze_results(
-        self, search_results: Dict[str, Any], original_query: str
-    ) -> AnalysisResult:
-        """Analyze search results using analysis prompt"""
-        try:
-            # Return default result if no results
-            if not search_results.get("results"):
-                return AnalysisResult(
-                    relevance_score=0.0,
-                    key_points=[],
-                    missing_info=["No results found"],
-                    source_reference="",
-                    completeness_score=0.0,
-                    next_action="clarify",
-                )
+    # async def analyze_results(
+    #     self, search_results: Dict[str, Any], original_query: str
+    # ) -> AnalysisResult:
+    #     """Analyze search results using analysis prompt"""
+    #     try:
+    #         # Return default result if no results
+    #         if not search_results.get("results"):
+    #             return AnalysisResult(
+    #                 relevance_score=0.0,
+    #                 key_points=[],
+    #                 missing_info=["No results found"],
+    #                 source_reference="",
+    #                 completeness_score=0.0,
+    #                 next_action="clarify",
+    #             )
 
-            # Get analysis from prompt executor
-            analysis = await self.prompt_executor.execute_analysis_prompt(
-                query=original_query,
-                results=search_results["results"],
-                history=[{"query": original_query}],
-            )
+    #         # Get analysis from prompt executor
+    #         analysis = await self.prompt_executor.execute_analysis_prompt(
+    #             query=original_query,
+    #             results=search_results["results"],
+    #             history=[{"query": original_query}],
+    #         )
 
-            # Handle empty or invalid analysis
-            if not analysis or not isinstance(analysis, dict):
-                logger.error(f"Invalid analysis result: {analysis}")
-                raise ValueError("Analysis returned invalid result")
+    #         # Handle empty or invalid analysis
+    #         if not analysis or not isinstance(analysis, dict):
+    #             logger.error(f"Invalid analysis result: {analysis}")
+    #             raise ValueError("Analysis returned invalid result")
 
-            # Extract key information
-            source_ref = "; ".join(
-                set(r.get("source", "Unknown") for r in search_results["results"])
-            )
+    #         # Extract key information
+    #         source_ref = "; ".join(
+    #             set(r.get("source", "Unknown") for r in search_results["results"])
+    #         )
 
-            return AnalysisResult(
-                relevance_score=float(analysis.get("relevance_score", 0.0)),
-                key_points=analysis.get("key_points", []),
-                missing_info=analysis.get("missing_info", []),
-                source_reference=source_ref,
-                completeness_score=float(analysis.get("completeness_score", 0.0)),
-                next_action=analysis.get("next_action", "clarify"),
-            )
+    #         return AnalysisResult(
+    #             relevance_score=float(analysis.get("relevance_score", 0.0)),
+    #             key_points=analysis.get("key_points", []),
+    #             missing_info=analysis.get("missing_info", []),
+    #             source_reference=source_ref,
+    #             completeness_score=float(analysis.get("completeness_score", 0.0)),
+    #             next_action=analysis.get("next_action", "clarify"),
+    #         )
 
-        except Exception as e:
-            logger.error(f"Analysis error: {str(e)}")
-            return AnalysisResult(
-                relevance_score=0.0,
-                key_points=[],
-                missing_info=[f"Error analyzing results: {str(e)}"],
-                source_reference="",
-                completeness_score=0.0,
-                next_action="error",
-            )
+    # except Exception as e:
+    #     logger.error(f"Analysis error: {str(e)}")
+    #     return AnalysisResult(
+    #         relevance_score=0.0,
+    #         key_points=[],
+    #         missing_info=[f"Error analyzing results: {str(e)}"],
+    #         source_reference="",
+    #         completeness_score=0.0,
+    #         next_action="error",
+    #     )
 
     async def format_final_answer(
         self, query: str, results: List[Dict], analysis: Dict[str, Any]
     ) -> str:
         """Format final answer based on analysis"""
         try:
+            # Early return for general queries with good results
+            is_general_query = any(
+                word in query.lower().split()
+                for word in ["who", "what", "tell", "describe", "explain"]
+            )
+            has_direct_hit = any(
+                result.get("relevance", 0) >= 0.7 for result in results
+            )
+
+            if is_general_query and has_direct_hit:
+                best_result = max(results, key=lambda x: x.get("relevance", 0))
+                return best_result["content"]
+
             # Prepare metadata for formatting
             metadata = {
                 "query": query,
                 "sources": [r.get("source") for r in results],
-                "key_points": analysis.get("key_points", []),
-                "completeness_score": analysis.get("completeness_score", 0),
+                "key_points": analysis["content"].get("key_points", []),
+                "completeness_score": analysis["content"].get("completeness_score", 0),
                 "missing_info": analysis.get("missing_info", []),
             }
 

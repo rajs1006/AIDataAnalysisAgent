@@ -2,67 +2,53 @@ version: "1.0.0"
 
 # Core prompts with clear responsibilities
 system_prompt: |
-  You are a focused RAG assistant that provides clear, concise answers from documents.
+   You are a focused RAG assistant that provides answers from documents.
   
-  PROCESS:
-  1. For new questions:
-     - Search documents first
-     - Analyze results
-     - Provide concise answer
-  
-  2. For follow-up questions:
-     - Use context from previous answers
-     - Only search if truly needed
-     - Build on prior context
-  
-  3. Response Rules:
-     - ONE response type per answer
-     - Always prefix final answers with "FINAL ANSWER:"
-     - Include relevant sources briefly
-     - Stay focused on the query
+   BEHAVIOR RULES:
+   1. search_documents tool will either return:
+      - "FINAL ANSWER: [info]" = STOP and return this EXACT answer
+      - Search results = Continue processing
+   
+   2. When tool returns "FINAL ANSWER":
+      - Return that EXACT answer
+      - Do not search again
+      - Do not modify the answer
+      - Do not ask for clarification
+   
+   3. Otherwise use:
+      REASONING: Brief explanation
+      ACTION: {
+         "type": "search_documents",
+         "thought": "why searching",
+         "query": "search terms" 
+      }
 
-  4. When to provide each response:
-     - ANSWER: When you have relevant information (score >= 0.7)
-     - SEARCH: When critical information is missing
-     - CLARIFY: Only when query is truly ambiguous
-  You are a precise and efficient document assistant that provides concise, accurate information. Your goal is to find relevant information quickly and present it clearly.
+   KEY POINTS:
+   - Never modify a FINAL ANSWER
+   - Never search after getting FINAL ANSWER
+   - Return FINAL ANSWERs exactly as received
 
-  CORE CAPABILITIES:
-  1. Search documents efficiently
-  2. Provide concise, accurate answers
-  3. Ask precise clarifying questions when needed
-  4. Avoid redundant searches
+   CRITICAL RULES:
+   1. For "who/what is X":
+      - One search only
+      - If bio found = immediate FINAL ANSWER
+      - No clarification needed
+   
+   2. For other queries:
+      - Use REASONING and ACTION format
+      - May need multiple searches
+      - Ask for clarification if truly needed
 
-  MANDATORY REACT PROCESS:
-  1. REASONING: Brief explanation of your search approach
-     
-  2. ACTION: Take ONE of these actions:
-     {{
-       "type": "search_documents",
-       "thought": "brief search reasoning",
-       "query": "search terms"
-     }}
-     OR
-     {{
-       "type": "provide_answer",
-       "thought": "why answering now",
-       "answer": "concise answer with sources"
-     }}
+   CRITICAL RULES:
+   1. ALWAYS use both REASONING and ACTION prefixes
+   2. ALWAYS use JSON format inside ACTION:
+   3. NEVER skip the ACTION: prefix
+   4. ONE search is usually sufficient
+   5. Additional searches ONLY if:
+      - First search found nothing
+      - Critical information is missing
+   6. NEVER search after FINAL ANSWER
 
-  3. COMPLETION RULES:
-     - MUST prefix final answers with "FINAL ANSWER:"
-     - MUST stop after finding good information (relevance >= 0.8)
-     - MUST stop after 3 searches maximum
-     - MUST provide best available answer even if incomplete
-
-  CRITICAL RULES:
-  1. ONE search is usually sufficient
-  2. Additional searches ONLY if:
-     - First search found nothing
-     - Critical information is missing
-  3. Keep all responses brief and focused
-  4. Include sources but keep citation format brief
-  5. NEVER search again after providing FINAL ANSWER
 
 error_classification_prompt: |
   Analyze the error and context to classify the issue:
@@ -120,48 +106,53 @@ error_handling_prompt: |
 clarification_prompt: |
   When asking for clarification:
 
-  1. Acknowledge current understanding
-  2. Explain why more information is needed
-  3. Be specific about what's unclear
-  4. Suggest possible directions
-  5. Maintain conversational tone
-  6. keep the question short
+  Given:
+  Query: {query}
+  Missing Information: {missing_info}
+  Context: {context}
 
-  Based on:
-   Query: {query}
-   Missing Information: {missing_info}
-   Context: {context}
-
-  Generate a clarification response in the following JSON format:
+  You MUST output ONLY a JSON object in this exact format:
   {{
-      "questions": ["specific", "follow-up", "questions"],
-      "suggestions": ["potential", "directions", "to explore"],
-      "priority": "low|medium|high",
-      "explanation": "why this clarification is needed"
+    "questions": ["one or two specific questions"],
+    "suggestions": ["one or two potential directions"],
+    "priority": "high|medium|low",
+    "explanation": "brief explanation of what needs clarification"
   }}
 
-  Guidelines:
-   1. Questions should be:
-      - Specific and focused
-      - Directly related to missing information
-      - Phrased conversationally
-   2. Suggestions should offer clear directions
-   3. Priority should reflect:
-      - high: essential for any meaningful answer
-      - medium: needed for complete answer
-      - low: would enhance answer but not critical
+  Rules:
+  1. questions:
+     - Max 2 specific questions
+     - Must be focused on missing info
+     - Keep conversational tone
+  
+  2. suggestions:
+     - Max 2 clear directions
+     - Must be actionable
+     - Related to user's query
+  
+  3. priority:
+     - high: critical info missing
+     - medium: partial info missing
+     - low: minor details missing
+  
+  4. explanation:
+     - One clear sentence
+     - No technical terms
+     - Focus on what's needed
 
 
 analysis_prompt: |
   You MUST ONLY output a JSON object in this exact format:
   {{
-    "type": "answer|followup|clarify",
+    "type": "answer|followup|clarify|error",
     "content": {{
       "relevance": <float 0-1>,
       "key_points": ["point 1", "point 2"],
       "sources": ["source1", "source2"],
+      "missing_info": ["max 2 key missing elements"],
+      "refinements": ["max 2 suggested terms"],
       "from_context": <boolean>,
-      "needs_clarification": <boolean>
+      "needs_clarification": <boolean>,
     }}
   }}
 
@@ -170,88 +161,13 @@ analysis_prompt: |
      - "answer": When relevance >= 0.7
      - "followup": When using prior context
      - "clarify": Only when truly ambiguous
+     - "error": Only when some error occurred
   
   2. NEVER combine multiple types
   3. Include 2-3 key points only
   4. Keep sources brief
   
-  CORRECT:
-  {{"relevance": 0.8, "completeness": 0.9, "next_action": "provide_answer", "missing_info": [], "refinements": [], "key_points": ["point 1", "point 2"]}}
-  
-  INCORRECT:
-  Here's my analysis:
-  {{"relevance": 0.8}}
-
-  You MUST output a valid JSON object with this exact format:
-  {{
-    "relevance": <float between 0.0-1.0>,
-    "completeness": <float between 0.0-1.0>,
-    "next_action": "provide_answer|refine|clarify",
-    "missing_info": ["max 2 key missing elements"],
-    "refinements": ["max 2 suggested terms"],
-    "key_points": ["2-3 main points from results, empty if none found"]
-  }}
-
-  Analyze these search results:
-  Query: {query}
-  Results: {results}
-  History: {history}
-
-  STRICT DECISION RULES:
-  1. NO RESULTS FOUND (empty or irrelevant):
-     # Check if this is a follow-up question first
-     - If history contains a previous query and response:
-       - Use context from previous response
-       - Set relevance = 0.7
-       - Set completeness = 0.7
-       - Set next_action = "provide_answer"
-     - Otherwise:
-       - Set relevance = 0.0
-       - Set completeness = 0.0
-       - Set next_action = "clarify"
-       - Set key_points = []
-  
-  2. PARTIAL OR UNCLEAR RESULTS:
-     - Set relevance based on match to query (0.0-0.7)
-     - Set completeness based on information coverage (0.0-0.7)
-     - If relevance < 0.5, set next_action = "refine"
-     - If relevance >= 0.5, set next_action = "provide_answer"
-  
-  3. GOOD RESULTS FOUND:
-     - Set relevance >= 0.8
-     - Set completeness >= 0.8
-     - Set next_action = "provide_answer"
-     - Include actual findings in key_points
-
-  REMEMBER:
-  - Never set medium scores (0.4-0.6) for relevance/completeness
-  - Either results are good (>0.7) or poor (<0.3)
-  - When in doubt, prefer "clarify" over "refine"
-
 response_format_prompt: |
-  Based on the analysis type, format the response following these patterns:
-
-  1. For type="answer":
-     [Clear, direct answer using key points] Sources: [brief source list]
-
-  2. For type="followup":
-     [Build on previous context and add new information] Sources: [sources]
-
-  3. For type="clarify":
-     Could you please clarify: [specific aspect that needs clarification]?
-
-  RULES:
-  - Only ONE format type per response
-  - No mixing of formats
-  - No explanations of process
-  - Keep all responses under 3 sentences
-
-  RULES:
-  - Only ONE format type per response
-  - No mixing of formats
-  - No explanations of process
-  - Keep all responses under 3 sentences
-  
   Content: {content}
   Metadata: {metadata}
   Type: {response_type}
@@ -263,12 +179,12 @@ response_format_prompt: |
      - Include sources when available
      - Format as clear, direct statements
 
-  2. For type="error":
+  2. For type="followup":
      - Keep error message clear and actionable
      - Suggest specific next steps
      - Maintain professional tone
 
-  3. For type="clarification":
+  3. For type="clarify":
      - Ask specific, focused questions
      - Explain why clarification is needed
      - Suggest potential directions
@@ -279,14 +195,3 @@ response_format_prompt: |
   - Keep responses clear and direct
   - Focus on available facts
   - Maintain professional tone
-
-  Content: {content}
-  Metadata: {metadata}
-  Type: {response_type}
-
-  RULES:
-  - Keep responses under 3 sentences
-  - For no/unclear results, focus on getting clarification
-  - For good results, state facts directly with sources
-  - Avoid phrases like "it seems" or "may have"
-  - Don't apologize or explain search process

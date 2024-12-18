@@ -2,7 +2,6 @@ import os
 from functools import lru_cache
 from typing import Dict, Type
 from pydantic_settings import BaseSettings
-from pydantic import PostgresDsn, validator
 
 
 class BaseConfig(BaseSettings):
@@ -18,7 +17,7 @@ class BaseConfig(BaseSettings):
     MONGODB_URL: str
     MONGODB_DB_NAME: str = "ai_data_agent"
     SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200
     API_KEY_EXPIRE_MINUTES: int = 43200
     ALGORITHM: str = "EdDSA"
     API_ALGORITHM: str = "HS256"

@@ -23,14 +23,14 @@ export function ChatInput() {
     dispatch(setLoading(true));
 
     try {
-      // Get current conversation ID 
+      // Get current conversation ID
       const conversationId = await sendConversationMessage(input);
-      
+
       if (!conversationId) {
         throw new Error("Failed to create conversation");
       }
-      
-      // Send to chat service for processing with conversation ID
+
+      // Send to chat service for processing with convfrontend/src/components/chat/input.tsxersation ID
       const response = await chatService.sendMessage(input, conversationId);
 
       const assistantMessage: Message = {

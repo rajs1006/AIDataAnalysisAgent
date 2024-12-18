@@ -1,19 +1,12 @@
 from fastapi import APIRouter, Depends, status, Request, HTTPException
-from typing import List
 from app.core.dependencies import (
     get_current_user,
     get_current_user_api,
-    get_vector_store,
-    get_folder_crud,
     get_folder_service,
 )
 from app.services.connectors.folder.service import FolderConnectorService
 from app.models.schema.connectors.folder import FolderCreate
-from app.models.database.connectors.folder import FolderConnector
-from app.services.store.vectorizer.qdrant import VectorStore
-from app.crud.folder import FolderConnectorCRUD
 
-# from app.models.request.folder import FolderCreate
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,8 +14,6 @@ router = APIRouter()
 
 
 # class folder_service:
-#     def __init__(self, folder_crud: FolderConnectorCRUD, vector_store: VectorStore):
-#         self.service = FolderConnectorService(folder_crud, vector_store)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -36,9 +27,7 @@ async def create_connector(
     """Create a new folder connector and generate watcher executable"""
     try:
         # endpoint = folder_service(folder_crud, vector_store)
-        return await folder_service.service.create_connector(
-            connector_data, current_user
-        )
+        return await folder_service.create_connector(connector_data, current_user)
     except HTTPException:
         raise
     except Exception as e:
@@ -60,7 +49,7 @@ async def watch_event(
     """Handle file watch events with vectorization"""
     try:
         # endpoint = folder_service(folder_crud, vector_store)
-        return await folder_service.service.process_watch_event(request, current_user)
+        return await folder_service.process_watch_event(request, current_user)
     except HTTPException:
         raise
     except Exception as e:
@@ -105,7 +94,7 @@ async def update_connector_status(
     """Update connector status"""
     try:
         # endpoint = folder_service(folder_crud, vector_store)
-        return await folder_service.service.update_connector_status(
+        return await folder_service.update_connector_status(
             connector_id, status, current_user.id
         )
     except HTTPException:
