@@ -11,9 +11,10 @@ class BaseConfig(BaseSettings):
     CORS_ORIGINS: list
     ENV: str = "development"
     DEBUG: bool = True
+    APP_PROTOCOL: str = "http"
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
-    APP_URL: str = f"http://{APP_HOST}:{APP_PORT}/{API_V1_STR}"
+    APP_URL: str = f"{APP_PROTOCOL}://{APP_HOST}:{APP_PORT}/{API_V1_STR}"
     MONGODB_URL: str
     MONGODB_DB_NAME: str = "ai_data_agent"
     SECRET_KEY: str
