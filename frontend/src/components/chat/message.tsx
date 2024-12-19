@@ -1,7 +1,7 @@
-// src/components/chat/message.tsx
 import { motion } from "framer-motion";
 import { Message as MessageType } from "@/lib/types/chat";
 import { Card } from "@/components/ui/card";
+import { FormattedText } from "./formatted-text";
 
 interface MessageProps {
   message: MessageType;
@@ -24,7 +24,10 @@ export function Message({ message }: MessageProps) {
             : "bg-muted"
         }`}
       >
-        <p className="whitespace-pre-wrap">{message.content}</p>
+        <FormattedText
+          text={message.content}
+          className={message.type === "user" ? "text-primary-foreground" : ""}
+        />
         {message.sources && (
           <div className="mt-2 text-xs opacity-70">
             {message.sources.map((source, i) => (

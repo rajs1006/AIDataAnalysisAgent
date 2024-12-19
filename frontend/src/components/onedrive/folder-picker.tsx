@@ -245,7 +245,7 @@ export const OneDriveFolderPicker = () => {
   return (
     <div className="space-y-4">
       {selectedFolder ? (
-        <div className="p-4 border rounded-lg bg-muted">
+        <div className="p-4 border rounded-lg bg-muted text-gray-500">
           <h4 className="font-medium mb-2">Selected Folder</h4>
           <p className="text-sm text-muted-foreground">
             Name: {selectedFolder.name}

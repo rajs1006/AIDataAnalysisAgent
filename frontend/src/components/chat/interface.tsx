@@ -1,4 +1,3 @@
-// src/components/chat/interface.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { ChatHistory } from "./history/index";
 import { useConnectors } from "@/hooks/use-connectors";
@@ -16,12 +15,14 @@ import { ChatInput } from "./input";
 import { useAppSelector } from "@/lib/store/store";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { FormattedText } from "./formatted-text";
 
 export function ChatInterface() {
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const { hasActiveConnector } = useConnectors();
-  const { currentConversationId, sendMessage, startNewConversation } = useConversation();
+  const { currentConversationId, sendMessage, startNewConversation } =
+    useConversation();
   const messages = useAppSelector((state) => state.chat.messages);
   const { toast } = useToast();
 
@@ -121,7 +122,7 @@ export function ChatInterface() {
               </Button>
             </div>
             <div className="p-4 flex-1 overflow-auto">
-              <p className="whitespace-pre-wrap">{lastAnswer}</p>
+              <FormattedText text={lastAnswer} />
             </div>
           </div>
         )}

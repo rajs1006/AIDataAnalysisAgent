@@ -50,28 +50,23 @@ class PromptExecutor:
             response = self.llm.predict(prompt)
 
             analysis = json.loads(response)
-            return {
-                "relevance_score": float(analysis.get("relevance", 0)),
-                "completeness_score": float(analysis.get("completeness", 0)),
-                "next_action": analysis.get("next_action", "clarify"),
-                "missing_info": analysis.get("missing_info", []),
-                "suggested_refinements": analysis.get("refinements", []),
-                "key_points": analysis.get("key_points", []),
-            }
+            return analysis
         except Exception as e:
             logger.error(f"Analysis prompt execution failed: {str(e)}")
             return {
-                "relevance_score": 0,
-                "completeness_score": 0,
-                "next_action": "error",
-                "missing_info": ["Error in analysis"],
-                "suggested_refinements": [],
-                "key_points": [],
+                "type": "clarify",
+                "content": {
+                    "relevance": 0.0,
+                    "key_points": [],
+                    "sources": [],
+                    "from_context": False,
+                    "needs_clarification": False,
+                },
             }
 
     async def execute_clarification_prompt(
         self, query: str, missing_info: List[str], context: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+    ) -> str:
         """Execute clarification prompt for focused follow-up questions"""
         try:
             prompt = self.prompt_manager.get_prompt("clarification_prompt").format(
@@ -81,16 +76,24 @@ class PromptExecutor:
             )
 
             response = self.llm.predict(prompt)
-            clarification = json.loads(response)
 
-            return {
-                "questions": clarification.get("questions", []),
-                "suggestions": clarification.get("suggestions", []),
-                "priority": clarification.get("priority", "low"),
-                "explanation": clarification.get(
-                    "explanation", "Additional information needed"
-                ),
-            }
+            # Parse JSON response
+            try:
+                clarification = json.loads(response)
+
+                # Format clarification message
+                question = clarification.get(
+                    "questions", ["Could you please provide more details?"]
+                )[0]
+                return question  # Return just the main question
+
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse clarification JSON: {response}")
+                return "Could you please provide more specific information about your query?"
+
+        except Exception as e:
+            logger.error(f"Clarification prompt execution failed: {str(e)}")
+            return "Could you please provide more information?"
         except Exception as e:
             logger.error(f"Clarification prompt execution failed: {str(e)}")
             return {
@@ -129,11 +132,15 @@ class PromptExecutor:
         except Exception as e:
             logger.error(f"Error handling prompt execution failed: {str(e)}")
             return {
-                "message": str(error) if isinstance(error, str) else "An unexpected error occurred",
+                "message": (
+                    str(error)
+                    if isinstance(error, str)
+                    else "An unexpected error occurred"
+                ),
                 "suggestions": ["Please try again with a different query"],
                 "severity": "high",
                 "recovery_possible": False,
-                "next_steps": ["Contact support if the issue persists"]
+                "next_steps": ["Contact support if the issue persists"],
             }
             # return {
             #     "message": f"An unexpected error occurred: {error}",
@@ -146,8 +153,13 @@ class PromptExecutor:
     async def format_response(
         self, content: str, metadata: Dict[str, Any], response_type: str = "answer"
     ) -> str:
-        """Format various types of responses consistently"""
+        """Format responses while preserving FINAL ANSWER"""
         try:
+            # Never format FINAL ANSWER responses
+            # if "FINAL ANSWER:" in content:
+            #     return content.split("FINAL ANSWER:", 1)[1].strip()
+
+            # For other responses, use format prompt
             format_prompt = self.prompt_manager.get_prompt(
                 "response_format_prompt"
             ).format(
@@ -157,10 +169,19 @@ class PromptExecutor:
             )
 
             formatted_response = self.llm.predict(format_prompt)
+
+            # Ensure we don't accidentally create a FINAL ANSWER
+            if "FINAL ANSWER:" in formatted_response and "FINAL ANSWER:" not in content:
+                formatted_response = formatted_response.replace(
+                    "FINAL ANSWER:", ""
+                ).strip()
+
             return formatted_response
 
         except Exception as e:
             logger.error(f"Response formatting failed: {str(e)}")
+            if "FINAL ANSWER:" in content:
+                return content.split("FINAL ANSWER:", 1)[1].strip()
             return content
 
 
@@ -245,18 +266,22 @@ class ReActAgent:
         return [
             Tool(
                 name="search_documents",
-                description="Search through documents using RAG with enhanced analysis, provide the query as input",
+                description=(
+                    "Search through documents using RAG with enhanced analysis. "
+                    "Tool will return 'FINAL ANSWER: [info]' if complete information is found, "
+                    "or search results for further processing."
+                ),
                 func=sync_wrapper(self.search_documents),
                 coroutine=self.search_documents,
-                return_direct=False,
-            ),
-            Tool(
-                name="provide_answer",
-                description="Provide final answer with completeness check, sources and key point",
-                func=sync_wrapper(self.provide_answer),
-                coroutine=self.provide_answer,
                 return_direct=True,
             ),
+            # Tool(
+            #     name="provide_answer",
+            #     description="Provide final answer with completeness check, sources and key point",
+            #     func=sync_wrapper(self.provide_answer),
+            #     coroutine=self.provide_answer,
+            #     return_direct=True,
+            # ),
         ]
 
     async def search_documents(self, query: str) -> str:
@@ -282,8 +307,12 @@ class ReActAgent:
                 )
 
                 # Get recent context from chat history
-                recent_history = self.state.chat_history[-2:] if len(self.state.chat_history) > 1 else []
-                
+                recent_history = (
+                    self.state.chat_history[-2:]
+                    if len(self.state.chat_history) > 1
+                    else []
+                )
+
                 # Analyze results with context
                 analysis = await self.prompt_executor.execute_analysis_prompt(
                     query=query,
@@ -295,10 +324,11 @@ class ReActAgent:
                 self.state.search_results.extend(search_result["results"])
 
                 # DECISIVE COMPLETION CHECK
-                if (
-                    analysis["relevance_score"] >= 0.8
-                    and analysis["completeness_score"] >= 0.7
-                ):
+                # if (
+                #     analysis["content"]["relevance_score"] >= 0.7
+                #     # and analysis["completeness_score"] >= 0.7
+                # ):
+                if analysis["type"] == "answer":
                     final_answer = await self.tools.format_final_answer(
                         query=query,
                         results=self.state.search_results,
@@ -307,19 +337,22 @@ class ReActAgent:
                     return f"FINAL ANSWER: {final_answer}"
 
                 # Handle other cases
-                if analysis["next_action"] == "clarify":
+                if analysis["type"] == "clarify":
                     clarification = (
                         await self.prompt_executor.execute_clarification_prompt(
-                            query=query, missing_info=analysis["missing_info"]
+                            query=query,
+                            missing_info=analysis["content"]["missing_info"],
                         )
                     )
                     return f"FINAL ANSWER: {clarification}"
 
-                if analysis["next_action"] == "refine" and self.state.search_count < 2:
-                    self.state.suggested_refinements = analysis["suggested_refinements"]
+                if analysis["type"] == "followup" and self.state.search_count < 2:
+                    self.state.suggested_refinements = analysis["content"][
+                        "suggested_refinements"
+                    ]
                     return (
-                        f"Results need refinement. Relevance: {analysis['relevance_score']:.2f}. "
-                        f"Trying: {', '.join(analysis['suggested_refinements'])}"
+                        f"Results need refinement. Relevance: {analysis['content']['relevance']:.2f}. "
+                        f"Trying: {', '.join(analysis['content']['suggested_refinements'])}"
                     )
 
                 # Force completion if we've searched too much
@@ -336,50 +369,51 @@ class ReActAgent:
                 )
                 return f"FINAL ANSWER: {error_message}"
 
-    async def provide_answer(self, answer: str) -> str:
-        """Provide answer with result analysis"""
-        try:
-            if not self.state.search_results:
-                return "Error: Cannot provide answer without searching first."
+    ## NOTE: Not needed right now
+    # async def provide_answer(self, answer: str) -> str:
+    #     """Provide answer with result analysis"""
+    #     try:
+    #         if not self.state.search_results:
+    #             return "Error: Cannot provide answer without searching first."
 
-            # Analyze answer completeness
-            analysis = await self.prompt_executor.execute_analysis_prompt(
-                query=self.state.chat_history[-1]["content"],
-                results=self.state.search_results,
-                history=self.state.chat_history,
-            )
+    #         # Analyze answer completeness
+    #         analysis = await self.prompt_executor.execute_analysis_prompt(
+    #             query=self.state.chat_history[-1]["content"],
+    #             results=self.state.search_results,
+    #             history=self.state.chat_history,
+    #         )
 
-            if analysis["completeness_score"] < 0.8:
-                clarification = await self.prompt_executor.execute_clarification_prompt(
-                    query=self.state.chat_history[-1]["content"],
-                    missing_info=analysis["missing_info"],
-                )
-                return f"{answer}\n\nNote: {clarification}"
+    #         if analysis["completeness_score"] < 0.8:
+    #             clarification = await self.prompt_executor.execute_clarification_prompt(
+    #                 query=self.state.chat_history[-1]["content"],
+    #                 missing_info=analysis["missing_info"],
+    #             )
+    #             return f"{answer}\n\nNote: {clarification}"
 
-            # Format final answer
-            formatted_answer = await self.tools.format_final_answer(
-                query=self.state.chat_history[-1]["content"],
-                results=self.state.search_results,
-                analysis=analysis,
-            )
+    #         # Format final answer
+    #         formatted_answer = await self.tools.format_final_answer(
+    #             query=self.state.chat_history[-1]["content"],
+    #             results=self.state.search_results,
+    #             analysis=analysis,
+    #         )
 
-            # Update state
-            self.state.has_final_answer = True
-            self.state.chat_history.append(
-                {
-                    "role": "assistant",
-                    "content": formatted_answer,
-                    "timestamp": datetime.utcnow().isoformat(),
-                }
-            )
+    #         # Update state
+    #         self.state.has_final_answer = True
+    #         self.state.chat_history.append(
+    #             {
+    #                 "role": "assistant",
+    #                 "content": formatted_answer,
+    #                 "timestamp": datetime.utcnow().isoformat(),
+    #             }
+    #         )
 
-            return formatted_answer
+    #         return formatted_answer
 
-        except Exception as e:
-            error_message = await self.prompt_executor.execute_error_handling_prompt(
-                error=str(e), context="Providing final answer"
-            )
-            return error_message
+    #     except Exception as e:
+    #         error_message = await self.prompt_executor.execute_error_handling_prompt(
+    #             error=str(e), context="Providing final answer"
+    #         )
+    #         return error_message
 
     async def generate_response(
         self,
@@ -444,17 +478,69 @@ class ReActAgent:
                     "chat_history": self.state.chat_history,
                     "agent_scratchpad": [],
                 },
-                {"state": self.state}  # Pass state to track across iterations
+                {"state": self.state},  # Pass state to track across iterations
             )
 
-            # Format the response for UI
+            # Get raw response
             response = str(result.get("output", ""))
+
+            # Check if we have any search results before providing answer
+            if self.state.search_count == 0:
+                # No search was performed
+                clarification = await self.prompt_executor.execute_clarification_prompt(
+                    query=query_params.query,
+                    missing_info=["Search must be performed before answering"],
+                )
+                return str(clarification)
+
+            if not self.state.search_results:
+                # Search performed but no results found
+                clarification = await self.prompt_executor.execute_clarification_prompt(
+                    query=query_params.query,
+                    missing_info=["No relevant information found in documents"],
+                )
+                return str(clarification)
+
+            # If we have a FINAL ANSWER, validate it before returning
             if "FINAL ANSWER:" in response:
-                # Strip the prefix and return clean answer
-                return response.split("FINAL ANSWER:", 1)[1].strip()
-            
-            # If no FINAL ANSWER prefix, format appropriately
-            formatted_response = await self._handle_response(response, query_params.query)
+                final_answer = response.split("FINAL ANSWER:", 1)[1].strip()
+
+                # Don't mark clarification requests as final answers
+                if any(
+                    phrase in final_answer.lower()
+                    for phrase in [
+                        "could you please clarify",
+                        "could you provide",
+                        "please specify",
+                        "what specific",
+                        "which specific",
+                    ]
+                ):
+                    return final_answer
+
+                # This is a real final answer
+                self.state.has_final_answer = True
+                return final_answer
+
+            # For non-final answers, format with correct type
+            response_type = "success"
+            if "clarify" in response.lower() or any(
+                word in response.lower() for word in ["unclear", "ambiguous", "specify"]
+            ):
+                response_type = "clarification"
+            elif "error" in response.lower():
+                response_type = "error"
+
+            formatted_response = await self.prompt_executor.format_response(
+                content=response,
+                metadata={
+                    "query": query_params.query,
+                    "search_count": self.state.search_count,
+                    "has_results": bool(self.state.search_results),
+                    "has_final_answer": self.state.has_final_answer,
+                },
+                response_type=response_type,
+            )
             return formatted_response
 
         except Exception as e:
