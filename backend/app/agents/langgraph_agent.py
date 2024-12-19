@@ -156,8 +156,8 @@ class PromptExecutor:
         """Format responses while preserving FINAL ANSWER"""
         try:
             # Never format FINAL ANSWER responses
-            if "FINAL ANSWER:" in content:
-                return content.split("FINAL ANSWER:", 1)[1].strip()
+            # if "FINAL ANSWER:" in content:
+            #     return content.split("FINAL ANSWER:", 1)[1].strip()
 
             # For other responses, use format prompt
             format_prompt = self.prompt_manager.get_prompt(

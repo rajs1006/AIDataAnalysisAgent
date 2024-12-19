@@ -30,7 +30,6 @@ export function ChatInput() {
         throw new Error("Failed to create conversation");
       }
 
-      // Send to chat service for processing with convfrontend/src/components/chat/input.tsxersation ID
       const response = await chatService.sendMessage(input, conversationId);
 
       const assistantMessage: Message = {
@@ -48,7 +47,9 @@ export function ChatInput() {
         id: (Date.now() + 1).toString(),
         type: "assistant",
         content:
-          "Sorry, I encountered an error processing your request. Please try again.",
+          error instanceof Error
+            ? error.message
+            : "Sorry, I encountered an error processing your request. Please try again.",
         timestamp: new Date(),
       };
 
@@ -72,20 +73,26 @@ export function ChatInput() {
 
   return (
     <div className="flex items-end gap-2 p-4">
-      <Textarea
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Ask me anything about your data..."
-        className="min-h-[60px] resize-none bg-[var(--background)] text-slate-700"
-        rows={1}
-      />
+      <div className="relative flex-1">
+        <Textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask me anything about your data..."
+          className="min-h-[60px] resize-none bg-[var(--background)] text-slate-700"
+          rows={1}
+        />
+        {/* {input && (
+          <div className="absolute inset-0 pointer-events-none p-2">
+            <FormattedText text={input} />
+          </div>
+        )} */}
+      </div>
       <Button
         onClick={sendMessage}
         disabled={isLoading || !input.trim() || !hasActiveConnector}
         className="h-[60px] w-[120px] px-4 bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center gap-2"
       >
-        {/* console.log("isLoading else ", isLoading) */}
         {isLoading ? (
           <>
             <Loader2 className="h-5 w-5 animate-spin text-white" />
