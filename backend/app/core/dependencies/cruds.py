@@ -2,9 +2,9 @@ from app.crud.folder import FolderConnectorCRUD
 from app.crud.connector import ConnectorCRUD
 from app.crud.user import UserCRUD
 from app.crud.agent import AgentCRUD
-from app.core.dependencies.vector import get_vector_store
 from app.crud.conversation import ConversationCRUD
 from app.crud.onedrive import OneDriveCRUD
+from app.crud.image import ImageAgentCRUD
 
 
 async def get_connector_crud() -> ConnectorCRUD:
@@ -32,5 +32,9 @@ async def get_onedrive_crud() -> OneDriveCRUD:
     return OneDriveCRUD()
 
 
-def get_conversation_crud() -> ConversationCRUD:
+async def get_conversation_crud() -> ConversationCRUD:
     return ConversationCRUD()
+
+
+async def get_image_agent_crud() -> ImageAgentCRUD:
+    return ImageAgentCRUD()

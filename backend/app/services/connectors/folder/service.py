@@ -1,17 +1,18 @@
-import io
 import logging
+import tempfile
+from pathlib import Path
+import os
 from datetime import datetime
 from fastapi import HTTPException, status
-from fastapi.responses import StreamingResponse
 
 from app.services.store.vectorizer import VectorStore
 from app.crud.folder import FolderConnectorCRUD
-from app.services.connectors.folder.watcher import ExecutableBuilder
-from app.models.schema.connectors.folder import WatchEvent
+from app.models.schema.connectors.folder import FileEvent
 from app.models.schema.base.connector import FileStatus
-from app.core.security.auth import create_api_key
-from app.models.schema.connectors.folder import FolderCreate
+from app.models.schema.connectors.folder import FolderCreate, FileMetadata
 from app.models.database.users import User
+from app.utils.tools import get_content_hash
+from app.core.files.processor import DocumentProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -28,36 +29,70 @@ class FolderConnectorService:
     async def create_connector(self, connector_data: FolderCreate, current_user: User):
         try:
             # Create connector in database
+            now = int(datetime.utcnow().timestamp() * 1000)
             connector = await self.crud.create_connector(connector_data, current_user)
 
-            # API KEY to authenticate watcher
-            api_key = create_api_key(str(current_user.id))
-            # Build executable
-            executable_builder = ExecutableBuilder(connector, api_key)
-            executable_bytes, executable_name = await executable_builder.build(
-                platform=connector_data.platform_info.os
-            )
+            for file in connector_data.files:
+                content = await file.read()
 
-            return StreamingResponse(
-                io.BytesIO(executable_bytes),
-                media_type="application/octet-stream",
-                headers={
-                    "Content-Disposition": f'attachment; filename="{executable_name}"'
-                },
-            )
+                # Save to temporary file for DocumentProcessor
+                with tempfile.NamedTemporaryFile(
+                    delete=False, suffix=Path(file.filename).suffix
+                ) as temp_file:
+                    temp_file.write(content)
+                    temp_path = temp_file.name
+
+                try:
+                    # Process with DocumentProcessor
+                    processor = DocumentProcessor()
+                    result = processor.process_file(temp_path)
+                    if result.error:
+                        raise HTTPException(status_code=500, detail=result.error)
+
+                    result_content = result.content
+
+                finally:
+                    # Clean up temp file
+                    os.unlink(temp_path)
+
+                # Read file content
+                metadata = FileMetadata(
+                    filename=file.filename,
+                    file_path=file.filename,
+                    content_hash=get_content_hash(content=content),
+                    size=len(content),
+                    mime_type=file.content_type or "application/octet-stream",
+                    last_modified=now,
+                    created_at=now,  # milliseconds timestamp
+                    extension=Path(file.filename).suffix,
+                )
+
+                # Create watch event
+                event = FileEvent(
+                    connector_id=str(connector.id),
+                    event_type="created",  # or whatever event type you need
+                    metadata=metadata,
+                    content=result_content,
+                    timestamp=now,
+                )
+                # return await self._handle_file_update(connector, connector_data)
+                await self._handle_file_update(connector, event)
+
         except Exception as e:
+            error_message = f"Failed to create connector: {str(e)}"
             if "connector" in locals():
                 await connector.delete()
+            logger.exception(error_message)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create connector: {str(e)}",
+                detail=error_message,
             )
 
     async def process_watch_event(self, request, current_user):
         """Process a file watch event"""
         try:
             body = await request.json()
-            event = WatchEvent(**body)
+            event = FileEvent(**body)
 
             # Validate connector
             connector = await self.crud.validate_connector(
@@ -96,7 +131,7 @@ class FolderConnectorService:
         await self.crud.update_connector_status(connector_id, new_status)
         return {"status": new_status}
 
-    async def _handle_file_update(self, connector, event: WatchEvent):
+    async def _handle_file_update(self, connector, event: FileEvent):
         try:
             if not any(
                 event.metadata.file_path.lower().endswith(ext)
@@ -109,6 +144,7 @@ class FolderConnectorService:
 
             doc_id = f"{connector.id}_{event.metadata.content_hash}"
             if event.content:
+
                 point_ids = await self.vector_store.store_document(
                     collection_name=str(connector.user_id),
                     doc_id=doc_id,
@@ -141,7 +177,7 @@ class FolderConnectorService:
             await self.crud.update_file_metadata(str(connector.id), event.metadata)
             raise
 
-    async def _handle_file_deletion(self, connector, event: WatchEvent):
+    async def _handle_file_deletion(self, connector, event: FileEvent):
         try:
             existing_file = next(
                 (f for f in connector.files if f.file_path == event.metadata.file_path),

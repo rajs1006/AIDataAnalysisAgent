@@ -22,7 +22,7 @@ from app.models.schema.agent import (
     AnalysisResult,
     SearchResult,
 )
-from app.prompts.prompt_manager import PromptManager
+from app.agents.prompts.prompt_manager import PromptManager
 from app.utils.agent.tools import ReActTools, ParserUtils
 from app.utils.asynctools import sync_wrapper
 
@@ -153,33 +153,69 @@ class PromptExecutor:
     async def format_response(
         self, content: str, metadata: Dict[str, Any], response_type: str = "answer"
     ) -> str:
-        """Format responses while preserving FINAL ANSWER"""
+        """Format responses while preserving FINAL ANSWER and handling different source types"""
         try:
-            # Never format FINAL ANSWER responses
-            # if "FINAL ANSWER:" in content:
-            #     return content.split("FINAL ANSWER:", 1)[1].strip()
+            # Early handling for FINAL ANSWER with source type checking
+            if "FINAL ANSWER:" in content:
+                answer = content.split("FINAL ANSWER:", 1)[1].strip()
 
-            # For other responses, use format prompt
+                # Check if this is from context
+                if metadata.get("from_context", False):
+                    # Context-based answers don't need source formatting
+                    return answer
+
+                # For search-based answers, add sources if available
+                if metadata.get("has_results", False) and metadata.get("sources"):
+                    sources = metadata["sources"]
+                    if sources and isinstance(sources, list):
+                        source_str = "\n".join(
+                            f"Source: {src}" for src in sources if src
+                        )
+                        return f"{answer}\n{source_str}"
+
+                # If no valid sources, return just the answer
+                return answer
+
+            # For non-FINAL ANSWER responses, use format prompt with source type
             format_prompt = self.prompt_manager.get_prompt(
                 "response_format_prompt"
             ).format(
                 content=content,
-                metadata=json.dumps(metadata, indent=2),
+                metadata=json.dumps(
+                    {
+                        **metadata,
+                        "is_context_response": metadata.get("from_context", False),
+                        "has_valid_sources": bool(metadata.get("sources")),
+                    },
+                    indent=2,
+                ),
                 response_type=response_type,
             )
 
             formatted_response = self.llm.predict(format_prompt)
 
-            # Ensure we don't accidentally create a FINAL ANSWER
+            # Clean up any accidentally added FINAL ANSWER prefixes
             if "FINAL ANSWER:" in formatted_response and "FINAL ANSWER:" not in content:
                 formatted_response = formatted_response.replace(
                     "FINAL ANSWER:", ""
                 ).strip()
 
+            # Final source handling for non-FINAL responses
+            if response_type == "answer" and not metadata.get("from_context", False):
+                if metadata.get("has_results", False) and metadata.get("sources"):
+                    sources = metadata["sources"]
+                    if sources and isinstance(sources, list):
+                        source_str = "\n".join(
+                            f"Source: {src}" for src in sources if src
+                        )
+                        if source_str and source_str not in formatted_response:
+                            formatted_response = f"{formatted_response}\n{source_str}"
+
             return formatted_response
 
         except Exception as e:
             logger.error(f"Response formatting failed: {str(e)}")
+            # Fallback handling preserves FINAL ANSWER behavior
             if "FINAL ANSWER:" in content:
                 return content.split("FINAL ANSWER:", 1)[1].strip()
             return content
@@ -235,6 +271,12 @@ class ReActAgent:
         self.llm = ChatOpenAI(
             api_key=settings.OPENAI_API_KEY, model="gpt-4o-mini", temperature=0.7
         )
+        self.vision = ChatOpenAI(
+            model="gpt-4o-mini",
+            api_key=settings.OPENAI_API_KEY,
+            max_tokens=1500,
+            temperature=0.2,
+        )
         self.prompt_manager = PromptManager()
         self.prompt_executor = PromptExecutor(self.prompt_manager, self.llm)
         self.tools = ReActTools(self.prompt_executor)
@@ -252,6 +294,7 @@ class ReActAgent:
             [
                 SystemMessage(content=self.prompt_manager.get_system_prompt()),
                 MessagesPlaceholder(variable_name="chat_history"),
+                MessagesPlaceholder(variable_name="context"),
                 HumanMessage(content="{input}"),
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
             ]
@@ -294,13 +337,37 @@ class ReActAgent:
             try:
                 self.state.search_count += 1
 
-                # Validate query
+                # Strict query validation
                 if not query.strip():
                     return "FINAL ANSWER: Please provide a valid search query."
 
-                # Execute search with timeout
+                # Deep clean any potential context contamination
+                clean_query = query
+                for marker in [
+                    "Content:",
+                    "Metadata:",
+                    "Available Context:",
+                    "type:",
+                    "document_type:",
+                    "{",
+                ]:
+                    if marker in clean_query:
+                        segments = clean_query.split(marker)
+                        clean_query = (
+                            segments[-1].split("}")[0]
+                            if "}" in segments[-1]
+                            else segments[-1]
+                        )
+
+                clean_query = clean_query.strip().strip("\"'")
+
+                # Validate cleaned query isn't empty
+                if not clean_query:
+                    return "FINAL ANSWER: Invalid search query after cleaning. Please provide clear search terms."
+
+                # Execute search with validated query
                 search_result = await self.tools.search_documents(
-                    query=query,
+                    query=clean_query,
                     search_rag_func=self.rag_functions["search_rag"]["handler"],
                     user_id=self.user_id,
                     timeout_ms=self.error_recovery["timeout_ms"],
@@ -418,7 +485,7 @@ class ReActAgent:
     async def generate_response(
         self,
         user_id: str,
-        context: List[SearchContext],
+        contexts: List[SearchContext],
         query_params: QueryRequest,
         rag_functions: Dict,
         conversation_history: List[Dict],
@@ -429,15 +496,8 @@ class ReActAgent:
             self.state = ReActState()
             self.tools = ReActTools(self.prompt_executor)
 
-            # Add conversation history first, then new query
+            # Add conversation history first
             self.state.chat_history.extend(conversation_history)
-            self.state.chat_history.append(
-                {
-                    "role": "user",
-                    "content": query_params.query,
-                    "timestamp": datetime.utcnow().isoformat(),
-                }
-            )
 
             # Create tools and prompt
             tools = await self.create_tools(rag_functions, user_id)
@@ -447,6 +507,7 @@ class ReActAgent:
                 {
                     "input": lambda x: x["input"],
                     "chat_history": lambda x: format_chat_history(x["chat_history"]),
+                    "context": lambda x: format_context(x.get("context", [])),
                     "agent_scratchpad": lambda x: format_to_openai_function_messages(
                         x["agent_scratchpad"]
                     ),
@@ -460,7 +521,7 @@ class ReActAgent:
                 agent=agent,
                 tools=tools,
                 verbose=True,
-                max_iterations=3,  # Reduced from 5 to force quicker decisions
+                max_iterations=3,
                 handle_parsing_errors=True,
                 early_stopping_method="force",
                 return_intermediate_steps=True,
@@ -476,34 +537,46 @@ class ReActAgent:
                 {
                     "input": query_params.query,
                     "chat_history": self.state.chat_history,
+                    "context": contexts,
                     "agent_scratchpad": [],
                 },
-                {"state": self.state},  # Pass state to track across iterations
+                {"state": self.state},
             )
 
             # Get raw response
             response = str(result.get("output", ""))
+            response_type = str(result.get("source_type", "search"))
 
-            # Check if we have any search results before providing answer
-            if self.state.search_count == 0:
-                # No search was performed
-                clarification = await self.prompt_executor.execute_clarification_prompt(
-                    query=query_params.query,
-                    missing_info=["Search must be performed before answering"],
-                )
-                return str(clarification)
-
-            if not self.state.search_results:
-                # Search performed but no results found
-                clarification = await self.prompt_executor.execute_clarification_prompt(
-                    query=query_params.query,
-                    missing_info=["No relevant information found in documents"],
-                )
-                return str(clarification)
-
-            # If we have a FINAL ANSWER, validate it before returning
+            # Handle FINAL ANSWER responses
             if "FINAL ANSWER:" in response:
                 final_answer = response.split("FINAL ANSWER:", 1)[1].strip()
+
+                # Check if this is a context-based answer by checking content match
+                is_context_based = not self.state.search_results
+
+                # If it's a context-based answer, return directly without source
+                if is_context_based:
+                    self.state.has_final_answer = True
+                    return final_answer
+
+                # For search-based answers, validate search was performed
+                if self.state.search_count == 0:
+                    clarification = (
+                        await self.prompt_executor.execute_clarification_prompt(
+                            query=query_params.query,
+                            missing_info=["Search must be performed before answering"],
+                        )
+                    )
+                    return str(clarification)
+
+                if not self.state.search_results:
+                    clarification = (
+                        await self.prompt_executor.execute_clarification_prompt(
+                            query=query_params.query,
+                            missing_info=["No relevant information found in documents"],
+                        )
+                    )
+                    return str(clarification)
 
                 # Don't mark clarification requests as final answers
                 if any(
@@ -519,7 +592,21 @@ class ReActAgent:
                     return final_answer
 
                 # This is a real final answer
+                self.state.chat_history.append(
+                    {
+                        "role": "user",
+                        "content": query_params.query,
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                )
                 self.state.has_final_answer = True
+
+                # Add source for search-based answers
+                if self.state.search_results:
+                    sources = [
+                        r.get("source", "Unknown") for r in self.state.search_results
+                    ]
+                    return f"{final_answer}\nSource: {', '.join(sources)}"
                 return final_answer
 
             # For non-final answers, format with correct type
@@ -538,6 +625,9 @@ class ReActAgent:
                     "search_count": self.state.search_count,
                     "has_results": bool(self.state.search_results),
                     "has_final_answer": self.state.has_final_answer,
+                    "from_context": bool(contexts),
+                    "is_context_answer": bool(contexts)
+                    and any(ctx.content in response for ctx in contexts),
                 },
                 response_type=response_type,
             )
@@ -586,6 +676,47 @@ class ReActAgent:
         return await self.prompt_executor.format_response(
             content=str(result), metadata=metadata, response_type="success"
         )
+
+    async def process_image(self, image_data, ocr_text: str):
+        try:
+            # Create the correct message format for the vision model
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_data}"
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": self.prompt_manager.get_prompt(
+                                "image_parsing_prompt"
+                            ).format(ocr_text=ocr_text),
+                        },
+                    ],
+                }
+            ]
+
+            # Call the vision model with properly formatted messages
+            response = await self.vision.ainvoke(messages)
+
+            # Parse the response
+            if hasattr(response, "content"):
+                analysis_result = json.loads(response.content)
+                return analysis_result
+            else:
+                logger.error("Unexpected response format from vision model")
+                raise ValueError("Invalid response format from vision model")
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse vision model response as JSON: {str(e)}")
+            raise
+        except Exception as e:
+            logger.exception(f"Vision API call failed: {str(e)}")
+            raise
 
     async def summarize_conversation(
         self,
@@ -670,3 +801,39 @@ def format_chat_history(history: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         elif msg["role"] == "assistant":
             formatted.append({"role": "assistant", "content": msg["content"]})
     return formatted
+
+
+# def format_context(contexts: List[SearchContext]) -> List[Dict]:
+#     """Format context list for prompt with clear boundaries"""
+#     if not contexts:
+#         return []
+
+#     formatted_contexts = []
+#     for ctx in contexts:
+#         message = {
+#             "role": "system",
+#             "content": {
+#                 "content": ctx.content,
+#                 "metadata": ctx.metadata,
+#             },
+#         }
+#         formatted_contexts.append(message)
+
+#     return formatted_contexts
+
+
+def format_context(contexts: List[SearchContext]) -> List[Dict]:
+    """Format context list for prompt"""
+    if not contexts:
+        return []
+
+    formatted_contexts = []
+    for ctx in contexts:
+        # Format each context as a system message with clear structure
+        message = {
+            "role": "system",
+            "content": f"""type: context:\ncontent: {ctx.content}\nmetadata: {json.dumps(ctx.metadata)}""",
+        }
+        formatted_contexts.append(message)
+
+    return formatted_contexts

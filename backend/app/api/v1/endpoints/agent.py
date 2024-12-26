@@ -3,18 +3,11 @@ import logging
 
 from app.core.dependencies import (
     get_current_user,
-    get_vector_store,
-    get_react_agent,
-    get_agent_crud,
-    get_conversation_service,
+    get_agent_service,
 )
 from app.services.agent.service import AgentService
 from app.models.schema.agent import QueryRequest, QueryResponse
 from app.models.database.users import User
-from app.services.store.vectorizer import VectorStore
-from app.crud.agent import AgentCRUD
-from app.services.conversation.service import ConversationService
-from app.agents.openai_agent import ReActAgent
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -34,10 +27,7 @@ router = APIRouter()
 async def process_agent_query(
     request: QueryRequest,
     current_user: User = Depends(get_current_user),
-    vector_store: VectorStore = Depends(get_vector_store),
-    agent_crud: AgentCRUD = Depends(get_agent_crud),
-    agent: ReActAgent = Depends(get_react_agent),
-    conversation_service: ConversationService = Depends(get_conversation_service),
+    agent_service: AgentService = Depends(get_agent_service),
 ):
     """
     Process a user query using the ReAct agent with RAG capabilities.
@@ -59,23 +49,16 @@ async def process_agent_query(
         QueryResponse containing the answer and source documents
     """
     try:
-        # Initialize service with dependencies
-        service = AgentService(
-            agent=agent,
-            agent_crud=agent_crud,
-            vector_store=vector_store,
-            conversation_service=conversation_service,
-        )
 
         # Process query
-        response = await service.process_query(
+        response = await agent_service.process_query(
             query_request=request, user_id=str(current_user.id)
         )
 
         return response
 
     except Exception as e:
-        logger.error(f"Error processing agent query: {str(e)}")
+        logger.exception(f"Error processing agent query: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process query: {str(e)}",

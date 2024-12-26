@@ -9,13 +9,14 @@ from app.models.schema.base.connector import (
     ConnectorMetadata,
     FileStatus,
 )
+from fastapi import UploadFile
 
 
 class FileMetadata(ConnectorMetadata):
     file_id: Optional[str] = ""
 
 
-class WatchEvent(BaseModel):
+class FileEvent(BaseModel):
     connector_id: str
     event_type: str  # created, modified, deleted
     metadata: FileMetadata
@@ -31,6 +32,10 @@ class PlatformInfo(BaseModel):
 class FolderCreate(ConnectorBase):
     config: Optional[dict] = None  # For connector-specific configuration
     platform_info: PlatformInfo
+    files: List[UploadFile]  # Changed to List[UploadFile]
+
+    class Config:  # Note: capital C in Config, not lowercase config
+        arbitrary_types_allowed = True
 
 
 class FolderResponse(ConnectorBase):

@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OneDriveConnectorForm } from "@/components/onedrive/connector-form";
 // import { ConnectorType } from "@/lib/types/connectors";
+import { LocalFolderForm } from "../local-folder/setup-form";
+import { CreateConnectorDto } from "@/lib/types/connectors";
 
 export function ConnectorGrid() {
   const [selectedConnector, setSelectedConnector] =
@@ -38,16 +40,12 @@ export function ConnectorGrid() {
   // Helper function to determine connector type from the API response
   const getConnectorType = (connector: Connector): ConnectorType => {
     // Check if it's a OneDrive connector based on the config structure
-    console.log(
-      "ConnectorType.LOCAL_FOLDER == connector.connector_type) ",
-      ConnectorType.LOCAL_FOLDER,
-      connector.connector_type
-    );
-    if (ConnectorType.LOCAL_FOLDER == connector.connector_type) {
-      return ConnectorType.LOCAL_FOLDER;
-    }
+    // console.log(connector.connector_type);
+    // if (ConnectorType.LOCAL_FOLDER == connector.connector_type) {
+    //   return ConnectorType.LOCAL_FOLDER;
+    // }
     // If there's no drive_id, assume it's a local folder connector
-    return ConnectorType.ONEDRIVE;
+    return connector.connector_type;
   };
 
   // Connectors are now managed by the useConnectors hook
@@ -81,37 +79,55 @@ export function ConnectorGrid() {
         top: 0,
         behavior: "smooth",
       });
+
       if (selectedConnector === ConnectorType.LOCAL_FOLDER) {
-        const formData = new FormData(event.currentTarget);
-        const platformInfo = {
-          os: window.navigator.platform,
-          arch: window.navigator.userAgent.includes("x64") ? "x64" : "x86",
+        // const formData = new FormData(event.currentTarget);
+        const formData = event.currentTarget.formData as FormData;
+        if (!formData) {
+          throw new Error("No form data received");
+        }
+
+        const connectorDataStr = formData.get("connectorData") as string;
+        const connectorFiles = formData.getAll("files") as File[];
+
+        // console.log("file ", files)
+
+        if (!connectorDataStr) {
+          throw new Error("Missing connector data");
+        }
+
+        // Parse the base connector data
+        const baseConnectorData = JSON.parse(connectorDataStr);
+
+        // Create the complete connector data matching CreateConnectorDto
+        const connectorData: CreateConnectorDto = {
+          name: baseConnectorData.name,
+          connector_type: ConnectorType.LOCAL_FOLDER,
+          platform_info: baseConnectorData.platform_info,
+          files: connectorFiles, // This will trigger the FormData path in your service
         };
 
-        const data = {
-          name: formData.get("name") as string,
-          connector_type: selectedConnector,
-          platform_info: platformInfo,
-        };
+        // Your service will handle FormData creation
+        await folderService.createConnector(connectorData);
 
-        const blob = await folderService.createConnector(data);
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `folder_watcher${
-          platformInfo.os.toLowerCase() === "windows" ? ".exe" : ""
-        }`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        // Create the connector first
+        // const response = await folderService.createConnector({
+        //   name: formData.get("name") as string,
+        //   connector_type: selectedConnector,
+        //   platform_info: JSON.parse(formData.get("platform_info") as string),
+        //   // files: files, // You'll need to update your API to handle file uploads
+        // });
 
         toast({
           title: "Success",
-          description: "Agent downloaded successfully",
+          description: "Files uploaded and connector created successfully",
         });
       } else if (selectedConnector === ConnectorType.ONEDRIVE) {
-        const formData = new FormData(event.currentTarget);
+        const formData = event.currentTarget.formData as FormData;
+        if (!formData) {
+          throw new Error("No form data received");
+        }
+
         const connectorDataStr = formData.get("connectorData") as string;
 
         if (!connectorDataStr) {
@@ -166,15 +182,24 @@ export function ConnectorGrid() {
     switch (selectedConnector) {
       case ConnectorType.LOCAL_FOLDER:
         return (
-          <div className="space-y-2">
-            <Label>Connection Name</Label>
-            <Input
-              name="name"
-              required
-              placeholder="My Local Folder"
-              className="bg-[var(--background)]"
-            />
-          </div>
+          <LocalFolderForm
+            onSubmit={async (data) => {
+              const formData = new FormData();
+              // Separate files from other data
+              const { files, ...restData } = data;
+              formData.append("connectorData", JSON.stringify(restData));
+              // Add each file separately
+              files.forEach((file: File) => {
+                console.log("Adding file:", file.name);
+                formData.append("files", file);
+              });
+              await handleConnectorSubmit({
+                preventDefault: () => {},
+                currentTarget: { formData },
+              } as any);
+            }}
+            isSubmitting={loadingConnectorType === ConnectorType.LOCAL_FOLDER}
+          />
         );
       case ConnectorType.ONEDRIVE:
         return (
@@ -183,6 +208,7 @@ export function ConnectorGrid() {
               const formData = new FormData();
               formData.append("connectorData", JSON.stringify(data));
               await handleConnectorSubmit({
+                preventDefault: () => {},
                 currentTarget: { formData },
               } as any);
             }}
@@ -286,9 +312,9 @@ export function ConnectorGrid() {
           </DialogHeader>
           <form onSubmit={handleConnectorSubmit} className="space-y-4">
             {renderConnectorForm()}
-            <Button type="submit" className="w-full">
+            {/* <Button type="submit" className="w-full">
               Create Connector
-            </Button>
+            </Button> */}
           </form>
         </DialogContent>
       </Dialog>

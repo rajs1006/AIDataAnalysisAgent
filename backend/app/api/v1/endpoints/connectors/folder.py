@@ -1,4 +1,13 @@
-from fastapi import APIRouter, Depends, status, Request, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    status,
+    Request,
+    HTTPException,
+    Form,
+    File,
+    UploadFile,
+)
 from app.core.dependencies import (
     get_current_user,
     get_current_user_api,
@@ -6,8 +15,9 @@ from app.core.dependencies import (
 )
 from app.services.connectors.folder.service import FolderConnectorService
 from app.models.schema.connectors.folder import FolderCreate
-
+from typing import List
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -18,7 +28,10 @@ router = APIRouter()
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_connector(
-    connector_data: FolderCreate,
+    name: str = Form(...),
+    connector_type: str = Form(...),
+    platform_info: str = Form(...),
+    files: List[UploadFile] = File(...),
     current_user=Depends(get_current_user),
     folder_service: FolderConnectorService = Depends(get_folder_service),
     # vector_store: VectorStore = Depends(get_vector_store),
@@ -26,7 +39,12 @@ async def create_connector(
 ):
     """Create a new folder connector and generate watcher executable"""
     try:
-        # endpoint = folder_service(folder_crud, vector_store)
+        connector_data = FolderCreate(
+            name=name,
+            connector_type=connector_type,
+            platform_info=json.loads(platform_info),
+            files=files,
+        )
         return await folder_service.create_connector(connector_data, current_user)
     except HTTPException:
         raise

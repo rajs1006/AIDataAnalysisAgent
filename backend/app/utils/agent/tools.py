@@ -22,10 +22,21 @@ class ParserUtils(OpenAIFunctionsAgentOutputParser):
             )
 
             # IMMEDIATE TERMINATION if we see FINAL ANSWER
+            # if "FINAL ANSWER:" in cleaned_output:
+            #     logger.info("Final answer found - terminating chain")
+            #     return AgentFinish(
+            #         return_values={"output": cleaned_output},
+            #         log=cleaned_output,
+            #     )
             if "FINAL ANSWER:" in cleaned_output:
-                logger.info("Final answer found - terminating chain")
+                answer = cleaned_output.split("FINAL ANSWER:", 1)[1].strip()
                 return AgentFinish(
-                    return_values={"output": cleaned_output},
+                    return_values={
+                        "output": cleaned_output,
+                        "source_type": (
+                            "context" if "type: context:" in text else "search"
+                        ),
+                    },
                     log=cleaned_output,
                 )
 
@@ -515,64 +526,14 @@ class ReActTools:
 
         return unique_results
 
-    # async def analyze_results(
-    #     self, search_results: Dict[str, Any], original_query: str
-    # ) -> AnalysisResult:
-    #     """Analyze search results using analysis prompt"""
-    #     try:
-    #         # Return default result if no results
-    #         if not search_results.get("results"):
-    #             return AnalysisResult(
-    #                 relevance_score=0.0,
-    #                 key_points=[],
-    #                 missing_info=["No results found"],
-    #                 source_reference="",
-    #                 completeness_score=0.0,
-    #                 next_action="clarify",
-    #             )
-
-    #         # Get analysis from prompt executor
-    #         analysis = await self.prompt_executor.execute_analysis_prompt(
-    #             query=original_query,
-    #             results=search_results["results"],
-    #             history=[{"query": original_query}],
-    #         )
-
-    #         # Handle empty or invalid analysis
-    #         if not analysis or not isinstance(analysis, dict):
-    #             logger.error(f"Invalid analysis result: {analysis}")
-    #             raise ValueError("Analysis returned invalid result")
-
-    #         # Extract key information
-    #         source_ref = "; ".join(
-    #             set(r.get("source", "Unknown") for r in search_results["results"])
-    #         )
-
-    #         return AnalysisResult(
-    #             relevance_score=float(analysis.get("relevance_score", 0.0)),
-    #             key_points=analysis.get("key_points", []),
-    #             missing_info=analysis.get("missing_info", []),
-    #             source_reference=source_ref,
-    #             completeness_score=float(analysis.get("completeness_score", 0.0)),
-    #             next_action=analysis.get("next_action", "clarify"),
-    #         )
-
-    # except Exception as e:
-    #     logger.error(f"Analysis error: {str(e)}")
-    #     return AnalysisResult(
-    #         relevance_score=0.0,
-    #         key_points=[],
-    #         missing_info=[f"Error analyzing results: {str(e)}"],
-    #         source_reference="",
-    #         completeness_score=0.0,
-    #         next_action="error",
-    #     )
-
     async def format_final_answer(
         self, query: str, results: List[Dict], analysis: Dict[str, Any]
     ) -> str:
         """Format final answer based on analysis"""
         try:
+            if analysis.get("source_type") == "context":
+                return analysis["content"]
+
             # Early return for general queries with good results
             is_general_query = any(
                 word in query.lower().split()

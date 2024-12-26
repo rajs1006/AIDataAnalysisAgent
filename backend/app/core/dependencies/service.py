@@ -11,19 +11,22 @@ from app.core.dependencies.cruds import (
     get_folder_crud,
     get_user_crud,
     get_connector_crud,
+    get_image_agent_crud,
 )
 from app.core.dependencies.vector import get_vector_store
 from app.core.dependencies.agent import get_react_agent
 from app.services.store.vectorizer import VectorStore
-from app.agents.openai_agent import ReActAgent
+from app.agents.langgraph_agent import ReActAgent
 from app.crud.agent import AgentCRUD
 from app.crud.conversation import ConversationCRUD
 from app.crud.onedrive import OneDriveCRUD
 from app.crud.connector import ConnectorCRUD
 from app.crud.folder import FolderConnectorCRUD
+from app.crud.image import ImageAgentCRUD
 from app.crud.user import UserCRUD
 from app.services.agent.service import AgentService
 from app.services.connectors.base import ConnectorService
+from app.services.agent.image.service import ImageService
 
 
 def get_connector_service(
@@ -38,16 +41,25 @@ def get_conversation_service(
     return ConversationService(conversation_crud=conversation_crud)
 
 
+def get_image_agent_service(
+    image_agent_crud: ImageAgentCRUD = Depends(get_image_agent_crud),
+    vector_store: VectorStore = Depends(get_vector_store),
+):
+    return ImageService(image_crud=image_agent_crud, vector_store=vector_store)
+
+
 def get_agent_service(
     agent: ReActAgent = Depends(get_react_agent),
     agent_crud: AgentCRUD = Depends(get_agent_crud),
     vector_store: VectorStore = Depends(get_vector_store),
+    image_service: ImageService = Depends(get_image_agent_service),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> AgentService:
     return AgentService(
         agent=agent,
         agent_crud=agent_crud,
         vector_store=vector_store,
+        image_service=image_service,
         conversation_service=conversation_service,
     )
 

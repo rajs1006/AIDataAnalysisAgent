@@ -11,6 +11,7 @@ class ConnectorType(str, Enum):
     ONEDRIVE = "onedrive"
     GOOGLE_DRIVE = "google_drive"
     S3 = "s3"
+    IMAGE = "image"
 
 
 class ConnectorStatus(str, Enum):
@@ -70,7 +71,7 @@ class ConnectorMetadata(BaseModel):
     created_at: int  # milliseconds timestamp
     content_hash: str
     content: Optional[str] = None
-    file_path: str
+    file_path: Optional[str] = None
     status: FileStatus = FileStatus.ACTIVE
     doc_id: Optional[str] = None
     last_indexed: Optional[datetime] = None

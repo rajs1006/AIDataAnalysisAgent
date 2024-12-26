@@ -5,6 +5,7 @@ from app.models.database.connectors.folder import FolderConnector
 from app.models.database.connectors.onedrive import OneDriveConnector
 from app.models.database.connectors.connector import Connectors
 from app.models.database.conversation import Conversation, Message
+from app.models.database.context.image import ImageContext
 
 # Import any other models here
 
@@ -14,7 +15,8 @@ document_models = [
     Connectors,
     FolderConnector,
     OneDriveConnector,
+    ImageContext,
     Conversation,
-    Message
+    Message,
     # Add other models here
 ]

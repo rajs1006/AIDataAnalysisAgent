@@ -12,18 +12,39 @@ class SearchParameters(BaseModel):
     limit: int = Field(5, description="Maximum number of results to return")
 
 
+class ImageData(BaseModel):
+    """Model for image data and processing parameters"""
+
+    content: str = Field(
+        ..., description="Base64 encoded image data"
+    )  # Changed from bytes to str
+    mime_type: str = Field(..., description="Image MIME type")
+    filename: Optional[str] = Field(None, description="Original filename")
+
+
 class QueryRequest(BaseModel):
     query: str = Field(..., description="User's question")
     conversation_id: Optional[str] = Field(None, description="ID of the conversation")
     model: str = Field(default="gpt-4-1106-preview", description="OpenAI model to use")
     temperature: float = Field(default=0.7, ge=0, le=2, description="Model temperature")
     max_tokens: int = Field(default=500, ge=1, description="Maximum response tokens")
+    image_data: Optional[ImageData] = Field(
+        None, description="Image data if processing an image"
+    )
 
 
 class Source(BaseModel):
-    connector_name: str
-    file_path: str
-    relevance_score: Optional[float] = None
+    """Source information for search results"""
+
+    connector_name: str = Field(
+        ..., description="Name of the connector that provided this result"
+    )
+    file_path: str = Field(..., description="Path or identifier of the source file")
+    relevance_score: Optional[float] = Field(
+        None, description="Relevance score of the result"
+    )
+    doc_id: Optional[str] = Field(None, description="Document ID in the vector store")
+    connector_id: Optional[str] = Field(None, description="ID of the connector")
 
 
 class QueryResponse(BaseModel):
@@ -100,6 +121,7 @@ class SearchMetadata(BaseModel):
 class ReActState(BaseModel):
     """Track agent's state during conversation"""
 
+    # Existing fields
     search_count: int = 0
     has_final_answer: bool = False
     last_action: Optional[str] = None
@@ -110,6 +132,25 @@ class ReActState(BaseModel):
     search_metadata: Optional[SearchMetadata] = None
     needs_clarification: bool = False
     clarification_reason: Optional[str] = None
+    last_processed_image: Optional[Dict[str, Any]] = Field(
+        None, description="Information about the last processed image"
+    )
+
+    # New context-related fields
+    search_context: List[SearchContext] = Field(
+        default_factory=list, description="Current search context for the conversation"
+    )
+    context_metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Metadata about the current context (e.g., relevance scores, timestamps)",
+    )
+    context_history: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="History of context changes during the conversation",
+    )
+    active_context_sources: List[str] = Field(
+        default_factory=list, description="Currently active context sources being used"
+    )
 
 
 class ConversationContext(BaseModel):

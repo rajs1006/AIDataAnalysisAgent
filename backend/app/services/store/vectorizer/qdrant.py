@@ -62,10 +62,11 @@ class VectorStore:
         doc_id: str,
         content: str,
         metadata: Dict[str, Any],
+        use_chunking: bool = True,
     ) -> List[str]:
         try:
             texts_embeddings_metadata = await self.vectorizer.create_embeddings(
-                content, use_chunking=True, metadata=metadata
+                content, use_chunking=use_chunking, metadata=metadata
             )
 
             points = []
