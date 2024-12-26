@@ -5,7 +5,7 @@ import pytesseract
 
 from typing import Dict, Any, Optional
 from datetime import datetime
-from app.agents.langgraph_agent import ReActAgent
+from app.agents import ReActAgent
 from app.models.schema.agent import (
     QueryRequest,
     QueryResponse,

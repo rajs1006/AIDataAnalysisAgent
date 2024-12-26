@@ -45,6 +45,5 @@ tk==0.1.0
 typing-extensions>=4.5.0
 requests>=2.31.0
 
-# Additional utilities
-# mimetype>=0.1.5
-# logging>=0.5.1.2
+# Optional Haystack components for additional features
+haystack-ai==2.8.0  # Beta version with newer features

@@ -230,7 +230,8 @@ export function ChatInput() {
           onClick={sendMessage}
           disabled={
             isLoading ||
-            (!input.trim() || !selectedImage) ||
+            !input.trim() ||
+            (!input.trim() && !selectedImage) ||
             !hasActiveConnector
           }
           className="h-[60px] w-[120px] px-4 bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center gap-2"

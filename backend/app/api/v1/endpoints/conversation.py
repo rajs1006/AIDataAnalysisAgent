@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 from beanie import PydanticObjectId
-from app.agents.langgraph_agent import ReActAgent
+from app.agents import ReActAgent
 from app.core.dependencies.agent import get_react_agent
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 

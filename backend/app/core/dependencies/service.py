@@ -16,7 +16,7 @@ from app.core.dependencies.cruds import (
 from app.core.dependencies.vector import get_vector_store
 from app.core.dependencies.agent import get_react_agent
 from app.services.store.vectorizer import VectorStore
-from app.agents.langgraph_agent import ReActAgent
+from app.agents import ReActAgent
 from app.crud.agent import AgentCRUD
 from app.crud.conversation import ConversationCRUD
 from app.crud.onedrive import OneDriveCRUD

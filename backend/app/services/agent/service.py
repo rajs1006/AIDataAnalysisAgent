@@ -10,7 +10,7 @@ from app.models.schema.agent import (
     SearchParameters,
 )
 from app.services.store.vectorizer import VectorStore
-from app.agents.langgraph_agent import ReActAgent
+from app.agents import ReActAgent
 from app.models.schema.conversation import MessageCreate
 from app.services.conversation.service import ConversationService
 from app.services.agent.image.service import ImageService

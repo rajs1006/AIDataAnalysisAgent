@@ -13,7 +13,7 @@ from app.models.schema.conversation import (
     MessageResponse,
     ConversationResponse,
 )
-from app.agents.langgraph_agent import ReActAgent
+from app.agents import ReActAgent
 
 logger = logging.getLogger(__name__)
 

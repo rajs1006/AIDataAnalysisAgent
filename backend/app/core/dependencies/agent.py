@@ -1,4 +1,4 @@
-from app.agents.langgraph_agent import ReActAgent
+from app.agents import ReActAgent
 
 
 async def get_react_agent() -> ReActAgent:
