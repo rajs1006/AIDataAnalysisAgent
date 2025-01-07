@@ -231,7 +231,7 @@ export function DashboardLayout() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => folderService.deleteConnector(connector._id)}
+          // onClick={() => folderService.deleteConnector(connector._id)}
           className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute top-2 right-2"
         >
           <Trash2 className="h-4 w-4 text-red-500" />

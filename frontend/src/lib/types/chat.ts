@@ -33,7 +33,7 @@ export interface Source {
 export interface ImageData {
   content: string; // base64 encoded image
   mime_type: string; // e.g., "image/jpeg"
-  file_name: string; // original file name
+  filename: string; // original file name
 }
 
 export interface QueryRequest {

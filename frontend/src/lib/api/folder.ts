@@ -77,7 +77,7 @@ class FolderService {
       link.href = downloadUrl;
       link.download = fileName;
       document.body.appendChild(link);
-      Rsetu;
+      // setu;
       link.click();
       document.body.removeChild(link);
 
