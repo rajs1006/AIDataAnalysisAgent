@@ -9,11 +9,12 @@ from app.models.schema.agent import (
     SearchContext,
     SearchParameters,
 )
-from app.services.store.vectorizer import VectorStore
+from app.core.store.vectorizer import VectorStore
 from app.agents import ReActAgent
 from app.models.schema.conversation import MessageCreate
 from app.services.conversation.service import ConversationService
 from app.services.agent.image.service import ImageService
+from app.services.agent.rag.service import RagService
 
 
 logger = logging.getLogger(__name__)
@@ -25,27 +26,27 @@ class AgentService:
         self,
         agent: ReActAgent,
         agent_crud: AgentCRUD,
-        vector_store: VectorStore,
+        rag_service: Optional[RagService],
         image_service: Optional[ImageService] = None,
         conversation_service: Optional[ConversationService] = None,
     ):
         self.agent = agent
         self.crud = agent_crud
-        self.vector_store = vector_store
+        self.rag_service = rag_service
         self.image_agent_service = image_service
         self.conversation_service = conversation_service
-        self.rag_functions = self._initialize_rag_functions()
+        # self.rag_functions = self._initialize_rag_functions()
 
-    def _initialize_rag_functions(self) -> List[Dict[str, Any]]:
-        """Initialize RAG functions with their descriptions and parameters"""
-        return {
-            "search_rag": {
-                "name": "search_rag",
-                "description": "Search through documents using both vector search and metadata filtering",
-                "parameters": SearchParameters.model_json_schema(),
-                "handler": self.search_rag,
-            }
-        }
+    # def _initialize_rag_functions(self) -> List[Dict[str, Any]]:
+    #     """Initialize RAG functions with their descriptions and parameters"""
+    #     return {
+    #         "search_rag": {
+    #             "name": "search_rag",
+    #             "description": "Search through documents using both vector search and metadata filtering",
+    #             "parameters": SearchParameters.model_json_schema(),
+    #             "handler": self.search_rag,
+    #         }
+    #     }
 
     async def process_query(
         self, query_request: QueryRequest, user_id: str
@@ -77,6 +78,9 @@ class AgentService:
                         page_size=10,  # Get last 10 messages for context
                     )
                 )
+                print("=============== conversation_data =====================")
+                print(conversation_data)
+                print("==================================================")
                 conversation_history = [
                     {"role": msg["role"], "content": msg["content"]}
                     for msg in conversation_data["messages"]
@@ -105,12 +109,13 @@ class AgentService:
                 )
 
             # Generate response using ReAct agent
-            answer = await self.agent.generate_response(
+            output = await self.rag_service.search_documents(
+                query=query_request.query,
                 user_id=user_id,
-                contexts=context,
-                query_params=query_request,
-                rag_functions=self.rag_functions,
                 conversation_history=conversation_history,
+                # contexts=context,
+                # query_params=query_request,
+                # rag_functions=self.rag_functions,
             )
 
             # Store assistant's response if using conversations
@@ -119,7 +124,7 @@ class AgentService:
                     conversation_id=query_request.conversation_id,
                     user_id=user_id,
                     role="assistant",
-                    data=MessageCreate(content=answer),
+                    data=MessageCreate(content=output.answer, metadata=output.metadata),
                 )
 
                 # Let the conversation service handle message count and summarization
@@ -136,8 +141,8 @@ class AgentService:
                             f"Generated summary for conversation {query_request.conversation_id}"
                         )
 
-            sources = self.extract_sources(context)
-            return QueryResponse(answer=answer, sources=sources)
+            # sources = self.extract_sources(context)
+            return QueryResponse(answer=output.answer, sources=[output.sources])
 
         except Exception as e:
             traceback.print_exc
@@ -157,7 +162,7 @@ class AgentService:
                 collection_name=str(user_id),
                 query=query,
                 limit=limit,
-                metadata_filter={"payload.metadata.connector_id": user_id},
+                # metadata_filter={"payload.metadata.connector_id": user_id},
                 include_content=True,
             )
 

@@ -10,7 +10,7 @@ class BaseConfig(BaseSettings):
     API_V1_STR: str = "/api/v1"
     CORS_ORIGINS: list
     ENV: str = "development"
-    DEBUG: bool = True
+    DEBUG: bool = False
     APP_PROTOCOL: str = "http"
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
@@ -37,7 +37,7 @@ class BaseConfig(BaseSettings):
 
 
 class DevelopmentConfig(BaseConfig):
-    DEBUG: bool = True
+    DEBUG: bool = False
 
 
 class ProductionConfig(BaseConfig):

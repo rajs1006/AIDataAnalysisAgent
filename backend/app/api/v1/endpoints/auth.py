@@ -22,11 +22,9 @@ router = APIRouter()
 @router.post("/register", response_model=RegistrationResponse)
 async def register(
     user_data: UserCreate,
-    # user_crud: UserCRUD = Depends(get_user_crud),
     auth_service: AuthService = Depends(get_auth_service),
 ):
     try:
-        # auth_service = AuthService(user_crud)
         message, user = await auth_service.register_user(user_data)
         return {"message": message, "user": user}
     except HTTPException as e:
@@ -41,11 +39,9 @@ async def register(
 @router.post("/login", response_model=Token)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    # user_crud: UserCRUD = Depends(get_user_crud),
     auth_service: AuthService = Depends(get_auth_service),
 ):
     try:
-        # auth_service = AuthService(user_crud)
         access_token, token_type = await auth_service.authenticate_user(
             form_data.username, form_data.password
         )
@@ -67,10 +63,16 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 @router.post("/refresh", response_model=TokenValidationResponse)
 async def validate_token(
     current_user: User = Depends(get_current_user_api),
-    # user_crud: UserCRUD = Depends(get_user_crud),
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    # auth_service = AuthService(user_crud)
+    return await auth_service.validate_token(current_user)
+
+
+@router.post("/api", response_model=Token)
+async def validate_token(
+    current_user: User = Depends(get_current_user_api),
+    auth_service: AuthService = Depends(get_auth_service),
+):
     return await auth_service.validate_token(current_user)
 
 
@@ -78,12 +80,10 @@ async def validate_token(
 async def oauth_callback(
     callback_data: OAuthCallbackRequest,
     current_user: User = Depends(get_current_user),
-    # user_crud: UserCRUD = Depends(get_user_crud),
     auth_service: AuthService = Depends(get_auth_service),
 ):
     """Handle OAuth callback from Microsoft"""
     try:
-        # auth_service = AuthService(user_crud)
         return await auth_service.handle_oauth_callback(current_user, callback_data)
     except Exception as e:
         # logger.error(f"OAuth callback failed: {str(e)}")

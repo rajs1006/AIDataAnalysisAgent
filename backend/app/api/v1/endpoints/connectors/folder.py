@@ -23,9 +23,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# class folder_service:
-
-
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_connector(
     name: str = Form(...),
@@ -34,8 +31,6 @@ async def create_connector(
     files: List[UploadFile] = File(...),
     current_user=Depends(get_current_user),
     folder_service: FolderConnectorService = Depends(get_folder_service),
-    # vector_store: VectorStore = Depends(get_vector_store),
-    # folder_crud: FolderConnectorCRUD = Depends(get_folder_crud),
 ):
     """Create a new folder connector and generate watcher executable"""
     try:
@@ -60,8 +55,6 @@ async def create_connector(
 async def watch_event(
     request: Request,
     current_user=Depends(get_current_user_api),
-    # vector_store: VectorStore = Depends(get_vector_store),
-    # folder_crud: FolderConnectorCRUD = Depends(get_folder_crud),
     folder_service: FolderConnectorService = Depends(get_folder_service),
 ):
     """Handle file watch events with vectorization"""
@@ -82,8 +75,6 @@ async def watch_event(
 async def check_connector_status(
     connector_id: str,
     current_user=Depends(get_current_user_api),
-    # vector_store: VectorStore = Depends(get_vector_store),
-    # folder_crud: FolderConnectorCRUD = Depends(get_folder_crud),
     folder_service: FolderConnectorService = Depends(get_folder_service),
 ):
     """Check if a connector is active"""
@@ -106,12 +97,9 @@ async def update_connector_status(
     status: str,
     current_user=Depends(get_current_user),
     folder_service: FolderConnectorService = Depends(get_folder_service),
-    # vector_store: VectorStore = Depends(get_vector_store),
-    # folder_crud: FolderConnectorCRUD = Depends(get_folder_crud),
 ):
     """Update connector status"""
     try:
-        # endpoint = folder_service(folder_crud, vector_store)
         return await folder_service.update_connector_status(
             connector_id, status, current_user.id
         )

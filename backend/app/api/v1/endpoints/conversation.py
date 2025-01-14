@@ -21,7 +21,6 @@ from app.models.schema.conversation import (
     ConversationAnalytics,
     ConversationExport,
 )
-from app.crud.conversation import ConversationCRUD
 from app.services.conversation.service import ConversationService
 
 router = APIRouter()
@@ -39,7 +38,7 @@ async def create_conversation(
 ):
     """Create a new conversation"""
     return await conversation_service.create_conversation(
-        user_id=current_user.id, data=data
+        user=current_user, data=data
     )
 
 
@@ -48,15 +47,11 @@ async def create_conversation(
     response_model=List[ConversationResponse],
 )
 async def get_conversations(
-    skip: int = 0,
-    limit: int = 10,
     current_user: User = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ):
     """Get list of conversations"""
-    return await conversation_service.get_conversations(
-        user_id=current_user.id, skip=skip, limit=limit
-    )
+    return await conversation_service.get_all_conversations(user=current_user)
 
 
 @router.get(

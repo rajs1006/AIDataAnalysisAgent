@@ -6,8 +6,8 @@ from typing import Dict
 
 class PromptManager:
     @lru_cache(maxsize=1)
-    def load_prompts(self) -> Dict[str, str]:
-        prompt_path = Path(__file__).parent / "files" / "langgraph_prompt.yml"
+    def load_prompts(self, file_path="langgraph_prompt.yml") -> Dict[str, str]:
+        prompt_path = Path(__file__).parent / "files" / file_path
         with open(prompt_path) as f:
             return yaml.safe_load(f)
 

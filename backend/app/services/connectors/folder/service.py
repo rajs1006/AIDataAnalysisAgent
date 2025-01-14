@@ -4,8 +4,9 @@ from pathlib import Path
 import os
 from datetime import datetime
 from fastapi import HTTPException, status
+from haystack.dataclasses import Document
 
-from app.services.store.vectorizer import VectorStore
+from app.services.agent.rag.service import RagService
 from app.crud.folder import FolderConnectorCRUD
 from app.models.schema.connectors.folder import FileEvent
 from app.models.schema.base.connector import FileStatus
@@ -19,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 class FolderConnectorService:
 
-    def __init__(self, crud: FolderConnectorCRUD, vector_store: VectorStore):
-        self.vector_store = vector_store
+    def __init__(self, crud: FolderConnectorCRUD, rag_service: RagService):
+        self.rag_service = rag_service
         self.crud = crud
 
     async def list_connectors(self, user_id: str):
@@ -132,7 +133,9 @@ class FolderConnectorService:
         return {"status": new_status}
 
     async def _handle_file_update(self, connector, event: FileEvent):
+        """Handle file updates using Haystack components"""
         try:
+            # Check file extension
             if not any(
                 event.metadata.file_path.lower().endswith(ext)
                 for ext in connector.supported_extensions
@@ -143,32 +146,46 @@ class FolderConnectorService:
                 }
 
             doc_id = f"{connector.id}_{event.metadata.content_hash}"
-            if event.content:
 
-                point_ids = await self.vector_store.store_document(
-                    collection_name=str(connector.user_id),
-                    doc_id=doc_id,
-                    content=event.content,
-                    metadata={
-                        "user_id": str(connector.user_id),
-                        "connector_id": str(connector.id),
-                        "file_path": event.metadata.file_path,
-                        "parent_doc_id": doc_id,
-                        **event.metadata.dict(),
-                    },
+            if event.content:
+                # Create document metadata
+                doc_metadata = {
+                    "user_id": str(connector.user_id),
+                    "connector_id": str(connector.id),
+                    "file_path": event.metadata.file_path,
+                    "parent_doc_id": doc_id,
+                    "file_type": event.metadata.extension,
+                    "file_name": event.metadata.filename,
+                    "content_hash": event.metadata.content_hash,
+                    **event.metadata.dict(),
+                }
+
+                # Add document using RAG service
+                await self.rag_service.add_documents(
+                    documents=[
+                        {
+                            "content": event.content,
+                            "doc_id": doc_id,
+                            "file_path": event.metadata.file_path,
+                            "file_type": event.metadata.extension,
+                            "file_name": event.metadata.filename,
+                        }
+                    ],
+                    user_id=str(connector.user_id),
+                    connector_id=str(connector.id),
+                    metadata=doc_metadata,
                 )
 
-                # Update metadata for each chunk
+                # Update metadata for tracking
                 event.metadata.content = event.content
                 event.metadata.doc_id = doc_id
                 event.metadata.status = FileStatus.ACTIVE
                 event.metadata.last_indexed = datetime.utcnow()
-                event.metadata.vector_ids = point_ids  # Store all chunk IDs
-                event.metadata.total_chunks = len(point_ids)
 
+                # Update connector metadata
                 await self.crud.update_file_metadata(str(connector.id), event.metadata)
 
-            return {"status": "success", "doc_id": doc_id}
+                return {"status": "success", "doc_id": doc_id}
 
         except Exception as e:
             logger.error(f"Error processing file update: {str(e)}")
@@ -176,6 +193,52 @@ class FolderConnectorService:
             event.metadata.error_message = str(e)
             await self.crud.update_file_metadata(str(connector.id), event.metadata)
             raise
+
+    # async def _handle_file_update(self, connector, event: FileEvent):
+    #     try:
+    #         if not any(
+    #             event.metadata.file_path.lower().endswith(ext)
+    #             for ext in connector.supported_extensions
+    #         ):
+    #             return {
+    #                 "status": "skipped",
+    #                 "message": f"Unsupported file type: {event.metadata.extension}",
+    #             }
+
+    #         doc_id = f"{connector.id}_{event.metadata.content_hash}"
+    #         if event.content:
+
+    #             point_ids = await self.vector_store.store_document(
+    #                 collection_name=str(connector.user_id),
+    #                 doc_id=doc_id,
+    #                 content=event.content,
+    #                 metadata={
+    #                     "user_id": str(connector.user_id),
+    #                     "connector_id": str(connector.id),
+    #                     "file_path": event.metadata.file_path,
+    #                     "parent_doc_id": doc_id,
+    #                     **event.metadata.dict(),
+    #                 },
+    #             )
+
+    #             # Update metadata for each chunk
+    #             event.metadata.content = event.content
+    #             event.metadata.doc_id = doc_id
+    #             event.metadata.status = FileStatus.ACTIVE
+    #             event.metadata.last_indexed = datetime.utcnow()
+    #             event.metadata.vector_ids = point_ids  # Store all chunk IDs
+    #             event.metadata.total_chunks = len(point_ids)
+
+    #             await self.crud.update_file_metadata(str(connector.id), event.metadata)
+
+    #         return {"status": "success", "doc_id": doc_id}
+
+    #     except Exception as e:
+    #         logger.error(f"Error processing file update: {str(e)}")
+    #         event.metadata.status = FileStatus.ERROR
+    #         event.metadata.error_message = str(e)
+    #         await self.crud.update_file_metadata(str(connector.id), event.metadata)
+    #         raise
 
     async def _handle_file_deletion(self, connector, event: FileEvent):
         try:
@@ -186,7 +249,7 @@ class FolderConnectorService:
             if existing_file and existing_file.doc_id:
                 # Delete all chunks associated with document
                 for chunk_id in existing_file.vector_ids:
-                    await self.vector_store.delete_document(str(connector.id), chunk_id)
+                    await self.rag_service.delete_document(str(connector.id), chunk_id)
 
             await self.crud.delete_file_metadata(
                 str(connector.id), event.metadata.file_path

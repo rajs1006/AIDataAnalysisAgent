@@ -14,37 +14,50 @@ from app.models.schema.conversation import (
 class ConversationCRUD:
 
     @staticmethod
-    async def create_conversation(
-        user_id: str, data: ConversationCreate
-    ) -> Conversation:
-        conversation = Conversation(
-            user_id=str(user_id),
-            title=data.title,
-            metadata=data.metadata,
-            user=User.link_from_id(user_id),
+    async def create_conversation(user: User, data: ConversationCreate) -> Conversation:
+        # conversation = Conversation(
+        #     user_id=str(user_id),
+        #     title=data.title,
+        #     metadata=data.metadata,
+        #     user=User.link_from_id(user_id),
+        # )
+        # await conversation.insert()
+        # return conversation
+        return await Conversation.create_for_user(
+            user=user, title=data.title, metadata=data.metadata
         )
-        await conversation.insert()
-        return conversation
 
     @staticmethod
     async def get_conversation(
         conversation_id: str, user_id: str
     ) -> Optional[Conversation]:
-        return await Conversation.find_one(
-            {"_id": PydanticObjectId(conversation_id), "user_id": str(user_id)}
+        # c =  await Conversation.find_one(
+        #     {"_id": PydanticObjectId(conversation_id), "user_id": str(user_id)}
+        # )
+        c = await Conversation.get_conversation(
+            conversation_id=conversation_id, user_id=user_id
         )
+        print("============== c =================")
+        print(c)
+        print("-----------------------------------")
+        return c
 
     @staticmethod
     async def get_conversations(
-        user_id: str, skip: int = 0, limit: int = 10
+        user: User, skip: int = 0, limit: int = 10
     ) -> List[Conversation]:
-        conversations = (
-            await Conversation.find({"user_id": user_id})
-            .skip(skip)
-            .limit(limit)
-            .to_list()
-        )
-        return conversations
+        # conversations = (
+        #     await Conversation.find({"user_id": user_id})
+        #     .skip(skip)
+        #     .limit(limit)
+        #     .to_list()
+        # )
+        # return conversations
+        return await Conversation.get_by_user(user=user, skip=skip, limit=limit)
+
+    @staticmethod
+    async def get_all_conversations(user: User) -> List[Conversation]:
+        return await Conversation.get_all_by_user(user=user)
 
     @staticmethod
     async def update_conversation(
@@ -82,25 +95,30 @@ class ConversationCRUD:
     async def add_message(
         conversation_id: str, user_id: str, role: str, data: MessageCreate
     ) -> Optional[Message]:
-        conversation = await ConversationCRUD().get_conversation(
-            conversation_id, user_id
-        )
-        if not conversation:
-            return None
+        # conversation = await ConversationCRUD().get_conversation(
+        #     conversation_id, user_id
+        # )
+        # if not conversation:
+        #     return None
 
-        message = Message(
-            user_id=str(user_id),
-            conversation_id=str(conversation_id),
-            role=role,
+        # message = Message(
+        #     user_id=str(user_id),
+        #     conversation_id=str(conversation_id),
+        #     role=role,
+        #     content=data.content,
+        #     metadata=data.metadata,
+        # )
+        # await message.insert()
+
+        # # Update conversation's updated_at
+        # await conversation.update({"$set": {"updated_at": datetime.utcnow()}})
+
+        return await Conversation.add_message(
+            conversation_id=conversation_id,
             content=data.content,
+            role=role,
             metadata=data.metadata,
         )
-        await message.insert()
-
-        # Update conversation's updated_at
-        await conversation.update({"$set": {"updated_at": datetime.utcnow()}})
-
-        return message
 
     @staticmethod
     async def get_conversation_by_title(
@@ -113,18 +131,21 @@ class ConversationCRUD:
         conversation_id: str, user_id: str, skip: int = 0, limit: Optional[int] = None
     ) -> List[Message]:
         """Get messages for a conversation"""
-        query = (
-            Message.find(
-                {"conversation_id": str(conversation_id), "user_id": str(user_id)}
-            )
-            .skip(skip)
-            .sort("+created_at")
-        )  # Sort by creation time ascending
+        return await Conversation.get_messages(
+            conversation_id=conversation_id, skip=skip, limit=limit
+        )
+        # query = (
+        #     Message.find(
+        #         {"conversation_id": str(conversation_id), "user_id": str(user_id)}
+        #     )
+        #     .skip(skip)
+        #     .sort("+created_at")
+        # )  # Sort by creation time ascending
 
-        if limit is not None:
-            query = query.limit(limit)
+        # if limit is not None:
+        #     query = query.limit(limit)
 
-        return await query.to_list()
+        # return await query.to_list()
 
     @staticmethod
     async def get_messages_count(conversation_id: str, user_id: str) -> int:

@@ -20,6 +20,9 @@ class ParserUtils(OpenAIFunctionsAgentOutputParser):
             cleaned_output = (
                 text.content.strip() if hasattr(text, "content") else text.strip()
             )
+            print("--------------------------")
+            print(cleaned_output)
+            print("--------------------------")
 
             # IMMEDIATE TERMINATION if we see FINAL ANSWER
             # if "FINAL ANSWER:" in cleaned_output:
@@ -416,6 +419,9 @@ class ReActTools:
             for variation in query_variations:
                 # Execute search with timeout
                 try:
+                    print("================")
+                    print(variation)
+                    print("================")
                     results = await search_rag_func(
                         user_id=user_id, query=variation, limit=limit
                     )

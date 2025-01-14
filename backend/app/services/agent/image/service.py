@@ -14,7 +14,7 @@ from app.models.schema.agent import (
     SearchParameters,
 )
 
-from app.services.store.vectorizer import VectorStore
+from app.core.store.vectorizer import VectorStore
 from app.crud.image import ImageAgentCRUD
 from app.models.schema.agent import ImageData
 from app.models.schema.context.image import ImageMetadata

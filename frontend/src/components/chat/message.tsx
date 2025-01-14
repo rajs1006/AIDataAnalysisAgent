@@ -32,7 +32,7 @@ export function Message({ message }: MessageProps) {
           <div className="mt-2 text-xs opacity-70">
             {message.sources.map((source, i) => (
               <div key={i} className="mt-1">
-                Source: {source.file_name}
+                Source: {source}
               </div>
             ))}
           </div>

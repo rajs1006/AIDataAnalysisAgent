@@ -49,7 +49,7 @@ class Source(BaseModel):
 
 class QueryResponse(BaseModel):
     answer: Optional[str]
-    sources: Optional[List[Source]]
+    sources: Optional[List[str]]
 
 
 class SearchContext(BaseModel):

@@ -16,7 +16,7 @@ python-magic==0.4.27
 python-multipart==0.0.9
 pytest==8.0.0
 pytest-asyncio==0.23.5
-qdrant-client==1.7.0
+qdrant-client==1.10.0
 sentence-transformers==2.5.1
 tenacity==8.2.3
 transformers==4.38.2
@@ -35,7 +35,7 @@ langgraph==0.2.53
 pdfplumber==0.9.0
 python-docx==1.1.0
 pytesseract==0.3.10
-Pillow==10.2.0
+Pillow==10.3.0
 
 
 # Dependencies for tkinter GUI
@@ -47,3 +47,5 @@ requests>=2.31.0
 
 # Optional Haystack components for additional features
 haystack-ai==2.8.0  # Beta version with newer features
+qdrant-haystack==7.0.0
+fastembed-haystack==1.4.1

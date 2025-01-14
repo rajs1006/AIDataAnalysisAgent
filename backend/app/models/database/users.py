@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from beanie import Document, Indexed
 from pydantic import EmailStr
 from app.models.schema.connectors.onedrive import OneDriveAuth
@@ -13,6 +13,7 @@ class User(Document):
     created_at: datetime = datetime.utcnow()
     updated_at: datetime = datetime.utcnow()
     onedriveOauth: Optional[OneDriveAuth] = None
+    api_keys: Optional[List[str]] = None
 
     class Settings:
         name = "auth"

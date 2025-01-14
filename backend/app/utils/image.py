@@ -6,11 +6,10 @@ from PIL import Image, UnidentifiedImageError
 import logging
 from typing import Optional, Union
 
+logger = logging.getLogger(__name__)
+
 
 class ImageValidator:
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.DEBUG)
 
     def validate_and_process_image(self, image_data: dict) -> Optional[Image.Image]:
         """Process image data from the frontend"""
@@ -20,14 +19,14 @@ class ImageValidator:
             mime_type = image_data.get("mime_type")
 
             if not content or not mime_type:
-                self.logger.error("Missing content or mime_type in image data")
+                logger.error("Missing content or mime_type in image data")
                 return None
 
             # Decode base64 content
             try:
                 image_bytes = base64.b64decode(content)
             except Exception as e:
-                self.logger.error(f"Failed to decode base64: {str(e)}")
+                logger.error(f"Failed to decode base64: {str(e)}")
                 return None
 
             # Create PIL Image
@@ -46,9 +45,9 @@ class ImageValidator:
 
                 return img
             except Exception as e:
-                self.logger.error(f"Failed to create PIL Image: {str(e)}")
+                logger.error(f"Failed to create PIL Image: {str(e)}")
                 return None
 
         except Exception as e:
-            self.logger.error(f"Image validation failed: {str(e)}", exc_info=True)
+            logger.error(f"Image validation failed: {str(e)}", exc_info=True)
             return None
