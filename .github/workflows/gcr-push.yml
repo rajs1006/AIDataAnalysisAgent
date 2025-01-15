@@ -8,6 +8,8 @@ on:
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: europe-west10
+  REGISTRY: europe-west10-docker.pkg.dev
+  REPOSITORY: datanalysisagent
 
 jobs:
   build-and-push:
@@ -15,37 +17,53 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    
-    - name: Google Auth
-      id: auth
-      uses: google-github-actions/auth@v1
-      with:
-        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-        token_format: access_token
-        audience: https://iam.googleapis.com/projects/101349614136
-    
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v1
-      with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
-    
-    - name: Configure Docker auth
-      run: |
-        gcloud auth configure-docker europe-west10-docker.pkg.dev --quiet
-    
-    - name: Build and push Frontend Docker image
-      run: |
-        docker build ./frontend -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:latest -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:${{ github.sha }}
-        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:latest
-        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:${{ github.sha }}
-    
-    - name: Build and push Backend Docker image
-      run: |
-        docker build ./backend -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/backend:latest -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/backend:${{ github.sha }}
-        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/backend:latest
-        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/backend:${{ github.sha }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+          audience: https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker auth
+        run: |
+          gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Build and push Docker images
+        env:
+          IMAGE_PREFIX: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}
+        run: |
+          # Build and push chat-frontend image
+          docker build \
+            ./frontend \
+            -t ${{ env.IMAGE_PREFIX }}/chat-frontend:latest \
+            -t ${{ env.IMAGE_PREFIX }}/chat-frontend:${{ github.sha }}
+          docker push ${{ env.IMAGE_PREFIX }}/chat-frontend:latest
+          docker push ${{ env.IMAGE_PREFIX }}/chat-frontend:${{ github.sha }}
+
+          # Build and push frontend image
+          docker build \
+            ./frontend \
+            -t ${{ env.IMAGE_PREFIX }}/frontend:latest \
+            -t ${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
+          docker push ${{ env.IMAGE_PREFIX }}/frontend:latest
+          docker push ${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
+
+          # Build and push backend image
+          docker build \
+            ./backend \
+            -t ${{ env.IMAGE_PREFIX }}/backend:latest \
+            -t ${{ env.IMAGE_PREFIX }}/backend:${{ github.sha }}
+          docker push ${{ env.IMAGE_PREFIX }}/backend:latest
+          docker push ${{ env.IMAGE_PREFIX }}/backend:${{ github.sha }}
