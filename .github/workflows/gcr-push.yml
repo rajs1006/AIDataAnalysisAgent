@@ -40,7 +40,7 @@ jobs:
     
     - name: Build and push Chat Frontend Docker image
       run: |
-        docker build ./frontend -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:latest -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:${{ github.sha }}
+        docker build ./ai-chat -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:latest -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:${{ github.sha }}
         docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:latest
         docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:${{ github.sha }}
     
