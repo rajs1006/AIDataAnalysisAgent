@@ -50,10 +50,10 @@ class FolderConnectorCRUD:
         connector = FolderConnector(
             name=connector_data.name,
             # description=connector_data.description,
-            connector_type=connector_data.connector_type,
+            connector_type=ConnectorType.LOCAL_FOLDER,
             # path=connector_data.path,
             user_id=str(user.id),
-            # config=connector_data.config,
+            config=connector_data.platform_info.dict(),
             supported_extensions=connector_data.supported_extensions,
             enabled=True,
             files=[],

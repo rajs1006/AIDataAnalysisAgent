@@ -13,7 +13,8 @@ from app.models.schema.conversation import (
     MessageResponse,
     ConversationResponse,
 )
-from app.agents.langgraph_agent import ReActAgent
+from app.models.database.users import User
+from app.agents import ReActAgent
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +26,9 @@ class ConversationService:
         self.summary_threshold = 10  # Number of messages before summarizing
 
     async def create_conversation(
-        self, user_id: str, data: ConversationCreate
+        self, user: User, data: ConversationCreate
     ) -> Conversation:
-        return await self.crud.create_conversation(user_id=user_id, data=data)
+        return await self.crud.create_conversation(user=user, data=data)
 
     async def get_conversation(
         self, conversation_id: str, user_id: str
@@ -37,11 +38,12 @@ class ConversationService:
         )
 
     async def get_conversations(
-        self, user_id: str, skip: int = 0, limit: int = 10
+        self, user: User, skip: int = 0, limit: int = 10
     ) -> List[Conversation]:
-        return await self.crud.get_conversations(
-            user_id=user_id, skip=skip, limit=limit
-        )
+        return await self.crud.get_conversations(user=user, skip=skip, limit=limit)
+
+    async def get_all_conversations(self, user: User) -> List[Conversation]:
+        return await self.crud.get_all_conversations(user=user)
 
     async def update_conversation(
         self, conversation_id: str, user_id: str, data: ConversationUpdate
@@ -109,15 +111,19 @@ class ConversationService:
         conversation = await self.crud.get_conversation(conversation_id, user_id)
         if not conversation:
             return None
-
+        print("=========== load_conversation_history conversation ==========")
+        print(conversation)
         # Get active messages with pagination
-        skip = (page - 1) * page_size
-        messages = await self.crud.get_messages(
-            conversation_id=conversation_id,
-            user_id=user_id,
-            skip=skip,
-            limit=page_size,
-        )
+        messages = conversation.messages
+        # skip = (page - 1) * page_size
+        # messages = await self.crud.get_messages(
+        #     conversation_id=conversation_id,
+        #     user_id=user_id,
+        #     skip=skip,
+        #     limit=page_size,
+        # )
+        print("=========== load_conversation_history messages==========")
+        print(messages)
 
         # Get total message count for pagination
         total_messages = await self.crud.get_messages_count(conversation_id, user_id)

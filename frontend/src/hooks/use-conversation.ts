@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { conversationService } from "@/lib/api/conversation";
 import { useAppDispatch } from "@/lib/store/store";
 import { addMessage, clearChat } from "@/lib/store/chat";
-import { Message, Conversation } from "@/lib/types/chat";
+import { Message } from "@/lib/types/chat";
 
 export function useConversation() {
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -13,7 +13,7 @@ export function useConversation() {
   const startNewConversation = useCallback(async () => {
     try {
       const conversation = await conversationService.create({
-        title: "New Conversation", // You can make this dynamic if needed
+        title: "New Conversation",
       });
       setCurrentConversationId(conversation.id);
       dispatch(clearChat());
@@ -25,7 +25,7 @@ export function useConversation() {
   }, [dispatch]);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, image?: File) => {
       try {
         let conversationId = currentConversationId;
 
@@ -49,7 +49,8 @@ export function useConversation() {
         // Send message to backend
         await conversationService.addMessage(
           conversationId,
-          content
+          content,
+          image // Pass image as third parameter
         );
 
         return conversationId;
@@ -67,10 +68,8 @@ export function useConversation() {
         const conversation = await conversationService.getById(conversationId);
         setCurrentConversationId(conversationId);
 
-        // Clear existing messages and load conversation messages
         dispatch(clearChat());
 
-        // Convert backend messages to chat messages
         conversation.messages.forEach((msg) => {
           const chatMessage: Message = {
             id: msg.id,

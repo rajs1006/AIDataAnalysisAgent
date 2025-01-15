@@ -38,6 +38,7 @@ export interface CreateConnectorDto {
   name: string;
   connector_type: ConnectorType;
   platform_info: PlatformInfo;
+  files?: File[]; // Add optional files array
 }
 
 export interface ConnectorMetrics {

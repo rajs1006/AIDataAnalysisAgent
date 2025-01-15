@@ -2,7 +2,7 @@ export interface Message {
   id: string;
   type: "user" | "assistant";
   content: string;
-  sources?: Source[];
+  sources?: string[];
   timestamp: Date;
 }
 
@@ -30,17 +30,24 @@ export interface Source {
   relevance_score: number;
 }
 
+export interface ImageData {
+  content: string; // base64 encoded image
+  mime_type: string; // e.g., "image/jpeg"
+  filename: string; // original file name
+}
+
 export interface QueryRequest {
   query: string;
+  conversation_id?: string;
   model: string;
   temperature: number;
   max_tokens: number;
-  conversation_id: string;
+  image_data?: ImageData | null;
 }
 
 export interface QueryResponse {
   answer: string;
-  sources: Source[];
+  sources: string[];
 }
 
 // Extend the RootState type to include chat state

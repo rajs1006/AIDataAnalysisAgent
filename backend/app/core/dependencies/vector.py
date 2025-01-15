@@ -4,7 +4,8 @@ from typing import AsyncGenerator
 from fastapi import Depends
 from qdrant_client import QdrantClient
 from app.core.config import settings
-from app.services.store.vectorizer import VectorStore
+from app.core.store.vectorizer import VectorStore
+from app.agents.haystack_agent.config import HybridPipelineConfig
 
 
 async def get_qdrant_client() -> AsyncGenerator[QdrantClient, None]:
@@ -17,10 +18,9 @@ async def get_qdrant_client() -> AsyncGenerator[QdrantClient, None]:
 
 
 async def get_vector_store(
-    client: QdrantClient = Depends(get_qdrant_client),
 ) -> VectorStore:
     """Get VectorStore instance."""
-    return VectorStore(client)
+    return VectorStore(**HybridPipelineConfig().document_store)
 
 
 # async def get_vector_store() -> VectorStore:

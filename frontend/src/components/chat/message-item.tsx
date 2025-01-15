@@ -35,10 +35,10 @@ export function MessageItem({ message }: MessageItemProps) {
             {message.sources.map((source, index) => (
               <Card key={index} className="bg-background/50">
                 <CardContent className="p-3 text-sm">
-                  <div className="font-medium">{source.file_name}</div>
-                  <div className="mt-1 text-muted-foreground">
+                  <div className="font-medium">{source}</div>
+                  {/* <div className="mt-1 text-muted-foreground">
                     {source.content}
-                  </div>
+                  </div> */}
                 </CardContent>
               </Card>
             ))}

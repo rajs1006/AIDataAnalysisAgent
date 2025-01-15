@@ -1,37 +1,23 @@
-import React, { useState, useEffect, useRef } from "react";
-import { ChatHistory } from "./history/index";
-import { useConnectors } from "@/hooks/use-connectors";
-import { useConversation } from "@/hooks/use-conversation";
-import {
-  MessageCircleOff,
-  CopyPlus,
-  Copy,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
-import { connectorService } from "@/lib/api/connector";
+import React, { useEffect, useRef } from "react";
+import { MessageCircleOff, Copy } from "lucide-react";
 import { MessageList } from "./message-list";
 import { ChatInput } from "./input";
 import { useAppSelector } from "@/lib/store/store";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { FormattedText } from "./formatted-text";
+import { useConnectors } from "@/hooks/use-connectors";
 
 export function ChatInterface() {
-  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const { hasActiveConnector } = useConnectors();
-  const { currentConversationId, sendMessage, startNewConversation } =
-    useConversation();
   const messages = useAppSelector((state) => state.chat.messages);
   const { toast } = useToast();
 
-  // hasActiveConnector is now provided by useConnectors hook
   const lastAnswer = messages
     .filter((m) => m.type === "assistant")
     .pop()?.content;
 
-  // Auto-focus and scroll to chat interface when connectors change
   useEffect(() => {
     if (hasActiveConnector && chatRef.current) {
       chatRef.current.scrollIntoView({ behavior: "smooth" });
@@ -73,30 +59,6 @@ export function ChatInterface() {
 
   return (
     <div className="flex h-full gap-6">
-      {/* Chat History */}
-      {/* <div
-        className={`${
-          isHistoryCollapsed ? "w-12" : "w-72"
-        } transition-all duration-300 border rounded-lg bg-card shadow-sm flex flex-col`}
-      >
-        <Button
-          variant="ghost"
-          size="icon"
-          className="clickable-button hover:bg-transparent self-end m-2"
-          onClick={() => setIsHistoryCollapsed(!isHistoryCollapsed)}
-        >
-          {isHistoryCollapsed ? (
-            <ChevronRight className="h-5 w-5 text-accent" />
-          ) : (
-            <ChevronLeft className="h-5 w-5 text-accent" />
-          )}
-        </Button>
-        <div className={`${isHistoryCollapsed ? "hidden" : "block"} flex-1`}>
-          <ChatHistory />
-        </div>
-      </div> */}
-
-      {/* Chat Interface */}
       <div className="flex-1 flex" ref={chatRef}>
         <div className="flex-1 flex flex-col rounded-lg border bg-card shadow-sm">
           <div className="flex-1 overflow-hidden">
@@ -107,7 +69,6 @@ export function ChatInterface() {
           </div>
         </div>
 
-        {/* Answer Box */}
         {lastAnswer && (
           <div className="w-96 ml-6 flex flex-col rounded-lg border bg-card shadow-sm">
             <div className="p-4 border-b flex items-center justify-between">

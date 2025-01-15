@@ -42,7 +42,6 @@ async def list_connectors(
 async def update_connector_status(
     connector: ConnectorUpdate,
     current_user=Depends(get_current_user),
-    # connector_crud: ConnectorCRUD = Depends(get_connector_crud),
     connector_service: ConnectorService = Depends(get_connector_service),
 ):
     """Update connector status"""

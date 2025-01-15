@@ -14,18 +14,12 @@ from app.models.schema.connectors.onedrive import (
     OneDriveResponse,
     OAuthCallbackRequest,
 )
-from app.services.store.vectorizer import VectorStore
+from app.core.store.vectorizer import VectorStore
 from app.crud.onedrive import OneDriveCRUD
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
-# def get_onedrive_service(
-#     onedrive_crud: OneDriveCRUD = Depends(get_onedrive_crud),
-#     vector_store: VectorStore = Depends(get_vector_store),
-# ) -> OneDriveService:
-#     return OneDriveService(onedrive_crud, vector_store)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)

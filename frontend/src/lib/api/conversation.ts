@@ -37,8 +37,34 @@ export const conversationService = {
 
   addMessage: async (
     conversationId: string,
-    content: string
+    content: string,
+    image?: File
   ): Promise<Message> => {
+    if (image) {
+      // If there's an image, use FormData
+      const formData = new FormData();
+      formData.append("content", content);
+      formData.append("image", image);
+
+      const response = await fetch(
+        `${API_URL}/conversations/${conversationId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            ...(authService.getAuthHeader() as HeadersInit),
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to add message to conversations");
+      }
+
+      return response.json();
+    }
+
+    // Regular text message
     const response = await fetch(
       `${API_URL}/conversations/${conversationId}/messages`,
       {

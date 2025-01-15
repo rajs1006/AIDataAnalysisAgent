@@ -6,12 +6,13 @@ from app.core.security.auth import (
     create_access_token,
     verify_password,
 )
-from app.models.schema.user import UserCreate, TokenValidationResponse
+from app.models.schema.user import UserCreate, TokenValidationResponse, Token
 from app.crud.user import UserCRUD
 from app.models.database.users import User
 from app.models.schema.connectors.onedrive import (
     OAuthCallbackRequest,
 )
+from app.core.security.auth import create_api_key
 import logging
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,28 @@ class AuthService:
             access_token=None,
             expiry_time=datetime.now() + timedelta(days=30),
         )
+
+    async def create_api_token(self, user: User) -> Token:
+        """Validate token and return validation response"""
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No active account found with this email",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        api_key = create_api_key(str(user.id))
+
+        user.api_keys.append(api_key)
+        try:
+            await user.save_changes()
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update user data {str(e)}",
+            )
+
+        return Token(access_token=api_key, token_type="api_key")
 
     @staticmethod
     def _validate_password(password: str) -> None:

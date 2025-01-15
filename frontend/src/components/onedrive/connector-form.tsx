@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OneDriveFolderPicker } from "./folder-picker";
 import { useAppSelector } from "@/lib/store/store";
+import { Button } from "../ui/button";
 
 interface OneDriveConnectorFormProps {
   onSubmit: (connectorData: {
@@ -82,6 +83,14 @@ export const OneDriveConnectorForm = ({
           settings: { sync_mode: "all" },
         })}
       />
+      <Button
+        onClick={handleSubmit}
+        type="submit"
+        className="w-full"
+        disabled={isSubmitting}
+      >
+        Create Connector
+      </Button>
     </div>
   );
 };

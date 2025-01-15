@@ -67,6 +67,8 @@ class ConnectorCRUD:
             # Use pre_save hook and save
             await existing_connector.pre_save()
             await existing_connector.save()
+
+            return connector_updated
         except Exception as e:
             traceback.print_exception(type(e), e, e.__traceback__)
             raise

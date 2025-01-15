@@ -14,6 +14,14 @@ RUN apt-get update && apt-get install -y \
     tcl-dev \
     tcl8.6-dev \
     tk8.6-dev \
+    tesseract-ocr \
+    libtesseract-dev \
+    # Additional dependencies that might be needed
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

@@ -62,10 +62,11 @@ class VectorStore:
         doc_id: str,
         content: str,
         metadata: Dict[str, Any],
+        use_chunking: bool = True,
     ) -> List[str]:
         try:
             texts_embeddings_metadata = await self.vectorizer.create_embeddings(
-                content, use_chunking=True, metadata=metadata
+                content, use_chunking=use_chunking, metadata=metadata
             )
 
             points = []
@@ -134,15 +135,18 @@ class VectorStore:
             #         for k, v in (metadata_filter or {}).items()
             #     ]
             # )
-            for _, (_, vector, _) in enumerate(query_vector_metadata):
+            for _, (t, vector, _) in enumerate(query_vector_metadata):
                 logger.debug(f"answering user query : {query}")
+                print(f"answering user query : {query} : {t}")
                 results = self.client.search(
                     collection_name=collection_name,
                     query_vector=vector,
-                    # query_filter=metadata_filter_data if metadata_filter else None,
-                    limit=limit,
+                    # query_filter=metadata_filter,
+                    limit=5,
                     with_payload=True,
                 )
+                print("-vofvidfvidf")
+                print(results)
 
                 return [
                     VectorDocument(

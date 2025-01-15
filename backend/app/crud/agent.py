@@ -6,7 +6,7 @@ from qdrant_client.http.models import Filter
 from beanie import PydanticObjectId
 from app.models.database.connectors.folder import BaseConnector
 from app.models.schema.agent import SearchContext
-from app.services.store.vectorizer.qdrant import VectorStore
+from app.core.store.vectorizer import VectorStore
 
 logger = logging.getLogger(__name__)
 

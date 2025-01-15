@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from fastapi import HTTPException, status
 
-from app.services.store.vectorizer import VectorStore
+from app.core.store.vectorizer import VectorStore
 from app.crud.onedrive import OneDriveCRUD
 from app.models.schema.connectors.onedrive import (
     OneDriveCreate,
@@ -14,13 +14,15 @@ from app.models.schema.base.connector import FileStatus
 from app.models.database.users import User
 from .client import OneDriveClient
 from app.core.security.oauth import OneDriveOAuth
+from app.services.agent.rag.service import RagService
 
 logger = logging.getLogger(__name__)
 
 
 class OneDriveService:
-    def __init__(self, crud: OneDriveCRUD, vector_store: VectorStore):
-        self.vector_store = vector_store
+
+    def __init__(self, crud: OneDriveCRUD, rag_service: RagService):
+        self.rag_service = rag_service
         self.crud = crud
 
     async def handle_oauth_callback(self, callback_data: OAuthCallbackRequest):
@@ -126,8 +128,18 @@ class OneDriveService:
     async def _process_file(
         self, connector, client: OneDriveClient, file_metadata: OneDriveFileMetadata
     ):
-        """Process a single file"""
+        """Process a single file using Haystack RAG components"""
         try:
+            # Check file extension compatibility
+            if not any(
+                file_metadata.filename.lower().endswith(ext)
+                for ext in connector.supported_extensions
+            ):
+                return {
+                    "status": "skipped",
+                    "message": f"Unsupported file type: {file_metadata.extension}",
+                }
+
             # Download file content
             content = await client.get_file_content(
                 file_metadata.drive_id, file_metadata.file_id
@@ -136,18 +148,36 @@ class OneDriveService:
             # Generate document ID
             doc_id = f"{connector.id}_{file_metadata.file_id}"
 
-            # Store in vector database
-            point_ids = await self.vector_store.store_document(
-                collection_name=str(connector.user_id),
-                doc_id=doc_id,
-                content=content,
-                metadata={
-                    "user_id": str(connector.user_id),
-                    "connector_id": str(connector.id),
-                    "file_path": file_metadata.file_path,
-                    "parent_doc_id": doc_id,
-                    **file_metadata.dict(),
-                },
+            # Prepare document metadata
+            doc_metadata = {
+                "user_id": str(connector.user_id),
+                "connector_id": str(connector.id),
+                "file_path": file_metadata.file_path,
+                "parent_doc_id": doc_id,
+                "file_type": file_metadata.extension,
+                "file_name": file_metadata.filename,
+                "drive_id": file_metadata.drive_id,
+                "web_url": file_metadata.web_url,
+                "last_modified": file_metadata.last_modified,
+                "created_at": file_metadata.created_at,
+                "content_hash": file_metadata.content_hash,
+                **file_metadata.dict(exclude={"content", "vector_ids", "total_chunks"}),
+            }
+
+            # Add document using RAG service
+            await self.rag_service.add_documents(
+                documents=[
+                    {
+                        "content": content,
+                        "doc_id": doc_id,
+                        "file_path": file_metadata.file_path,
+                        "file_type": file_metadata.extension,
+                        "file_name": file_metadata.filename,
+                    }
+                ],
+                user_id=str(connector.user_id),
+                connector_id=str(connector.id),
+                metadata=doc_metadata,
             )
 
             # Update file metadata
@@ -155,16 +185,17 @@ class OneDriveService:
             file_metadata.doc_id = doc_id
             file_metadata.status = FileStatus.ACTIVE
             file_metadata.last_indexed = datetime.utcnow()
-            file_metadata.vector_ids = point_ids  # Store all chunk IDs
-            file_metadata.total_chunks = len(point_ids)
 
             await self.crud.update_file_metadata(str(connector.id), file_metadata)
 
+            return {"status": "success", "doc_id": doc_id}
+
         except Exception as e:
-            logger.error(f"File processing failed: {str(e)}")
+            logger.error(f"Error processing file: {str(e)}")
             file_metadata.status = FileStatus.ERROR
             file_metadata.error_message = str(e)
             await self.crud.update_file_metadata(str(connector.id), file_metadata)
+            raise
 
     def _should_process_file(
         self, file_metadata: OneDriveFileMetadata, settings: Dict[str, Any]
@@ -217,11 +248,16 @@ class OneDriveService:
             raise
 
     async def _handle_deletion(self, connector, change: Dict[str, Any]):
-        """Handle file deletion"""
+        """Handle file deletion with RAG service support"""
         try:
-            # Delete from vector store
             doc_id = f"{connector.id}_{change['id']}"
-            await self.vector_store.delete_document(str(connector.id), doc_id)
+
+            # Delete from RAG service if available
+            await self.rag_service.delete_documents(
+                user_id=str(connector.user_id),
+                doc_ids=[doc_id],
+                connector_id=str(connector.id),
+            )
 
             # Update file metadata
             await self.crud.delete_file_metadata(str(connector.id), change["id"])

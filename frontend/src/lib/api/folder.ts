@@ -4,31 +4,51 @@ import { API_URL } from "../utils";
 
 class FolderService {
   async createConnector(data: CreateConnectorDto): Promise<Blob> {
-    const response = await fetch(`${API_URL}/connectors/folder/`, {
-      method: "POST",
-      headers: {
-        ...authService.getAuthHeader(),
-        "Content-Type": "application/json",
-      } as HeadersInit,
-      body: JSON.stringify(data),
-    });
+    // If there are files, use FormData, otherwise use JSON
+    if (data.files && data.files.length > 0) {
+      const formData = new FormData();
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || "Failed to create connector");
-    }
+      // Append connector metadata
+      formData.append("name", data.name);
+      formData.append("connector_type", data.connector_type);
+      formData.append("platform_info", JSON.stringify(data.platform_info));
+      // Append each file
+      data.files.forEach((file) => {
+        formData.append(`files`, file);
+      });
 
-    return response.blob();
-  }
+      const response = await fetch(`${API_URL}/connectors/folder/`, {
+        method: "POST",
+        headers: {
+          ...authService.getAuthHeader(),
+          // Don't set Content-Type for FormData, browser will set it with boundary
+        } as HeadersInit,
+        body: formData,
+      });
 
-  async deleteConnector(id: string): Promise<void> {
-    const response = await fetch(`${API_URL}/connectors/folder/${id}`, {
-      method: "DELETE",
-      headers: authService.getAuthHeader() as HeadersInit,
-    });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to create connector");
+      }
 
-    if (!response.ok) {
-      throw new Error("Failed to delete connector");
+      return response.blob();
+    } else {
+      // Original JSON implementation for when there are no files
+      const response = await fetch(`${API_URL}/connectors/folder/`, {
+        method: "POST",
+        headers: {
+          ...authService.getAuthHeader(),
+          "Content-Type": "application/json",
+        } as HeadersInit,
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to create connector");
+      }
+
+      return response.blob();
     }
   }
 
@@ -57,6 +77,7 @@ class FolderService {
       link.href = downloadUrl;
       link.download = fileName;
       document.body.appendChild(link);
+      // setu;
       link.click();
       document.body.removeChild(link);
 
