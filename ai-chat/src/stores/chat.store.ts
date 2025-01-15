@@ -13,7 +13,7 @@ import { generateTitle } from '@/utils/title-generator'
 
 export const useChatStore = defineStore('chat', () => {
   const chats = ref<Chat[]>([])
-  const currentChatId = ref<number | null>(null)
+  const currentChatId = ref<number | null | undefined>(null)
   const isLoading = ref(false)
   const appStore = useAppStore()
   const messageProcessing = ref(false)
@@ -41,7 +41,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function setCurrentChatId(id: number | null) {
+  async function setCurrentChatId(id?: number | null) {
     if (id === null) {
       await createNewChat()
     } else {
@@ -96,8 +96,7 @@ export const useChatStore = defineStore('chat', () => {
 
           // Then handle backend operations
           const newConversation = await conversationService.create({
-            title: title,
-            first_message: message.content
+            title: title
           })
 
           // Update conversation_id

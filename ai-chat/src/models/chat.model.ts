@@ -1,7 +1,7 @@
-import type {Message} from '@/models/message.model';
+import type { Message } from '@/models/message.model'
 
 export interface Chat {
-  id?: number // Local DB ID
+  id?: number | null // Local DB ID
   conversation_id?: string // Backend conversation ID
   title: string | null
   messages: Message[]

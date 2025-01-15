@@ -101,7 +101,7 @@ function checkIfUserScrolled() {
 
 <template>
   <div class="flex flex-1 flex-col overflow-auto">
-    <fwb-alert
+    <!-- <fwb-alert
       closable
       type="danger"
       class="mt-4 ml-4 mr-4 gap-0"
@@ -110,7 +110,7 @@ function checkIfUserScrolled() {
       @close="appStore.removeError(error.id)"
     >
       {{ error.message }}
-    </fwb-alert>
+    </fwb-alert> -->
     <main class="flex-1 p-4 overflow-auto" ref="scrollingDiv" @scroll="checkIfUserScrolled()">
       <template v-if="chatStore.currentChat">
         <template v-for="(message, index) in chatStore.currentChat.messages" :key="index">

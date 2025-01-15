@@ -10,7 +10,7 @@ export const conversationService = {
       headers: {
         'Content-Type': 'application/json',
         ...authService.getAuthHeader()
-      },
+      } as HeadersInit,
       body: JSON.stringify(data)
     })
 
@@ -26,7 +26,7 @@ export const conversationService = {
       headers: {
         'Content-Type': 'application/json',
         ...authService.getAuthHeader()
-      }
+      } as HeadersInit
     })
 
     if (!response.ok) {
@@ -46,7 +46,7 @@ export const conversationService = {
         method: 'POST',
         headers: {
           ...authService.getAuthHeader()
-        },
+        } as HeadersInit,
         body: formData
       })
 
@@ -62,7 +62,7 @@ export const conversationService = {
       headers: {
         'Content-Type': 'application/json',
         ...authService.getAuthHeader()
-      },
+      } as HeadersInit,
       body: JSON.stringify({ content })
     })
 
@@ -78,7 +78,7 @@ export const conversationService = {
       headers: {
         'Content-Type': 'application/json',
         ...authService.getAuthHeader()
-      }
+      } as HeadersInit
     })
 
     if (!response.ok) {

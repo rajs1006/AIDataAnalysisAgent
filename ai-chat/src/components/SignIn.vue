@@ -44,7 +44,7 @@ async function handleSignIn() {
       </div>
 
       <!-- Alerts -->
-      <div v-for="error in appStore.errors" :key="error.id">
+      <!-- <div v-for="error in appStore.errors" :key="error.id">
         <fwb-alert
           closable
           type="danger"
@@ -53,7 +53,7 @@ async function handleSignIn() {
         >
           {{ error.message }}
         </fwb-alert>
-      </div>
+      </div> -->
 
       <!-- Form -->
       <form class="mt-8 space-y-6" @submit.prevent="handleSignIn">

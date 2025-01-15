@@ -62,7 +62,7 @@ function formatDate(date: Date): string {
     <TransitionGroup name="chat-list" tag="ul" class="overflow-auto space-y-2">
       <li
         v-for="chat in chatStore.chats"
-        :key="chat.id"
+        :key="chat.id ?? `temp-${Date.now()}`"
         @mouseenter="activeChatId = chat.id"
         @mouseleave="activeChatId = null"
         class="relative group rounded-lg transition-all duration-200 ease-in-out"

@@ -47,7 +47,7 @@ export interface QueryRequest {
 
 export interface QueryResponse {
   answer: string;
-  sources: Source[];
+  sources: string[];
 }
 
 // Extend the RootState type to include chat state
