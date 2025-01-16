@@ -78,9 +78,7 @@ class AgentService:
                         page_size=10,  # Get last 10 messages for context
                     )
                 )
-                print("=============== conversation_data =====================")
-                print(conversation_data)
-                print("==================================================")
+                
                 conversation_history = [
                     {"role": msg["role"], "content": msg["content"]}
                     for msg in conversation_data["messages"]

@@ -109,8 +109,6 @@ class RagService:
         try:
             await self.ensure_initialized()
 
-            print("-----------------------------------------")
-            print("deleting ", user_id, connector_id)
             # Delete through document store
             await self.document_store.delete_connector_documents(
                 user_id=str(user_id), connector_id=str(connector_id)

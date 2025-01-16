@@ -37,9 +37,7 @@ class ConversationCRUD:
         c = await Conversation.get_conversation(
             conversation_id=conversation_id, user_id=user_id
         )
-        print("============== c =================")
-        print(c)
-        print("-----------------------------------")
+        
         return c
 
     @staticmethod

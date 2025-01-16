@@ -1,4 +1,4 @@
-// src/components/AppContents.vue
+# src/components/AppContents.vue
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { PlayIcon } from '@heroicons/vue/24/outline'
@@ -6,25 +6,25 @@ import { Role } from '@/models/role.model'
 import { useChatStore } from '@/stores/chat.store'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
-// import { useSettingsStore } from '@/stores/settings.store'
-import { FwbAlert, FwbButton, FwbSpinner } from 'flowbite-vue'
+import { FwbButton, FwbSpinner } from 'flowbite-vue'
 import { useAppStore } from '@/stores/app.store'
-// import { chatService } from '@/services/chat.service'
 
 const input = ref('')
-const numOfInputRows = ref(1)
 const inputTextarea = ref<HTMLTextAreaElement | null>(null)
 const scrollingDiv = ref<HTMLElement | null>(null)
 const userScrolled = ref(false)
 const pending = ref(false)
+const showAnimation = ref(false)
 
 const appStore = useAppStore()
 const chatStore = useChatStore()
-// const settingsStore = useSettingsStore()
 
+// Configure markdown-it with all features enabled
 const md = new MarkdownIt({
+  html: true,
   breaks: true,
   linkify: true,
+  typographer: true,
   highlight: function (str, lang) {
     if (lang && hljs.getLanguage(lang)) {
       try {
@@ -38,37 +38,46 @@ const md = new MarkdownIt({
 })
 
 const isInputEnabled = computed(() => !pending.value)
-const isSendBtnEnabled = computed(
-  () => input.value?.trim().length > 0
-)
+const isSendBtnEnabled = computed(() => input.value?.trim().length > 0)
 
-onMounted(() => {
-  setTimeout(() => inputTextarea.value?.focus(), 100)
+// Get user initials from email
+const userInitials = computed(() => {
+  const email = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').email : ''
+  return email
+    .split('@')[0]
+    .split(/[._-]/)
+    .map((part: string) => part.charAt(0).toUpperCase())
+    .join('')
+    .slice(0, 2)
 })
 
-// Watch for changes in currentChatId
-watch(
-  () => chatStore.currentChatId,
-  () => {
-    input.value = '' // Clear input when changing chats
-    focusInput()
-  }
-)
+onMounted(() => {
+  setTimeout(() => {
+    inputTextarea.value?.focus()
+    showAnimation.value = true
+  }, 100)
+})
+
+watch(() => chatStore.currentChatId, () => {
+  input.value = ''
+  focusInput()
+})
 
 function focusInput() {
   setTimeout(() => inputTextarea.value?.focus(), 100)
 }
 
 async function onSend() {
+  if (!input.value.trim()) return
+  
   pending.value = true
   try {
     userScrolled.value = false
     inputTextarea.value?.blur()
 
     const messageContent = input.value
-    input.value = '' // Clear input immediately
+    input.value = ''
 
-    // Let chatStore handle everything - both user message and AI response
     await chatStore.addMessage({ 
       role: Role.user, 
       content: messageContent 
@@ -82,6 +91,13 @@ async function onSend() {
   }
   pending.value = false
   focusInput()
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    onSend()
+  }
 }
 
 function autoScrollDown() {
@@ -100,136 +116,303 @@ function checkIfUserScrolled() {
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col overflow-auto">
-    <!-- <fwb-alert
-      closable
-      type="danger"
-      class="mt-4 ml-4 mr-4 gap-0"
-      v-for="error in appStore.errors"
-      :key="error.id"
-      @close="appStore.removeError(error.id)"
+  <div class="flex flex-1 flex-col h-screen bg-[#0f1015] text-gray-100">
+    <!-- Main chat area -->
+    <main 
+      class="flex-1 px-4 py-6 overflow-y-auto mb-4 scroll-smooth" 
+      ref="scrollingDiv" 
+      @scroll="checkIfUserScrolled()"
     >
-      {{ error.message }}
-    </fwb-alert> -->
-    <main class="flex-1 p-4 overflow-auto" ref="scrollingDiv" @scroll="checkIfUserScrolled()">
-      <template v-if="chatStore.currentChat">
-        <template v-for="(message, index) in chatStore.currentChat.messages" :key="index">
-          <template v-if="message.content && message.role === Role.user">
-            <div class="flex">
-              <div
-                class="border-green-600 border-2 border-solid py-2 px-3 rounded mb-4 message-content"
-                v-html="md.render(message.content)"
-              />
-            </div>
-          </template>
-          <template v-if="message.content && message.role === Role.assistant">
-            <div class="flex">
-              <div
-                class="py-2 px-3 rounded mb-4 ml-5 message-content"
-                v-html="md.render(message.content)"
-              />
-            </div>
-          </template>
+      <div class="max-w-4xl mx-auto">
+        <template v-if="chatStore.currentChat">
+          <TransitionGroup 
+            name="message"
+            tag="div"
+            class="space-y-8"
+          >
+            <template v-for="(message, index) in chatStore.currentChat.messages" :key="index">
+              <!-- User message -->
+              <div v-if="message.content && message.role === Role.user"
+                   class="flex items-start justify-end space-x-3 fade-in">
+                <div class="flex flex-col items-end space-y-2 flex-1">
+                  <div
+                    class="message-bubble user-message max-w-2xl rounded-lg px-4 py-3 shadow-lg 
+                           bg-blue-600 text-white transform transition-all duration-300 hover:scale-[1.02]"
+                    v-html="md.render(message.content)"
+                  />
+                </div>
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-semibold text-white">
+                  {{ userInitials }}
+                </div>
+              </div>
+
+              <!-- Assistant message -->
+              <div v-if="message.content && message.role === Role.assistant"
+                   class="flex items-start space-x-3 fade-in">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-semibold text-white">
+                  A
+                </div>
+                <div class="flex flex-col space-y-2 flex-1">
+                  <div
+                    class="message-bubble assistant-message max-w-2xl rounded-lg px-4 py-3 shadow-lg 
+                           bg-[#1a1b23] transform transition-all duration-300 hover:scale-[1.02]"
+                    v-html="md.render(message.content)"
+                  />
+                </div>
+              </div>
+            </template>
+          </TransitionGroup>
         </template>
-      </template>
+      </div>
     </main>
-    <div class="flex w-full p-4" @focusin="numOfInputRows = 10" @focusout="numOfInputRows = 1">
-      <textarea
-        class="p-2 overflow-x-hidden w-full text-gray-900 bg-gray-50 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-        :rows="numOfInputRows"
-        :placeholder="
-          pending
-            ? 'Answering...'
-            : `Ask question about from internal dataset...`
-        "
-        ref="inputTextarea"
-        v-model="input"
-        @keydown.ctrl.enter="onSend"
-        :disabled="!isInputEnabled"
-      />
-      <fwb-button
-        color="default"
-        @click="onSend"
-        :disabled="!isSendBtnEnabled"
-        class="ml-2 p-2 rounded"
-      >
-        <PlayIcon class="h-6 w-6" v-if="!pending"></PlayIcon>
-        <fwb-spinner size="6" v-if="pending" />
-      </fwb-button>
-    </div>
+
+    <!-- Footer with input area -->
+    <footer 
+      class="border-t border-[#1a1b23] bg-[#0f1015] mb-8 transition-opacity duration-500"
+      :class="{ 'opacity-100': showAnimation, 'opacity-0': !showAnimation }"
+    >
+      <div class="max-w-4xl mx-auto px-4 py-4">
+        <div class="flex items-center space-x-4">
+          <div class="flex-grow relative">
+            <textarea
+              class="w-full h-24 px-4 py-3 bg-[#1a1b23] text-gray-100 rounded-lg border border-[#2a2b33] 
+                     resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                     transition-colors duration-200 placeholder-gray-400"
+              placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+              ref="inputTextarea"
+              v-model="input"
+              @keydown="handleKeyDown"
+              :disabled="!isInputEnabled"
+            />
+          </div>
+          <div class="flex-shrink-0">
+            <button
+              @click="onSend"
+              :disabled="!isSendBtnEnabled || pending"
+              class="p-4 rounded-full bg-blue-600 text-white hover:bg-blue-700 
+                     disabled:opacity-50 disabled:cursor-not-allowed
+                     transform transition-all duration-200 hover:scale-105 active:scale-95
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#0f1015]"
+            >
+              <PlayIcon class="h-6 w-6" v-if="!pending" />
+              <FwbSpinner size="6" v-else />
+            </button>
+          </div>
+        </div>
+      </div>
+    </footer>
   </div>
 </template>
 
 <style>
-  @import '../../node_modules/highlight.js/styles/github.css';
+@import '../../node_modules/highlight.js/styles/github-dark.css';
 
-  .message-content {
-    pre:not(:last-child),
-    p:not(:last-child),
-    ol:not(:last-child),
-    ul:not(:last-child),
-    li:not(:last-child),
-    table:not(:last-child),
-    blockquote:not(:last-child),
-    hr:not(:last-child),
-    h1, h2, h3, h4, h5, h6 {
-      margin-bottom: 0.5rem;
-    }
+/* Message animations */
+.message-enter-active,
+.message-leave-active {
+  transition: all 0.5s ease;
+}
 
-    blockquote {
-      margin-left: 1rem;
-      font-style: italic;
-    }
+.message-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
 
-    h1 {
-      font-size: 1.5rem;
-    }
+.message-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
 
-    h2 {
-      font-size: 1.25rem;
-    }
+/* Fade in animation */
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
 
-    h3 {
-      font-size: 1.125rem;
-    }
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-    h1, h2, h3, h4, h5, h6 {
-      font-weight: bold;
-      margin-top: 1rem;
-    }
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
 
-    pre {
-      margin-left: 1rem;
-      background-color: rgb(249 250 251);
-      display: table;
-      border-radius: 5px;
-      padding: 0 5px;
-      white-space: pre-wrap;
-    }
+::-webkit-scrollbar-track {
+  background: #1f2937;
+}
 
-    code:not(pre code) {
-      background-color: rgb(249 250 251);
-      border-radius: 5px;
-      padding: 0 1px;
-    }
+::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 4px;
+}
 
-    a {
-      color: rgb(37 99 235);
-    }
+::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
 
-    ul {
-      list-style-type: disc;
-      margin-left: 2rem;
-    }
+.message-content {
+  font-size: 1rem;
+  line-height: 1.6;
 
-    ol {
-      list-style-type: decimal;
-      margin-left: 2rem;
-    }
+  /* Basic text styling */
+  p:not(:last-child) {
+    margin-bottom: 1rem;
+  }
 
-    td, th {
-      border: 1px solid black;
-      padding: 5px;
+  /* Lists */
+  ul, ol {
+    margin: 1rem 0;
+    padding-left: 2rem;
+  }
+
+  ul {
+    list-style-type: disc;
+  }
+
+  ol {
+    list-style-type: decimal;
+  }
+
+  li {
+    margin-bottom: 0.5rem;
+  }
+
+  /* Headings */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: bold;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    line-height: 1.3;
+  }
+
+  h1 { font-size: 1.8rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.3rem; }
+  h4 { font-size: 1.2rem; }
+  h5 { font-size: 1.1rem; }
+  h6 { font-size: 1rem; }
+
+  /* Links */
+  a {
+    color: #60a5fa;
+    text-decoration: underline;
+    transition: color 0.2s;
+    &:hover {
+      color: #93c5fd;
     }
   }
+
+  /* Blockquotes */
+  blockquote {
+    border-left: 4px solid #374151;
+    margin: 1rem 0;
+    padding: 0.5rem 0 0.5rem 1rem;
+    font-style: italic;
+    color: #9ca3af;
+  }
+
+  /* Code blocks */
+  pre {
+    background-color: #1f2937;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+  }
+
+  code {
+    background-color: #374151;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+  }
+
+  /* Inline formatting */
+  strong {
+    font-weight: 600;
+    color: #f3f4f6;
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    margin: 1rem 0;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #374151;
+    padding: 0.5rem;
+    text-align: left;
+  }
+
+  th {
+    background-color: #1f2937;
+    font-weight: 600;
+  }
+
+  /* Horizontal rule */
+  hr {
+    border: 0;
+    border-top: 1px solid #374151;
+    margin: 1.5rem 0;
+  }
+}
+
+/* Message bubbles */
+.message-bubble {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.user-message {
+  border-radius: 20px 20px 0 20px;
+}
+
+.assistant-message {
+  border-radius: 20px 20px 20px 0;
+}
+
+/* Typing indicator animation */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  animation: typingDot 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingDot {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
+}
 </style>

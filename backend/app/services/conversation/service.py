@@ -111,8 +111,7 @@ class ConversationService:
         conversation = await self.crud.get_conversation(conversation_id, user_id)
         if not conversation:
             return None
-        print("=========== load_conversation_history conversation ==========")
-        print(conversation)
+        
         # Get active messages with pagination
         messages = conversation.messages
         # skip = (page - 1) * page_size
@@ -122,8 +121,6 @@ class ConversationService:
         #     skip=skip,
         #     limit=page_size,
         # )
-        print("=========== load_conversation_history messages==========")
-        print(messages)
 
         # Get total message count for pagination
         total_messages = await self.crud.get_messages_count(conversation_id, user_id)
