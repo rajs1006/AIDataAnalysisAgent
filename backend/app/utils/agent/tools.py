@@ -419,9 +419,7 @@ class ReActTools:
             for variation in query_variations:
                 # Execute search with timeout
                 try:
-                    print("================")
-                    print(variation)
-                    print("================")
+
                     results = await search_rag_func(
                         user_id=user_id, query=variation, limit=limit
                     )

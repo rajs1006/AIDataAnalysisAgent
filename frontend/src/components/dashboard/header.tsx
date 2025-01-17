@@ -19,6 +19,13 @@ export function Header() {
           transition={{ delay: 0.2 }}
           className="flex items-center"
         >
+          {/* <div>
+            <img
+              className="w-10 h-10 rounded-full"
+              src="/icon-512.png"
+              alt="My icon"
+            />
+          </div> */}
           <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
             Andrual
           </h1>

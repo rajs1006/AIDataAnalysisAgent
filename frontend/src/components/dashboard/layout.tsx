@@ -2,14 +2,11 @@ import { Header } from "./header";
 import { ConnectorGrid } from "../connectors/base/connector-grid";
 import { motion } from "framer-motion";
 import { useAppSelector } from "@/lib/store/store";
+import { EnhancedChatButton } from "../chat/chat-button";
 
 export function DashboardLayout() {
   const handleOpenChat = () => {
-    // Retrieve token from your auth source (Redux, localStorage, etc.)
-    // const token = useAppSelector((state) => state.auth.user);
     const token = localStorage.getItem("token") || "";
-
-    // Open in a new tab
     window.open(`http://localhost:5173/auth?token=${token}`, "_blank");
   };
 
@@ -24,12 +21,6 @@ export function DashboardLayout() {
         className="flex-1 flex overflow-hidden pt-16"
       >
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* <div className="hidden lg:flex flex-col gap-6 w-132 border-r border-gray-800">
-            <h2 className="h-3 text-xl font-bold text-slate-600 text-center">
-              Chat Integrations
-            </h2>
-            <ChatConnectors />
-          </div> */}
           <div className="flex-1 overflow-hidden p-6">
             <div className="max-w-[1200px] mx-auto h-full flex gap-6">
               <motion.div
@@ -37,8 +28,6 @@ export function DashboardLayout() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
                 className="flex-1"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
               >
                 {/* Content area */}
                 <div className="h-full rounded-xl bg-gray-800/50 p-6">
@@ -51,39 +40,9 @@ export function DashboardLayout() {
                     </p>
                   </div>
                   <div>
-                    <div className="relative w-full flex justify-center">
-                      {/* The main button with a gradient background */}
-                      <button
-                        onClick={handleOpenChat}
-                        className="
-                            w-[70%]
-                            px-1
-                            py-20
-                            bg-gradient-to-r
-                            from-purple-800
-                            to-purple-951
-                            text-white
-                            font-semibold
-                            rounded-md
-                            transition
-                            hover:opacity-90
-                            italic
-                            text-3xl
-                          "
-                      >
-                        Chat me up!
-                      </button>
-                    </div>
+                    <EnhancedChatButton onClick={handleOpenChat} />
                   </div>
                 </div>
-                {/* <div className="flex-1 overflow-hidden p-6">
-                      <div className="max-w-[1200px] mx-auto h-full flex gap-6">
-                        <div className="flex-1">
-                          <ChatInterface />
-                        </div>
-                      </div>
-                    </div> 
-                */}
               </motion.div>
             </div>
           </div>

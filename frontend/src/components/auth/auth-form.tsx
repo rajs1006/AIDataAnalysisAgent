@@ -82,14 +82,18 @@ export function AuthForm() {
         transition={{ duration: 0.5 }}
         className="max-w-md w-full space-y-8"
       >
+        <img
+          src="/icon-192.png"
+          alt="Logo"
+          className="mx-auto h-12 w-12 rounded-lg transform transition-transform duration-300 hover:scale-110"
+        />
         <div className="text-center">
           <motion.h2
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             className="text-3xl font-extrabold text-gray-100"
-          >
-            {isLogin ? "Welcome Back" : "Create Account"}
+          >Andrual
           </motion.h2>
           <motion.p
             initial={{ opacity: 0 }}
@@ -99,7 +103,7 @@ export function AuthForm() {
           >
             {isLogin
               ? "Sign in to your account"
-              : "Fill in your details to get started"}
+              : "Create your account"}
           </motion.p>
         </div>
 

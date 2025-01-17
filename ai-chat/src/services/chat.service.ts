@@ -2,6 +2,7 @@
 import type { ImageData, QueryRequest, QueryResponse } from '@/models/chat.model'
 import { API_URL } from '@/utils/index'
 import { authService } from '@/services/auth.service'
+import { handleApiError } from '@/utils/axios-interceptor'
 
 export const chatService = {
   // Send message to AI agent
@@ -10,41 +11,49 @@ export const chatService = {
     image: File | null = null,
     conversationId?: string
   ): Promise<QueryResponse> {
-    let imageData = null
+    try {
+      let imageData = null
 
-    if (image) {
-      try {
-        imageData = await this.processImage(image)
-      } catch (error) {
-        console.error('Error processing image:', error)
-        throw new Error('Failed to process image')
+      if (image) {
+        try {
+          imageData = await this.processImage(image)
+        } catch (error) {
+          console.error('Error processing image:', error)
+          throw new Error('Failed to process image')
+        }
       }
+
+      const request: QueryRequest = {
+        query: query,
+        model: 'gpt-4-1106-preview',
+        temperature: 0.7,
+        max_tokens: 500,
+        conversation_id: conversationId || undefined,
+        image_data: imageData
+      }
+
+      const response = await fetch(`${API_URL}/agent/chat`, {
+        method: 'POST',
+        headers: {
+          ...authService.getAuthHeader(),
+          'Content-Type': 'application/json'
+        } as HeadersInit,
+        body: JSON.stringify(request)
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          handleApiError({ response })
+        }
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || 'Failed to get response from AI agent')
+      }
+
+      return response.json()
+    } catch (error) {
+      handleApiError(error)
+      throw error
     }
-
-    const request: QueryRequest = {
-      query: query,
-      model: 'gpt-4o-mini',
-      temperature: 0.7,
-      max_tokens: 500,
-      conversation_id: conversationId || undefined,
-      image_data: imageData
-    }
-
-    const response = await fetch(`${API_URL}/agent/chat`, {
-      method: 'POST',
-      headers: {
-        ...authService.getAuthHeader(),
-        'Content-Type': 'application/json'
-      } as HeadersInit,
-      body: JSON.stringify(request)
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.detail || 'Failed to get response from AI agent')
-    }
-
-    return response.json()
   },
 
   // Process image for chat

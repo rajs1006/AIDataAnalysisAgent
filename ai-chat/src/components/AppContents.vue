@@ -8,6 +8,7 @@ import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import { FwbButton, FwbSpinner } from 'flowbite-vue'
 import { useAppStore } from '@/stores/app.store'
+import { POSITION, useToast } from 'vue-toastification'
 
 const input = ref('')
 const inputTextarea = ref<HTMLTextAreaElement | null>(null)
@@ -18,6 +19,7 @@ const showAnimation = ref(false)
 
 const appStore = useAppStore()
 const chatStore = useChatStore()
+const toast = useToast()
 
 // Configure markdown-it with all features enabled
 const md = new MarkdownIt({
@@ -50,6 +52,80 @@ const userInitials = computed(() => {
     .join('')
     .slice(0, 2)
 })
+
+// Function to convert HTML to properly formatted plain text
+const htmlToPlainText = (html: string): string => {
+  // Create a temporary div to hold our HTML
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = html
+
+  // Function to process a node and its children
+  const processNode = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent || ''
+    }
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as Element
+      const tagName = element.tagName.toLowerCase()
+      
+      // Build text content from all child nodes
+      const childTexts = Array.from(node.childNodes).map(child => processNode(child))
+      let text = childTexts.join('')
+
+      // Handle specific HTML elements
+      switch (tagName) {
+        case 'p':
+          return `${text}\n\n`
+        case 'br':
+          return '\n\n'
+        case 'div':
+          return `${text}\n\n`
+        case 'li':
+          return `• ${text}\n\n`
+        case 'h1':
+        case 'h2':
+        case 'h3':
+        case 'h4':
+        case 'h5':
+        case 'h6':
+          return `${text}\n\n`
+        case 'pre':
+        case 'code':
+          return `\n${text}\n\n`
+        case 'blockquote':
+          return `> ${text}\n\n`
+        default:
+          return text
+      }
+    }
+
+    return ''
+  }
+
+  // Process the entire document and clean up extra whitespace
+  const text = processNode(tempDiv)
+    .replace(/\n\s*\n\s*\n/g, '\n\n') // Replace multiple newlines with just two
+    .replace(/^\s+|\s+$/g, '') // Trim start and end whitespace
+
+  return text
+}
+
+// Function to copy text and show feedback
+const copyToClipboard = async (html: string) => {
+  try {
+    const plainText = htmlToPlainText(html)
+    await navigator.clipboard.writeText(plainText)
+    toast.success('Message copied to clipboard!', {
+      timeout: 2000,
+      position: POSITION.TOP_RIGHT
+    })
+  } catch (err) {
+    toast.error('Failed to copy message', {
+      timeout: 2000
+    })
+  }
+}
 
 onMounted(() => {
   setTimeout(() => {
@@ -150,12 +226,29 @@ function checkIfUserScrolled() {
               <div v-if="message.content && message.role === Role.assistant"
                    class="flex items-start space-x-3 fade-in">
                 <div class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-semibold text-white">
-                  A
+                  <img
+                    className="w-10 h-10 rounded-full"
+                    src="/icon-192.png"
+                    alt="My icon"
+                  />
                 </div>
                 <div class="flex flex-col space-y-2 flex-1">
-                  <div
+                  <div @contextmenu.prevent="(e: MouseEvent)  => {
+                      const el = e.currentTarget as HTMLElement
+                      if (!el) return
+
+                      // Get the text as-is
+                      let text = el.innerText ?? ''
+
+                      // Strip out double asterisks with a simple replace
+                      text = text.replace(/\*\*/g, '')
+                      text = text.replace(/(\*|_)(.*?)\1/g, '$2')
+
+                      copyToClipboard(text)
+                    }"
                     class="message-bubble assistant-message max-w-2xl rounded-lg px-4 py-3 shadow-lg 
-                           bg-[#1a1b23] transform transition-all duration-300 hover:scale-[1.02]"
+                           bg-[#1a1b23] transform transition-all duration-300 hover:scale-[1.02]
+                           cursor-pointer select-all"
                     v-html="md.render(message.content)"
                   />
                 </div>
@@ -414,5 +507,16 @@ function checkIfUserScrolled() {
   30% {
     transform: translateY(-4px);
   }
+}
+
+/* Add pointer cursor for assistant messages */
+.assistant-message {
+  cursor: pointer;
+}
+
+/* Add selection color */
+::selection {
+  background-color: rgba(59, 130, 246, 0.5);
+  color: white;
 }
 </style>

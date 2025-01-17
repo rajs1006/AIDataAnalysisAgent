@@ -114,3 +114,61 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary));
 }
+
+@layer base {
+  .toast-root {
+    @apply fixed flex items-center justify-between gap-4 p-4 rounded-lg shadow-lg;
+    @apply bg-background border border-border;
+    @apply data-[state=open]:animate-in data-[state=closed]:animate-out;
+    @apply data-[swipe=end]:animate-out data-[state=closed]:fade-out-80;
+    @apply slide-in-from-right-full slide-out-to-right-full;
+    @apply duration-300;
+  }
+
+  .toast-viewport {
+    @apply fixed top-0 right-0 flex flex-col gap-2 p-4 w-[420px] max-w-[100vw] m-0 list-none z-[9999];
+    @apply outline-none;
+  }
+
+  .toast-title {
+    @apply text-sm font-semibold;
+  }
+
+  .toast-description {
+    @apply text-sm opacity-90;
+  }
+
+  .toast-close {
+    @apply absolute right-2 top-2 rounded-md p-1;
+    @apply text-gray-500 opacity-0 transition-opacity;
+    @apply hover:text-gray-700 focus:opacity-100;
+    @apply group-hover:opacity-100;
+  }
+
+  /* Variant specific styles */
+  .toast-root[data-variant='destructive'] {
+    @apply bg-destructive text-white border-red-800;
+    @apply group relative;
+  }
+
+  .toast-root[data-variant='destructive'] .toast-close {
+    @apply text-white/70 hover:text-white;
+    @apply focus:ring-2 focus:ring-red-500;
+  }
+
+  /* Progress bar for long duration toasts */
+  .toast-root[data-variant='destructive']::after {
+    content: '';
+    @apply absolute bottom-0 left-0 h-1 bg-white/20;
+    animation: progress 60s linear;
+  }
+}
+
+@keyframes progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}

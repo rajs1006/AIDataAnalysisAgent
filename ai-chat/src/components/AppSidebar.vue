@@ -71,7 +71,7 @@ function formatDate(date: Date): string {
         :class="{ 'bg-[#2a2b33]': chat.active }"
       >
         <!-- Chat Item -->
-        <div class="flex flex-col p-2">
+        <div class="flex flex-col p-2 border-s-2 border-blue-900">
           <div class="flex items-center gap-3">
             <!-- Title/Link -->
             <a
