@@ -78,11 +78,11 @@ const htmlToPlainText = (html: string): string => {
         case 'p':
           return `${text}\n\n`
         case 'br':
-          return '\n\n'
+          return '\n'
         case 'div':
-          return `${text}\n\n`
+          return `${text}\n`
         case 'li':
-          return `• ${text}\n\n`
+          return `• ${text}\n`
         case 'h1':
         case 'h2':
         case 'h3':
@@ -114,7 +114,9 @@ const htmlToPlainText = (html: string): string => {
 // Function to copy text and show feedback
 const copyToClipboard = async (html: string) => {
   try {
-    const plainText = htmlToPlainText(html)
+    let plainText = htmlToPlainText(html)
+    plainText = plainText.replace(/\*\*/g, '')
+    plainText = plainText.replace(/(\*|_)(.*?)\1/g, '$2')
     await navigator.clipboard.writeText(plainText)
     toast.success('Message copied to clipboard!', {
       timeout: 2000,
@@ -233,19 +235,7 @@ function checkIfUserScrolled() {
                   />
                 </div>
                 <div class="flex flex-col space-y-2 flex-1">
-                  <div @contextmenu.prevent="(e: MouseEvent)  => {
-                      const el = e.currentTarget as HTMLElement
-                      if (!el) return
-
-                      // Get the text as-is
-                      let text = el.innerText ?? ''
-
-                      // Strip out double asterisks with a simple replace
-                      text = text.replace(/\*\*/g, '')
-                      text = text.replace(/(\*|_)(.*?)\1/g, '$2')
-
-                      copyToClipboard(text)
-                    }"
+                  <div @contextmenu.prevent="(e: MouseEvent) => copyToClipboard((e.currentTarget as HTMLElement)?.innerText ?? '')"
                     class="message-bubble assistant-message max-w-2xl rounded-lg px-4 py-3 shadow-lg 
                            bg-[#1a1b23] transform transition-all duration-300 hover:scale-[1.02]
                            cursor-pointer select-all"
