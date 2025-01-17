@@ -19,6 +19,23 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta charSet="UTF-8" />
+        <link rel="icon" href="/icon-192.png" type="image/png" />
+        <link rel="shortcut icon" href="/icon-192.png" type="image/png" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+          name="description"
+          content="Andrual - AI-powered chat interface for intelligent conversations. Access your company's knowledge base through natural language interactions."
+        />
+        <meta
+          property="og:description"
+          content="Andrual - AI-powered chat interface for intelligent conversations. Access your company's knowledge base through natural language interactions."
+        />
+        <meta property="og:title" content="Andrual" />
+        <meta property="og:type" content="website" />
+        <title>Andrual</title>
+      </head>
       <body className={inter.className}>
         <Provider store={store}>
           <QueryClientProvider client={queryClient}>

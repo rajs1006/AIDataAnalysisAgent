@@ -10,6 +10,7 @@ const router = useRouter()
 const appStore = useAppStore()
 
 onMounted(async () => {
+  console.log(router.currentRoute.value)
   const token = router.currentRoute.value.query.token as string
 
   if (!token) {

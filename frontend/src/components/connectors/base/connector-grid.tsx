@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { folderService } from "@/lib/api/folder";
 import { onedriveService } from "@/lib/api/onedrive";
-import { Connector, ConnectorType } from "@/lib/types/connectors";
+import { Connector, ConnectorType, CreateConnectorDto } from "@/lib/types/connectors";
 import { useConnectors } from "@/hooks/use-connectors";
 import {
   Dialog,
@@ -11,14 +12,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Cloud, FolderUp, AlertTriangle, X, Loader2 } from "lucide-react";
+import { Cloud, FolderUp, AlertTriangle, X, Loader2, Plus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { OneDriveConnectorForm } from "@/components/onedrive/connector-form";
-// import { ConnectorType } from "@/lib/types/connectors";
 import { LocalFolderForm } from "../local-folder/setup-form";
-import { CreateConnectorDto } from "@/lib/types/connectors";
 
 export function ConnectorGrid() {
   const [selectedConnector, setSelectedConnector] =
@@ -37,18 +34,9 @@ export function ConnectorGrid() {
   const { connectors, refreshConnectors, deleteConnector, isDeleting } =
     useConnectors();
 
-  // Helper function to determine connector type from the API response
   const getConnectorType = (connector: Connector): ConnectorType => {
-    // Check if it's a OneDrive connector based on the config structure
-    // console.log(connector.connector_type);
-    // if (ConnectorType.LOCAL_FOLDER == connector.connector_type) {
-    //   return ConnectorType.LOCAL_FOLDER;
-    // }
-    // If there's no drive_id, assume it's a local folder connector
     return connector.connector_type;
   };
-
-  // Connectors are now managed by the useConnectors hook
 
   const handleConnectorClick = (type: ConnectorType) => {
     const existingConnector = connectors.find(
@@ -167,7 +155,6 @@ export function ConnectorGrid() {
         description: "Connector deleted successfully",
       });
     } catch (error) {
-      console.error("Failed to delete connector:", error);
       toast({
         title: "Error",
         description: "Failed to delete connector",
@@ -185,12 +172,9 @@ export function ConnectorGrid() {
           <LocalFolderForm
             onSubmit={async (data) => {
               const formData = new FormData();
-              // Separate files from other data
               const { files, ...restData } = data;
               formData.append("connectorData", JSON.stringify(restData));
-              // Add each file separately
-              files.forEach((file: File) => {
-                console.log("Adding file:", file.name);
+              files.forEach((file) => {
                 formData.append("files", file);
               });
               await handleConnectorSubmit({
@@ -226,81 +210,133 @@ export function ConnectorGrid() {
       name: "Local Folder",
       icon: FolderUp,
       description: "Connect to files on your device",
+      gradient: "from-purple-500 to-indigo-601",
+      hoverGradient: "from-purple-600 to-indigo-701",
     },
     {
       type: ConnectorType.ONEDRIVE,
       name: "OneDrive",
       icon: Cloud,
       description: "Connect to your OneDrive files",
+      gradient: "from-purple-500 to-cyan-601",
+      hoverGradient: "from-purple-600 to-cyan-701",
     },
   ];
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-4">
-        {connectorTypes.map(({ type, name, icon: Icon, description }) => {
-          const existingConnector = connectors.find(
-            (c) => getConnectorType(c) === type && c.status === "active"
-          );
-          const isActive = existingConnector?.status === "active";
-          const isHovered = hoveredConnector === type;
+    <div className="p-8 bg-gray-900 rounded-xl">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-6"
+      >
+        {connectorTypes.map(
+          ({
+            type,
+            name,
+            icon: Icon,
+            description,
+            gradient,
+            hoverGradient,
+          }) => {
+            const existingConnector = connectors.find(
+              (c) => getConnectorType(c) === type && c.status === "active"
+            );
+            const isActive = existingConnector?.status === "active";
+            const isHovered = hoveredConnector === type;
 
-          return (
-            <div
-              key={type}
-              className="relative"
-              onMouseEnter={() => setHoveredConnector(type)}
-              onMouseLeave={() => setHoveredConnector(null)}
-            >
-              <button
-                onClick={() => handleConnectorClick(type)}
-                className="w-full flex flex-col p-6 rounded-lg border transition-colors  border-[var(--secondary)] hover:bg-blue-700"
+            return (
+              <motion.div
+                key={type}
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="relative"
+                onMouseEnter={() => setHoveredConnector(type)}
+                onMouseLeave={() => setHoveredConnector(null)}
               >
-                {/* Add ACTIVE label if connector is active */}
-                {loadingConnectorType === type ? (
-                  <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    SETTING UP
-                  </span>
-                ) : (
-                  isActive && (
-                    <span className="absolute top-2 right-2 px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
-                      ACTIVE
-                    </span>
-                  )
-                )}
-                <div className="flex items-center gap-3 mb-2">
-                  <Icon className="h-5 w-5 text-[var(--text-dark)]" />
-                  <span className="font-medium text-[var(--text-dark)]">
-                    {name}
-                  </span>
-                </div>
-                <p className="text-sm text-[var(--text-dark)]/60">
-                  {description}
-                </p>
-              </button>
-
-              {/* Move delete button below ACTIVE label */}
-              {isActive && isHovered && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveConnector(existingConnector);
-                    setDeleteDialogOpen(true);
-                  }}
-                  className="absolute top-0 right-2 p-1.5 rounded-full bg-transparent transition-colors"
+                  onClick={() => handleConnectorClick(type)}
+                  className={`w-full h-full flex flex-col p-8 rounded-xl border border-gray-700 transition-all duration-300 
+                  bg-gradient-to-br ${
+                    isHovered ? hoverGradient : gradient
+                  } shadow-lg`}
                 >
-                  <X className="h-4 w-8 text-red-950" />
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  <AnimatePresence>
+                    {loadingConnectorType === type ? (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute top-3 right-3 flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full"
+                      >
+                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                        <span className="text-xs font-medium text-white">
+                          Setting up...
+                        </span>
+                      </motion.div>
+                    ) : (
+                      isActive && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="absolute top-3 right-3 px-3 py-1 bg-green-500/20 backdrop-blur-sm rounded-full"
+                        >
+                          <span className="text-xs font-medium text-green-300">
+                            Active
+                          </span>
+                        </motion.div>
+                      )
+                    )}
+                  </AnimatePresence>
 
-      {/* Create Connector Dialog */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="p-3 bg-white/10 rounded-lg">
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
+                    <span className="text-lg font-semibold text-white">
+                      {name}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-gray-200 opacity-90">
+                    {description}
+                  </p>
+
+                  {!isActive && (
+                    <div className="mt-4 flex items-center gap-2 text-white/80">
+                      <Plus className="h-4 w-4" />
+                      <span className="text-sm">Add Connector</span>
+                    </div>
+                  )}
+                </button>
+
+                {isActive && isHovered && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveConnector(existingConnector);
+                      setDeleteDialogOpen(true);
+                    }}
+                    className="absolute top-3 right-3 p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 transition-colors"
+                  >
+                    <X className="h-4 w-4 text-red-300" />
+                  </motion.button>
+                )}
+              </motion.div>
+            );
+          }
+        )}
+      </motion.div>
+
+      {/* Dialogs remain the same */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] bg-gray-900 text-white">
           <DialogHeader>
             <DialogTitle>
               Add{" "}
@@ -312,22 +348,18 @@ export function ConnectorGrid() {
           </DialogHeader>
           <form onSubmit={handleConnectorSubmit} className="space-y-4">
             {renderConnectorForm()}
-            {/* <Button type="submit" className="w-full">
-              Create Connector
-            </Button> */}
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-gray-900 text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
               Delete Connector
             </DialogTitle>
-            <DialogDescription className="p-5">
+            <DialogDescription className="text-gray-400">
               Are you sure you want to delete this connector?
             </DialogDescription>
           </DialogHeader>
@@ -335,15 +367,20 @@ export function ConnectorGrid() {
             <Button
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
+              className="bg-transparent text-white hover:bg-gray-800"
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteConnector}>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConnector}
+              className="bg-red-600 hover:bg-red-700"
+            >
               Delete
             </Button>
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

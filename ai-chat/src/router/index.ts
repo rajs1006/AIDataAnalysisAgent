@@ -41,6 +41,7 @@ const router = createRouter({
 
 // Modified navigation guard to handle token in URL
 router.beforeEach(async (to, from, next) => {
+  console.log(to)
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
   const isAuthenticated = authService.isAuthenticated()
   const token = to.query.token as string | undefined
