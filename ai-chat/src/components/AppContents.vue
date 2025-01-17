@@ -1,4 +1,127 @@
-# src/components/AppContents.vue
+<!-- src/components/AppContents.vue -->
+<template>
+  <div class="flex flex-1 flex-col h-screen bg-[#0f1015] text-gray-100">
+    <!-- Main chat area -->
+    <main
+      class="flex-1 px-4 py-6 overflow-y-auto mb-4 scroll-smooth"
+      ref="scrollingDiv"
+      @scroll="checkIfUserScrolled()"
+    >
+      <div class="max-w-4xl mx-auto">
+        <template v-if="chatStore.currentChat">
+          <TransitionGroup
+            name="message"
+            tag="div"
+            class="space-y-8"
+          >
+            <template v-for="(message, index) in chatStore.currentChat.messages" :key="index">
+              
+              <!-- USER MESSAGE -->
+              <div
+                v-if="message.content && message.role === Role.user"
+                class="flex items-start justify-end space-x-3 fade-in"
+              >
+                <div class="flex flex-col items-end space-y-2 flex-1">
+                  <div
+                    class="message-bubble user-message max-w-2xl rounded-lg px-4 py-3 shadow-lg
+                           bg-blue-600 text-white transform transition-all duration-300 hover:scale-[1.02]"
+                    v-html="md.render(message.content)"
+                  />
+                </div>
+                <div
+                  class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-semibold text-white"
+                >
+                  {{ userInitials }}
+                </div>
+              </div>
+
+              <!-- ASSISTANT MESSAGE -->
+              <div
+                v-else-if="message.content && message.role === Role.assistant"
+                class="flex items-start space-x-3 fade-in"
+              >
+                <!-- Assistant Avatar -->
+                <div
+                  class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-semibold text-white"
+                >
+                  <img
+                    class="w-10 h-10 rounded-full"
+                    src="/icon-192.png"
+                    alt="My icon"
+                  />
+                </div>
+                
+                <!-- Assistant Content -->
+                <div class="flex flex-col space-y-2 flex-1">
+                  <!-- The main answer -->
+                  <div
+                    @contextmenu.prevent="(e: MouseEvent) => copyToClipboard((e.currentTarget as HTMLElement)?.innerText ?? '')"
+                    class="assistant-message message-content message-bubble assistant-message max-w-2xl rounded-lg px-4 py-3 shadow-lg
+                           bg-[#1a1b23] transform transition-all duration-300 hover:scale-[1.02]
+                           cursor-pointer select-all"
+                    v-html="renderMessageContent(message.content)"
+                  />
+                  <!-- Sources (if any) -->
+                  <div
+                    v-if="parseAssistantMessage(message.content)?.sources?.length"
+                    class="text-sm text-gray-400 pl-2"
+                  >
+                    <strong>Sources:</strong>
+                    {{ parseAssistantMessage(message.content)?.sources.join(', ') }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- ANY OTHER MESSAGE (fallback) -->
+              <div v-else>
+                <!-- If we have some other role or empty content, show raw -->
+                <div v-html="md.render(message.content)" />
+              </div>
+
+            </template>
+          </TransitionGroup>
+        </template>
+      </div>
+    </main>
+
+    <!-- Footer with input area -->
+    <footer
+      class="border-t border-[#1a1b23] bg-[#0f1015] mb-8 transition-opacity duration-500"
+      :class="{ 'opacity-100': showAnimation, 'opacity-0': !showAnimation }"
+    >
+      <div class="max-w-4xl mx-auto px-4 py-4">
+        <div class="flex items-center space-x-4">
+          <div class="flex-grow relative">
+            <textarea
+              class="w-full h-24 px-4 py-3 bg-[#1a1b23] text-gray-100 rounded-lg border border-[#2a2b33]
+                     resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                     transition-colors duration-200 placeholder-gray-400"
+              placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+              ref="inputTextarea"
+              v-model="input"
+              @keydown="handleKeyDown"
+              :disabled="!isInputEnabled"
+            />
+          </div>
+          <div class="flex-shrink-0">
+            <button
+              @click="onSend"
+              :disabled="!isSendBtnEnabled || pending"
+              class="p-4 rounded-full bg-blue-600 text-white hover:bg-blue-700
+                     disabled:opacity-50 disabled:cursor-not-allowed
+                     transform transition-all duration-200 hover:scale-105 active:scale-95
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#0f1015]"
+            >
+              <PlayIcon class="h-6 w-6" v-if="!pending" />
+              <FwbSpinner size="6" v-else />
+            </button>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { PlayIcon } from '@heroicons/vue/24/outline'
@@ -10,6 +133,7 @@ import { FwbButton, FwbSpinner } from 'flowbite-vue'
 import { useAppStore } from '@/stores/app.store'
 import { POSITION, useToast } from 'vue-toastification'
 
+// LOCAL REFS AND STATE
 const input = ref('')
 const inputTextarea = ref<HTMLTextAreaElement | null>(null)
 const scrollingDiv = ref<HTMLElement | null>(null)
@@ -21,13 +145,13 @@ const appStore = useAppStore()
 const chatStore = useChatStore()
 const toast = useToast()
 
-// Configure markdown-it with all features enabled
+// Configure markdown-it
 const md = new MarkdownIt({
   html: true,
   breaks: true,
   linkify: true,
   typographer: true,
-  highlight: function (str, lang) {
+  highlight(str, lang) {
     if (lang && hljs.getLanguage(lang)) {
       try {
         return hljs.highlight(str, { language: lang }).value
@@ -39,41 +163,65 @@ const md = new MarkdownIt({
   }
 })
 
-const isInputEnabled = computed(() => !pending.value)
-const isSendBtnEnabled = computed(() => input.value?.trim().length > 0)
+/** Helper: parse JSON from message.content if it has "answer" + "sources". */
+interface AssistantResponse {
+  answer: string
+  sources: string[]
+  summary?: string
+  context_used?: string
+}
+function parseAssistantMessage(content: string): AssistantResponse | null {
+  try {
+    return JSON.parse(content) as AssistantResponse
+  } catch (err) {
+    return null
+  }
+}
 
-// Get user initials from email
-const userInitials = computed(() => {
-  const email = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').email : ''
-  return email
-    .split('@')[0]
-    .split(/[._-]/)
-    .map((part: string) => part.charAt(0).toUpperCase())
-    .join('')
-    .slice(0, 2)
-})
+/** Helper: render either JSON-based answer or fallback to raw Markdown. */
+function renderMessageContent(content: string) {
+  const parsed = parseAssistantMessage(content)
+  if (parsed && parsed.answer) {
+    // If we successfully parse JSON and have "answer", render that
+    return md.render(parsed.answer)
+  } else {
+    // Otherwise, just render the original text as Markdown
+    return md.render(content)
+  }
+}
 
-// Function to convert HTML to properly formatted plain text
-const htmlToPlainText = (html: string): string => {
-  // Create a temporary div to hold our HTML
+// Copy to Clipboard logic
+function copyToClipboard(html: string) {
+  try {
+    const plainText = htmlToPlainText(html)
+      .replace(/\*\*/g, '')
+      .replace(/(\*|_)(.*?)\1/g, '$2')
+    navigator.clipboard.writeText(plainText).then(() => {
+      toast.success('Message copied to clipboard!', {
+        timeout: 2000,
+        position: POSITION.TOP_RIGHT
+      })
+    })
+  } catch (err) {
+    toast.error('Failed to copy message', { timeout: 2000 })
+  }
+}
+
+// Convert HTML to plain text (already in your code)
+function htmlToPlainText(html: string): string {
   const tempDiv = document.createElement('div')
   tempDiv.innerHTML = html
 
-  // Function to process a node and its children
-  const processNode = (node: Node): string => {
+  function processNode(node: Node): string {
     if (node.nodeType === Node.TEXT_NODE) {
       return node.textContent || ''
     }
-
     if (node.nodeType === Node.ELEMENT_NODE) {
       const element = node as Element
       const tagName = element.tagName.toLowerCase()
-      
-      // Build text content from all child nodes
-      const childTexts = Array.from(node.childNodes).map(child => processNode(child))
+      const childTexts = Array.from(node.childNodes).map(processNode)
       let text = childTexts.join('')
 
-      // Handle specific HTML elements
       switch (tagName) {
         case 'p':
           return `${text}\n\n`
@@ -99,36 +247,16 @@ const htmlToPlainText = (html: string): string => {
           return text
       }
     }
-
     return ''
   }
 
-  // Process the entire document and clean up extra whitespace
   const text = processNode(tempDiv)
-    .replace(/\n\s*\n\s*\n/g, '\n\n') // Replace multiple newlines with just two
-    .replace(/^\s+|\s+$/g, '') // Trim start and end whitespace
-
+    .replace(/\n\s*\n\s*\n/g, '\n\n') // Replace multiple newlines
+    .replace(/^\s+|\s+$/g, '')
   return text
 }
 
-// Function to copy text and show feedback
-const copyToClipboard = async (html: string) => {
-  try {
-    let plainText = htmlToPlainText(html)
-    plainText = plainText.replace(/\*\*/g, '')
-    plainText = plainText.replace(/(\*|_)(.*?)\1/g, '$2')
-    await navigator.clipboard.writeText(plainText)
-    toast.success('Message copied to clipboard!', {
-      timeout: 2000,
-      position: POSITION.TOP_RIGHT
-    })
-  } catch (err) {
-    toast.error('Failed to copy message', {
-      timeout: 2000
-    })
-  }
-}
-
+// Basic lifecycle + watchers
 onMounted(() => {
   setTimeout(() => {
     inputTextarea.value?.focus()
@@ -141,10 +269,26 @@ watch(() => chatStore.currentChatId, () => {
   focusInput()
 })
 
+// Helpers
 function focusInput() {
   setTimeout(() => inputTextarea.value?.focus(), 100)
 }
 
+function checkIfUserScrolled() {
+  if (scrollingDiv.value) {
+    userScrolled.value =
+      scrollingDiv.value.scrollTop + scrollingDiv.value.clientHeight !==
+      scrollingDiv.value.scrollHeight
+  }
+}
+
+function autoScrollDown() {
+  if (scrollingDiv.value && !userScrolled.value) {
+    scrollingDiv.value.scrollTop = scrollingDiv.value.scrollHeight
+  }
+}
+
+// Sending a message
 async function onSend() {
   if (!input.value.trim()) return
   
@@ -152,15 +296,13 @@ async function onSend() {
   try {
     userScrolled.value = false
     inputTextarea.value?.blur()
-
     const messageContent = input.value
     input.value = ''
 
-    await chatStore.addMessage({ 
-      role: Role.user, 
-      content: messageContent 
+    await chatStore.addMessage({
+      role: Role.user,
+      content: messageContent
     })
-    
     autoScrollDown()
   } catch (e) {
     if (e instanceof Error) {
@@ -178,114 +320,23 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 }
 
-function autoScrollDown() {
-  if (scrollingDiv.value && !userScrolled.value) {
-    scrollingDiv.value.scrollTop = scrollingDiv.value.scrollHeight
-  }
-}
+// Computed
+const isInputEnabled = computed(() => !pending.value)
+const isSendBtnEnabled = computed(() => input.value?.trim().length > 0)
 
-function checkIfUserScrolled() {
-  if (scrollingDiv.value) {
-    userScrolled.value =
-      scrollingDiv.value.scrollTop + scrollingDiv.value.clientHeight !==
-      scrollingDiv.value.scrollHeight
-  }
-}
+// Get user initials
+const userInitials = computed(() => {
+  const email = localStorage.getItem('user')
+    ? JSON.parse(localStorage.getItem('user') || '{}').email
+    : ''
+  return email
+    .split('@')[0]
+    .split(/[._-]/)
+    .map((part: string) => part.charAt(0).toUpperCase())
+    .join('')
+    .slice(0, 2)
+})
 </script>
-
-<template>
-  <div class="flex flex-1 flex-col h-screen bg-[#0f1015] text-gray-100">
-    <!-- Main chat area -->
-    <main 
-      class="flex-1 px-4 py-6 overflow-y-auto mb-4 scroll-smooth" 
-      ref="scrollingDiv" 
-      @scroll="checkIfUserScrolled()"
-    >
-      <div class="max-w-4xl mx-auto">
-        <template v-if="chatStore.currentChat">
-          <TransitionGroup 
-            name="message"
-            tag="div"
-            class="space-y-8"
-          >
-            <template v-for="(message, index) in chatStore.currentChat.messages" :key="index">
-              <!-- User message -->
-              <div v-if="message.content && message.role === Role.user"
-                   class="flex items-start justify-end space-x-3 fade-in">
-                <div class="flex flex-col items-end space-y-2 flex-1">
-                  <div
-                    class="message-bubble user-message max-w-2xl rounded-lg px-4 py-3 shadow-lg 
-                           bg-blue-600 text-white transform transition-all duration-300 hover:scale-[1.02]"
-                    v-html="md.render(message.content)"
-                  />
-                </div>
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-semibold text-white">
-                  {{ userInitials }}
-                </div>
-              </div>
-
-              <!-- Assistant message -->
-              <div v-if="message.content && message.role === Role.assistant"
-                   class="flex items-start space-x-3 fade-in">
-                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-semibold text-white">
-                  <img
-                    className="w-10 h-10 rounded-full"
-                    src="/icon-192.png"
-                    alt="My icon"
-                  />
-                </div>
-                <div class="flex flex-col space-y-2 flex-1">
-                  <div @contextmenu.prevent="(e: MouseEvent) => copyToClipboard((e.currentTarget as HTMLElement)?.innerText ?? '')"
-                    class="message-bubble assistant-message max-w-2xl rounded-lg px-4 py-3 shadow-lg 
-                           bg-[#1a1b23] transform transition-all duration-300 hover:scale-[1.02]
-                           cursor-pointer select-all"
-                    v-html="md.render(message.content)"
-                  />
-                </div>
-              </div>
-            </template>
-          </TransitionGroup>
-        </template>
-      </div>
-    </main>
-
-    <!-- Footer with input area -->
-    <footer 
-      class="border-t border-[#1a1b23] bg-[#0f1015] mb-8 transition-opacity duration-500"
-      :class="{ 'opacity-100': showAnimation, 'opacity-0': !showAnimation }"
-    >
-      <div class="max-w-4xl mx-auto px-4 py-4">
-        <div class="flex items-center space-x-4">
-          <div class="flex-grow relative">
-            <textarea
-              class="w-full h-24 px-4 py-3 bg-[#1a1b23] text-gray-100 rounded-lg border border-[#2a2b33] 
-                     resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                     transition-colors duration-200 placeholder-gray-400"
-              placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
-              ref="inputTextarea"
-              v-model="input"
-              @keydown="handleKeyDown"
-              :disabled="!isInputEnabled"
-            />
-          </div>
-          <div class="flex-shrink-0">
-            <button
-              @click="onSend"
-              :disabled="!isSendBtnEnabled || pending"
-              class="p-4 rounded-full bg-blue-600 text-white hover:bg-blue-700 
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     transform transition-all duration-200 hover:scale-105 active:scale-95
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#0f1015]"
-            >
-              <PlayIcon class="h-6 w-6" v-if="!pending" />
-              <FwbSpinner size="6" v-else />
-            </button>
-          </div>
-        </div>
-      </div>
-    </footer>
-  </div>
-</template>
 
 <style>
 @import '../../node_modules/highlight.js/styles/github-dark.css';
