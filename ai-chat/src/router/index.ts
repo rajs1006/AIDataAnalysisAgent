@@ -1,5 +1,5 @@
 // src/router/index.ts
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import { authService } from '@/services/auth.service'
 import SignIn from '@/components/SignIn.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -35,13 +35,12 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes
 })
 
 // Modified navigation guard to handle token in URL
 router.beforeEach(async (to, from, next) => {
-  console.log(to)
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
   const isAuthenticated = authService.isAuthenticated()
   const token = to.query.token as string | undefined
