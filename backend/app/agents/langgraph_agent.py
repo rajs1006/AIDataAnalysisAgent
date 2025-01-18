@@ -361,10 +361,6 @@ class ReActAgent:
 
                 clean_query = clean_query.strip().strip("\"'")
 
-                print("=======================================")
-                print(clean_query)
-                print("=======================================")
-
                 # Validate cleaned query isn't empty
                 if not clean_query:
                     return "FINAL ANSWER: Invalid search query after cleaning. Please provide clear search terms."
@@ -550,10 +546,6 @@ class ReActAgent:
             # Get raw response
             response = str(result.get("output", ""))
             response_type = str(result.get("source_type", "search"))
-
-            print("--------------------------")
-            print(response, response_type)
-            print("--------------------------")
 
             # Handle FINAL ANSWER responses
             if "FINAL ANSWER:" in response:

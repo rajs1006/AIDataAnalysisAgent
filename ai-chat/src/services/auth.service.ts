@@ -19,6 +19,38 @@ export const authService = {
     return token ? { Authorization: `Bearer ${token}` } : {}
   },
 
+  async authenticateWithToken(access_token: string): Promise<{ token: string; user: User }> {
+    // Verify token with your backend
+    // const response = await fetch(`${API_URL}/auth/verify-token`, {
+    //   headers: {
+    //     Authorization: `Bearer ${token}`
+    //   }
+    // })
+
+    // if (!response.ok) {
+    //   throw new Error('Invalid token')
+    // }
+
+    // const userData = await response.json()
+
+    // Store token and user data
+    setAuthToken(access_token)
+
+    const userResponse = await fetch(`${API_URL}/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${access_token}`
+      }
+    })
+
+    const userData = await userResponse.json()
+    localStorage.setItem('user', JSON.stringify(userData))
+
+    return {
+      token: access_token,
+      user: userData
+    }
+  },
+
   async register(userData: UserCreate): Promise<User> {
     console.log('API_URL REGISTER : ', API_URL)
     const response = await fetch(`${API_URL}/auth/register`, {
@@ -73,7 +105,7 @@ export const authService = {
   signOut(): void {
     clearAuthToken()
     localStorage.removeItem('user')
-    window.location.href = '/signin'
+    window.location.href = '/home'
   },
 
   isAuthenticated(): boolean {

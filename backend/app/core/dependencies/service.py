@@ -12,6 +12,8 @@ from app.core.dependencies.cruds import (
     get_user_crud,
     get_connector_crud,
     get_image_agent_crud,
+    get_billing_crud,
+    get_model_pricing_crud,
 )
 from app.core.dependencies.rag import get_rag_pipeline
 from app.core.dependencies.vector import get_vector_store
@@ -25,11 +27,24 @@ from app.crud.connector import ConnectorCRUD
 from app.crud.folder import FolderConnectorCRUD
 from app.crud.image import ImageAgentCRUD
 from app.crud.user import UserCRUD
+from app.crud.billing import BillingCRUD, ModelPricingCRUD
 from app.services.agent.service import AgentService
 from app.services.connectors.base import ConnectorService
 from app.services.agent.image.service import ImageService
 from app.services.agent.rag.service import RagService
 from app.agents.haystack_agent.pipeline import HaystackRAGPipeline
+from app.services.billing.service import BillingService
+
+
+def get_billing_service(
+    billing_crud: BillingCRUD = Depends(get_billing_crud),
+    model_pricing_crud: ModelPricingCRUD = Depends(get_model_pricing_crud),
+) -> BillingService:
+    """Get BillingService instance."""
+    return BillingService(
+        billing_crud=billing_crud,
+        model_pricing_crud=model_pricing_crud,
+    )
 
 
 def get_rag_service(

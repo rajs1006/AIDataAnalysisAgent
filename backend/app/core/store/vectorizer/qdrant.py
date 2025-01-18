@@ -137,7 +137,7 @@ class VectorStore:
             # )
             for _, (t, vector, _) in enumerate(query_vector_metadata):
                 logger.debug(f"answering user query : {query}")
-                print(f"answering user query : {query} : {t}")
+
                 results = self.client.search(
                     collection_name=collection_name,
                     query_vector=vector,
@@ -145,8 +145,6 @@ class VectorStore:
                     limit=5,
                     with_payload=True,
                 )
-                print("-vofvidfvidf")
-                print(results)
 
                 return [
                     VectorDocument(
