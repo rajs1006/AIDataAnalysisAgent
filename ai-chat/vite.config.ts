@@ -2,6 +2,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -9,11 +10,10 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
-  server: {
-    port: 5173,
-    host: true
-  },
+  // Add environment variable configuration
   define: {
-    'import.meta.env': JSON.stringify(process.env)
-  }
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL)
+  },
+  // Optional: You can also explicitly set the envPrefix
+  envPrefix: 'VITE_'
 })
