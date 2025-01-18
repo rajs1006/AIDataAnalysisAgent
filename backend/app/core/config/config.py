@@ -23,6 +23,7 @@ class BaseConfig(BaseSettings):
     ALGORITHM: str = "EdDSA"
     API_ALGORITHM: str = "HS256"
     QDRANT_URL: str
+    QDRANT_API_KEY: str = "6c683ce4-d5a711efb44f0f9cc1facf92" # This is a garbage value
     OPENAI_API_KEY: str
     WATCHER_PORT: int = 8001
 

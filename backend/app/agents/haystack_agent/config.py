@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from app.core.config.config import settings
-
+from haystack.utils import Secret
 
 class PreprocessingConfig(BaseModel):
     """Configuration for document preprocessing"""
@@ -87,6 +87,7 @@ class HybridPipelineConfig(BaseModel):
     document_store: Dict[str, Any] = Field(
         default_factory=lambda: {
             "url": settings.QDRANT_URL,
+            "api_key": Secret.from_token(settings.QDRANT_API_KEY),
             "index": "rag_collection",
             "similarity": "cosine",
             "embedding_dim": 384,
