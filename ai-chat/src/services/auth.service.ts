@@ -105,7 +105,7 @@ export const authService = {
   signOut(): void {
     clearAuthToken()
     localStorage.removeItem('user')
-    window.location.href = '/home'
+    window.location.href = '/#/home'
   },
 
   isAuthenticated(): boolean {

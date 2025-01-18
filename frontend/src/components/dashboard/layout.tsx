@@ -7,7 +7,7 @@ import { EnhancedChatButton } from "../chat/chat-button";
 export function DashboardLayout() {
   const handleOpenChat = () => {
     const token = localStorage.getItem("token") || "";
-    window.open(`https://chat.andrual.com/auth?token=${token}`, "_blank");
+    window.open(`https://chat.andrual.com/#/auth?token=${token}`, "_blank");
   };
 
   return (
