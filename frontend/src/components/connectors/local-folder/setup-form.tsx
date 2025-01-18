@@ -119,9 +119,9 @@ export const LocalFolderForm = ({
                     <File className="w-4 h-4" />
                   </div>
 
-                  <div className="flex-1 min-w-0 w-80">
+                  <div className="flex-1 min-w-0 w-64">
                     <div className="overflow-x-auto overflow-y-hidden scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                      <div className="whitespace-nowrap text-slate-500">
+                      <div className="truncate whitespace-nowrap text-slate-500">
                         {file.name}
                       </div>
                     </div>
