@@ -43,7 +43,7 @@ export interface TimeSeriesEntry {
 export const BillingService = {
   async getBillingMetrics(): Promise<BillingData> {
     try {
-      const response = await fetch(`${API_URL}/billing`, {
+      const response = await fetch(`${API_URL}/billing/`, {
         headers: {
           ...authService.getAuthHeader(),
           'Content-Type': 'application/json'
