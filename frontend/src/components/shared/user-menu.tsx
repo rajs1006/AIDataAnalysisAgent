@@ -1,9 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/lib/store/store";
-import { logout } from "@/lib/store/auth";
+import React, { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,67 +9,93 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, User, LogOut } from "lucide-react";
+import { useAuthStore } from "@/lib/store/auth";
+import { ProfileSettingsPopup } from "./profile-settings-popup";
+import { User } from "@/lib/types/auth";
 
-export const UserMenu = () => {
-  const dispatch = useDispatch();
-  const user = useSelector((state: RootState) => state.auth.user);
+export function UserMenu(): React.JSX.Element | null {
+  const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
 
-  const handleLogout = useCallback(() => {
-    dispatch(logout());
-    window.location.href = "/login";
-  }, [dispatch]);
+  const { user, logout } = useAuthStore();
+
+  const getInitials = (user: User | null) => {
+    if (!user) return "A";
+
+    // Prioritize name variations
+    const name = user.full_name || user.email || "A";
+
+    // Get first two characters of the first two words
+    const initials = name.toUpperCase();
+
+    return initials.slice(0, 2) || "A";
+  };
+
+  const getUserDisplayName = (user: User | null) => {
+    if (!user) return "";
+
+    // Prioritize name variations
+    return user.full_name || user.email || "User";
+  };
 
   if (!user) return null;
 
-  // Get initials safely
-  const initials = user.full_name ? user.full_name.substring(0, 2).toUpperCase() : "??";
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="focus:outline-none">
-        <div className="flex items-center gap-2">
-          <span className="text-[#E6D5C3] text-sm mr-2">
-            {user.full_name || "Guest"}
-          </span>
-          <Avatar className="h-8 w-8 border-2 border-[#C68B59] bg-[#4A3728]">
-            <AvatarImage src={user.avatar_url} />
-            <AvatarFallback className="bg-[#4A3728] text-[#E6D5C3]">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-        </div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="w-56 bg-[#2C1810] border border-[#B08968]/30"
-      >
-        <DropdownMenuLabel className="border-b border-[#B08968]/30">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium text-[#E6D5C3]">
-              {user.full_name || "Guest"}
-            </p>
-            <p className="text-xs text-[#B08968]">{user.email || "No email"}</p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuItem className="hover:bg-[#4A3728] focus:bg-[#4A3728] text-[#E6D5C3]">
-          <User className="mr-2 h-4 w-4 text-[#C68B59]" />
-          Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem className="hover:bg-[#4A3728] focus:bg-[#4A3728] text-[#E6D5C3]">
-          <Settings className="mr-2 h-4 w-4 text-[#C68B59]" />
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuSeparator className="bg-[#B08968]/30" />
-        <DropdownMenuItem
-          onClick={handleLogout}
-          className="hover:bg-[#4A3728] focus:bg-[#4A3728] text-[#E6D5C3]"
+    <React.Fragment>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            className="relative h-8 w-8 rounded-full bg-dark-green-100 hover:bg-dark-green-200"
+          >
+            <Avatar className="h-8 w-8">
+              {user.avatar && (
+                <AvatarImage src={user.avatar} alt={getUserDisplayName(user)} />
+              )}
+              <AvatarFallback>{getInitials(user)}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          className="w-72 bg-white text-dark-green-900"
+          align="end"
+          forceMount
         >
-          <LogOut className="mr-2 h-4 w-4 text-[#C68B59]" />
-          Logout
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">
+                {getUserDisplayName(user)}
+              </p>
+              <p className="text-xs leading-none text-dark-green-600">
+                {user.email}
+              </p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="bg-dark-green-200" />
+
+          <DropdownMenuItem
+            onClick={() => setIsProfileSettingsOpen(true)}
+            className="text-dark-green-800 hover:bg-dark-green-100"
+          >
+            Profile Settings
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator className="bg-dark-green-200" />
+          <DropdownMenuItem
+            onClick={logout}
+            className="text-dark-green-800 hover:bg-dark-green-100 focus:bg-dark-green-100"
+          >
+            Log out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Profile Settings Popup */}
+      <ProfileSettingsPopup
+        isOpen={isProfileSettingsOpen}
+        onClose={() => setIsProfileSettingsOpen(false)}
+      />
+    </React.Fragment>
   );
-};
+}

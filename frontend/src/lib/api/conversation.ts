@@ -1,101 +1,91 @@
 import { API_URL } from "../utils";
-import { authService } from "./auth";
-import { ConversationCreate, Conversation, Message } from "../types/chat";
+import { handleApiError } from "@/lib/utils/axios-interceptor";
+import { authService } from "@/lib/api/auth";
+
+export interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+  messages: Message[];
+}
+
+export interface ConversationCreate {
+  title: string;
+}
 
 export const conversationService = {
-  create: async (data: ConversationCreate) => {
-    const response = await fetch(`${API_URL}/conversations/`, {
-      method: "POST",
-      headers: {
+  create: async (data: ConversationCreate): Promise<Conversation> => {
+    try {
+      const headers: HeadersInit = {
         "Content-Type": "application/json",
-        ...(authService.getAuthHeader() as HeadersInit),
-      },
-      body: JSON.stringify(data),
-    });
+        ...(authService.getAuthHeader()),
+      } as HeadersInit;
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch conversations");
-    }
-
-    return response.json();
-  },
-
-  getById: async (id: string): Promise<Conversation> => {
-    const response = await fetch(`${API_URL}/conversations/${id}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(authService.getAuthHeader() as HeadersInit),
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch conversation with id ${id}`);
-    }
-
-    return response.json();
-  },
-
-  addMessage: async (
-    conversationId: string,
-    content: string,
-    image?: File
-  ): Promise<Message> => {
-    if (image) {
-      // If there's an image, use FormData
-      const formData = new FormData();
-      formData.append("content", content);
-      formData.append("image", image);
-
-      const response = await fetch(
-        `${API_URL}/conversations/${conversationId}/messages`,
-        {
-          method: "POST",
-          headers: {
-            ...(authService.getAuthHeader() as HeadersInit),
-          },
-          body: formData,
-        }
-      );
+      const response = await fetch(`${API_URL}/conversations/`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(data),
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to add message to conversations");
+        throw new Error("Failed to create conversation");
       }
 
       return response.json();
+    } catch (error: any) {
+      handleApiError(error);
+      throw error;
     }
+  },
 
-    // Regular text message
-    const response = await fetch(
-      `${API_URL}/conversations/${conversationId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authService.getAuthHeader() as HeadersInit),
-        },
-        body: JSON.stringify({ content }),
+  getById: async (id: string): Promise<Conversation> => {
+    try {
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+        ...authService.getAuthHeader(),
+      } as HeadersInit;
+
+      const response = await fetch(`${API_URL}/conversations/${id}`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch conversation with id ${id}`);
       }
-    );
 
-    if (!response.ok) {
-      throw new Error("Failed to add message to conversations");
+      return response.json();
+    } catch (error: any) {
+      handleApiError(error);
+      throw error;
     }
-
-    return response.json();
   },
 
   list: async (): Promise<Conversation[]> => {
-    const response = await fetch(`${API_URL}/conversations/`, {
-      headers: {
+    try {
+      const headers: HeadersInit = {
         "Content-Type": "application/json",
-        ...(authService.getAuthHeader() as HeadersInit),
-      },
-    });
+        ...authService.getAuthHeader(),
+      } as HeadersInit;
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch conversations`);
+      const response = await fetch(`${API_URL}/conversations/`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch conversations");
+      }
+
+      return response.json();
+    } catch (error: any) {
+      handleApiError(error);
+      throw error;
     }
-
-    return response.json();
   },
 };

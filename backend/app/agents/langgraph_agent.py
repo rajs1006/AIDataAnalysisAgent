@@ -1,3 +1,4 @@
+from app.core.logging_config import get_logger
 from typing import List, Dict, Any, Optional
 from langchain.agents import AgentExecutor, ZeroShotAgent, create_openai_functions_agent
 from langchain.agents.format_scratchpad import format_to_openai_function_messages
@@ -6,7 +7,6 @@ from langchain_core.tools import BaseTool, Tool
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-import logging
 import json
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -26,9 +26,9 @@ from app.agents.prompts.prompt_manager import PromptManager
 from app.utils.agent.tools import ReActTools, ParserUtils
 from app.utils.asynctools import sync_wrapper
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class PromptExecutor:
     """Handles prompt execution and formatting"""
 
@@ -52,7 +52,7 @@ class PromptExecutor:
             analysis = json.loads(response)
             return analysis
         except Exception as e:
-            logger.error(f"Analysis prompt execution failed: {str(e)}")
+            logger.error("Analysis prompt execution failed: {str(e)}", )
             return {
                 "type": "clarify",
                 "content": {
@@ -88,14 +88,14 @@ class PromptExecutor:
                 return question  # Return just the main question
 
             except json.JSONDecodeError:
-                logger.error(f"Failed to parse clarification JSON: {response}")
+                logger.error("Failed to parse clarification JSON: {response}", )
                 return "Could you please provide more specific information about your query?"
 
         except Exception as e:
-            logger.error(f"Clarification prompt execution failed: {str(e)}")
+            logger.error("Clarification prompt execution failed: {str(e)}", )
             return "Could you please provide more information?"
         except Exception as e:
-            logger.error(f"Clarification prompt execution failed: {str(e)}")
+            logger.error("Clarification prompt execution failed: {str(e)}", )
             return {
                 "questions": ["Could you please provide more information?"],
                 "suggestions": [],
@@ -130,7 +130,7 @@ class PromptExecutor:
                 "next_steps": error_response.get("next_steps", ["Please try again"]),
             }
         except Exception as e:
-            logger.error(f"Error handling prompt execution failed: {str(e)}")
+            logger.error("Error handling prompt execution failed: {str(e)}", )
             return {
                 "message": (
                     str(error)
@@ -214,7 +214,7 @@ class PromptExecutor:
             return formatted_response
 
         except Exception as e:
-            logger.error(f"Response formatting failed: {str(e)}")
+            logger.error("Response formatting failed: {str(e)}", )
             # Fallback handling preserves FINAL ANSWER behavior
             if "FINAL ANSWER:" in content:
                 return content.split("FINAL ANSWER:", 1)[1].strip()
@@ -634,7 +634,7 @@ class ReActAgent:
             return formatted_response
 
         except Exception as e:
-            logger.error(f"Agent execution error: {str(e)}")
+            logger.error("Agent execution error: {str(e)}", )
             return await self._handle_error(str(e), query_params.query)
 
     async def _handle_empty_result(self, query: str) -> str:
@@ -650,7 +650,7 @@ class ReActAgent:
 
     async def _handle_error(self, error: str, query: str) -> str:
         """Handle errors gracefully with formatted responses"""
-        logger.error(f"Error processing query '{query}': {error}")
+        logger.error("Error processing query '{query}': {error}", )
 
         metadata = {
             "error_type": type(error).__name__,
@@ -665,7 +665,7 @@ class ReActAgent:
 
     async def _handle_response(self, result: str, query: str) -> str:
         """Handle errors gracefully with formatted responses"""
-        logger.error(f"Query parsed successfully '{query}': {result}")
+        logger.error("Query parsed successfully '{query}': {result}", )
 
         metadata = {
             "query": query,
@@ -712,10 +712,10 @@ class ReActAgent:
                 raise ValueError("Invalid response format from vision model")
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse vision model response as JSON: {str(e)}")
+            logger.error("Failed to parse vision model response as JSON: {str(e)}", )
             raise
         except Exception as e:
-            logger.exception(f"Vision API call failed: {str(e)}")
+            logger.exception("Vision API call failed: {str(e)}", )
             raise
 
     async def summarize_conversation(
@@ -788,7 +788,7 @@ class ReActAgent:
             }
 
         except Exception as e:
-            logger.error(f"Error generating conversation summary: {str(e)}")
+            logger.error("Error generating conversation summary: {str(e)}", )
             return None
 
 

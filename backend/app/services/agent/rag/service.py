@@ -1,5 +1,5 @@
+from app.core.logging_config import get_logger
 from typing import Dict, Any, List, Optional
-import logging
 import asyncio
 from datetime import datetime
 import uuid
@@ -11,9 +11,9 @@ from app.agents.haystack_agent.pipeline import HaystackRAGPipeline
 from app.agents.haystack_agent.base import PipelineInput, PipelineOutput
 from app.core.store.vectorizer.haystacks import VectorStore
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class RagService:
     """Service layer for RAG implementation using Haystack components"""
 
@@ -41,7 +41,7 @@ class RagService:
             logger.info("RAG service initialized successfully")
 
         except Exception as e:
-            logger.error(f"Failed to initialize RAG service: {str(e)}")
+            logger.error("Failed to initialize RAG service: {str(e)}", )
             raise
 
     async def ensure_initialized(self):
@@ -97,7 +97,7 @@ class RagService:
             }
 
         except Exception as e:
-            logger.error(f"Failed to add documents: {str(e)}")
+            logger.error("Failed to add documents: {str(e)}", )
             raise HTTPException(status_code=500, detail=str(e))
 
     async def delete_documents(
@@ -115,7 +115,7 @@ class RagService:
             )
 
         except Exception as e:
-            logger.error(f"Delete operation failed: {str(e)}")
+            logger.error("Delete operation failed: {str(e)}", )
             raise HTTPException(status_code=500, detail=str(e))
 
     async def search_documents(
@@ -146,7 +146,7 @@ class RagService:
 
             return result
         except Exception as e:
-            logger.error(f"Document search failed: {str(e)}")
+            logger.error("Document search failed: {str(e)}", )
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_pipeline_stats(self) -> Dict[str, Any]:
@@ -166,7 +166,7 @@ class RagService:
             }
 
         except Exception as e:
-            logger.error(f"Failed to get stats: {str(e)}")
+            logger.error("Failed to get stats: {str(e)}", )
             return {"status": "error", "detail": str(e)}
 
     async def cleanup(self):
@@ -187,7 +187,7 @@ class RagService:
             logger.info("RAG service cleaned up successfully")
 
         except Exception as e:
-            logger.error(f"Service cleanup failed: {str(e)}")
+            logger.error("Service cleanup failed: {str(e)}", )
             # Don't re-raise the exception to allow cleanup to continue
 
     def __del__(self):
@@ -200,4 +200,4 @@ class RagService:
                 loop.run_until_complete(self.cleanup())
                 loop.close()
         except Exception as e:
-            logger.error(f"Error during service cleanup: {str(e)}")
+            logger.error("Error during service cleanup: {str(e)}", )

@@ -1,19 +1,20 @@
-// store.ts
 import { configureStore } from "@reduxjs/toolkit";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
+import { baseApi } from "@/lib/api/base";
 import authReducer from "./auth";
 import chatReducer from "./chat";
 import onedriveReducer from "./onedrive";
-import historyReducer from "./history";
 import localFolderReducer from "./localfolder";
+import billingReducer from "./billing.slice";
 
 export const store = configureStore({
   reducer: {
+    [baseApi.reducerPath]: baseApi.reducer,
     auth: authReducer,
     chat: chatReducer,
     onedrive: onedriveReducer,
-    history: historyReducer,
     localFolder: localFolderReducer,
+    billing: billingReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -23,18 +24,28 @@ export const store = configureStore({
           "localFolder/setFiles", // Ignore file-related actions
           "localFolder/removeFile",
           "localFolder/addFiles",
+          "auth/loginUser/pending",
+          "auth/loginUser/fulfilled",
+          "auth/loginUser/rejected",
+          "auth/registerUser/pending",
+          "auth/registerUser/fulfilled",
+          "auth/registerUser/rejected"
         ],
         ignoredActionPaths: [
           "payload.timestamp",
           "payload.files", // Ignore files in payload
           "payload.file", // For single file actions
+          "payload.user", // Ignore user object in auth actions
+          "payload.token" // Ignore token in auth actions
         ],
         ignoredPaths: [
           "chat.messages",
           "localFolder.folderInfo.files", // Ignore files in state
+          "auth.user", // Ignore user object in auth state
+          "auth.token" // Ignore token in auth state
         ],
       },
-    }),
+    }).concat(baseApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

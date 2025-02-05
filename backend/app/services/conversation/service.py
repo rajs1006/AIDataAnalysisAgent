@@ -1,6 +1,6 @@
+from app.core.logging_config import get_logger
 from typing import List, Optional, Dict
 from uuid import UUID
-import logging
 from datetime import datetime, timedelta
 from fastapi import HTTPException, status
 
@@ -16,9 +16,9 @@ from app.models.schema.conversation import (
 from app.models.database.users import User
 from app.agents import ReActAgent
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class ConversationService:
     def __init__(self, conversation_crud: ConversationCRUD):
         self.crud = conversation_crud

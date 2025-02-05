@@ -2,12 +2,12 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/lib/store/store";
+import { useAuthStore } from "@/lib/store/auth";
 import { motion } from "framer-motion";
 
 export default function Home() {
   const router = useRouter();
-  const token = useAppSelector((state) => state.auth.token);
+  const token = useAuthStore((state) => state.token);
 
   useEffect(() => {
     const timeout = setTimeout(() => {

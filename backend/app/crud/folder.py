@@ -1,9 +1,8 @@
+from app.core.logging_config import get_logger
 from datetime import datetime
 from beanie import PydanticObjectId
 from fastapi import HTTPException, status
 from typing import Optional, Tuple
-import logging
-
 from app.models.database.connectors.folder import FolderConnector
 from app.models.schema.connectors.folder import (
     FileMetadata,
@@ -13,9 +12,9 @@ from app.models.database.users import User
 from app.models.schema.base.connector import ConnectorType
 from app.models.schema.base.connector import ConnectorStatus
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class FolderConnectorCRUD:
 
     @staticmethod
@@ -145,7 +144,7 @@ class FolderConnectorCRUD:
             return connector, file_metadata
 
         except Exception as e:
-            logger.error(f"Error updating file metadata: {str(e)}")
+            logger.error("Error updating file metadata: {str(e)}", )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to update file metadata: {str(e)}",
@@ -173,7 +172,7 @@ class FolderConnectorCRUD:
             return connector
 
         except Exception as e:
-            logger.error(f"Error deleting file metadata: {str(e)}")
+            logger.error("Error deleting file metadata: {str(e)}", )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete file metadata: {str(e)}",
@@ -190,4 +189,4 @@ class FolderConnectorCRUD:
                 connector.updated_at = datetime.utcnow()
                 await connector.save()
         except Exception as e:
-            logger.error(f"Failed to log error for connector {connector_id}: {str(e)}")
+            logger.error("Failed to log error for connector {connector_id}: {str(e)}", )

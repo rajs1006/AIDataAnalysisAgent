@@ -23,7 +23,7 @@ class BaseConfig(BaseSettings):
     ALGORITHM: str = "EdDSA"
     API_ALGORITHM: str = "HS256"
     QDRANT_URL: str
-    QDRANT_API_KEY: str = "6c683ce4-d5a711efb44f0f9cc1facf92" # This is a garbage value
+    QDRANT_API_KEY: str = "6c683ce4-d5a711efb44f0f9cc1facf92"  # This is a garbage value
     OPENAI_API_KEY: str
     WATCHER_PORT: int = 8001
 
@@ -31,6 +31,30 @@ class BaseConfig(BaseSettings):
     ONEDRIVE_CLIENT_SECRET: str
     MICROSOFT_TENANT_ID: str
     ONEDRIVE_REDIRECT_URI: str
+
+    # Email configuration
+    EMAIL_FROM: str
+    EMAIL_PASSWORD: str
+    SMTP_SERVER: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+
+    # Web URL for verification links
+    WEB_URL: str = "http://localhost:3000"
+    ADMIN_EMAIL: str = "admin@andrual.com"
+
+    # Collaborator settings
+    MAX_COLLABORATORS_PER_USER: int = 5
+    COLLABORATOR_INVITE_EXPIRY_HOURS: int = 48
+
+    # Google Cloud Storage Configuration
+    GOOGLE_APPLICATION_CREDENTIALS: str
+    GCS_PROJECT: str = "dataanalysisagent"
+    GCS_BUCKET: str = "andrual"
+    GCS_MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50 MB default limit
+
+    # Logging Configuration
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "json"
 
     class Config:
         case_sensitive = True

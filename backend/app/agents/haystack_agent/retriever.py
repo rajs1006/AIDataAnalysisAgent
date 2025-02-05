@@ -1,15 +1,14 @@
+from app.core.logging_config import get_logger
 from typing import Dict, Any, List, Optional, Union
 from haystack import component, Document
 from haystack.components.retrievers.in_memory import InMemoryBM25Retriever
 from haystack_integrations.components.retrievers.qdrant import QdrantEmbeddingRetriever
 from haystack.components.joiners import DocumentJoiner
 
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 @component
+logger = get_logger(__name__)
 class EnhancedHybridRetriever:
     """Enhanced hybrid retriever combining dense and sparse retrieval"""
 
@@ -72,7 +71,7 @@ class EnhancedHybridRetriever:
             }
 
         except Exception as e:
-            logger.error(f"Hybrid retrieval failed: {str(e)}")
+            logger.error("Hybrid retrieval failed: {str(e)}", )
             raise
 
     def _weighted_join(

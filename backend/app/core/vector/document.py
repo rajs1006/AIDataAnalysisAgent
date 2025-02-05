@@ -1,11 +1,11 @@
+from app.core.logging_config import get_logger
 from typing import Dict, Any, Optional, List, Union
 import numpy as np
-import logging
 from .base import BaseVectorizer
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class DocumentVectorizer(BaseVectorizer):
     """Handles vectorization of complete documents"""
 
@@ -105,7 +105,7 @@ class DocumentVectorizer(BaseVectorizer):
             return embeddings
 
         except Exception as e:
-            logger.error(f"Failed to create document embedding: {str(e)}")
+            logger.error("Failed to create document embedding: {str(e)}", )
             raise
 
     async def vectorize_documents(
@@ -151,5 +151,5 @@ class DocumentVectorizer(BaseVectorizer):
             return all_results
 
         except Exception as e:
-            logger.error(f"Failed to vectorize documents: {str(e)}")
+            logger.error("Failed to vectorize documents: {str(e)}", )
             raise

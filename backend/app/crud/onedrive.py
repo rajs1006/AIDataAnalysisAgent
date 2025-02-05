@@ -1,9 +1,8 @@
+from app.core.logging_config import get_logger
 from datetime import datetime
 from beanie import PydanticObjectId
 from fastapi import HTTPException, status
 from typing import Optional, List, Tuple
-import logging
-
 from app.models.database.connectors.onedrive import OneDriveConnector
 from app.models.schema.connectors.onedrive import (
     OneDriveCreate,
@@ -13,9 +12,9 @@ from app.models.schema.base.connector import FileStatus
 from app.models.schema.base.connector import ConnectorType
 from app.models.schema.base.connector import ConnectorStatus
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class OneDriveCRUD:
     @staticmethod
     async def get_user_connectors(user_id: str) -> List[OneDriveConnector]:
@@ -132,7 +131,7 @@ class OneDriveCRUD:
             return connector, file_metadata
 
         except Exception as e:
-            logger.error(f"Error updating file metadata: {str(e)}")
+            logger.error("Error updating file metadata: {str(e)}", )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to update file metadata: {str(e)}",
@@ -161,7 +160,7 @@ class OneDriveCRUD:
             return connector
 
         except Exception as e:
-            logger.error(f"Error deleting file metadata: {str(e)}")
+            logger.error("Error deleting file metadata: {str(e)}", )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete file metadata: {str(e)}",

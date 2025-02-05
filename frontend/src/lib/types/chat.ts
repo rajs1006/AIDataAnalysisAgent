@@ -1,58 +1,51 @@
-export interface Message {
-  id: string;
-  type: "user" | "assistant";
-  content: string;
-  sources?: string[];
-  timestamp: Date;
-}
-
-export interface Conversation {
-  id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
-  messages: Message[];
-}
-
-export interface ConversationCreate {
-  title?: string;
-}
+import { Message, Conversation } from "../api/conversation";
 
 export interface ChatState {
-  messages: Message[];
+  chats: Conversation[];
+  currentChatId: string | null;
   isLoading: boolean;
   error: string | null;
 }
 
-export interface Source {
-  file_name: string;
+export interface SendMessagePayload {
   content: string;
-  relevance_score: number;
+  image?: File;
+}
+
+export interface CreateChatPayload {
+  title: string;
+}
+
+export interface UpdateChatTitlePayload {
+  chatId: string;
+  title: string;
+}
+
+export interface ChatMessage extends Message {
+  pending?: boolean;
+  temporary?: boolean;
+}
+
+export interface Chat extends Conversation {
+  messages: ChatMessage[];
 }
 
 export interface ImageData {
-  content: string; // base64 encoded image
-  mime_type: string; // e.g., "image/jpeg"
-  filename: string; // original file name
+  content: string;
+  mime_type: string;
+  filename: string;
 }
 
 export interface QueryRequest {
   query: string;
-  conversation_id?: string;
   model: string;
   temperature: number;
   max_tokens: number;
+  conversation_id?: string;
   image_data?: ImageData | null;
 }
 
 export interface QueryResponse {
   answer: string;
-  sources: string[];
+  conversation_id: string;
 }
-
-// Extend the RootState type to include chat state
-// declare module "@/lib/store/store" {
-//   export interface RootState {
-//     chat: ChatState;
-//   }
-// }

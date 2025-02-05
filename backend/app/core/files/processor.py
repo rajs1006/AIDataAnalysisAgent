@@ -1,21 +1,22 @@
+from app.core.logging_config import get_logger
 from pathlib import Path
 import hashlib
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 import mimetypes
 import pdfplumber
 import magic
-import logging
-import mimetypes
 import hashlib
 import re
-import logging
 from pathlib import Path
-from typing import Dict
 from dataclasses import dataclass
-import pdfplumber
 
-logger = logging.getLogger(__name__)
+from app.core.files.blob_storage import BlobStorage
+from app.core.files.hierarchy import FileHierarchyBuilder
+from app.models.schema.base.hierarchy import BlobData
+
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -24,6 +25,7 @@ class ExtractionResult:
 
     content: str
     metadata: Dict[str, Any]
+    blob_data: Optional[BlobData] = None
     error: Optional[str] = None
     quality_score: float = 1.0
 
@@ -46,14 +48,41 @@ class DocumentProcessor:
             self._extract_pdf_with_tika,
         ]
 
-    def process_file(self, file_path: str) -> ExtractionResult:
-        """Process a file and extract text with metadata."""
+    async def process_file(
+        self, file_path: str, store_blob: bool = True
+    ) -> ExtractionResult:
+        """
+        Process a file and extract text with metadata.
+
+        Args:
+            file_path (str): Path to the file
+            store_blob (bool): Whether to store the file blob
+
+        Returns:
+            ExtractionResult: Processed file data
+        """
         try:
             # Detect file type
             mime_type = magic.from_file(file_path, mime=True)
 
             # Get basic metadata first
             metadata = self._generate_base_metadata(file_path)
+
+            # Store blob if requested
+            blob_data = None
+            if store_blob:
+                with open(file_path, "rb") as f:
+                    blob_content = f.read()
+                    blob_data = await BlobStorage.store_blob(
+                        blob_content,
+                        filename=Path(file_path).name,
+                        content_type=mime_type,
+                    )
+
+            # Build path segments for hierarchy
+            metadata["path_segments"] = FileHierarchyBuilder.get_file_path_segments(
+                metadata.get("file_path", "")
+            )
 
             # Extract text based on file type
             if mime_type == "application/pdf":
@@ -83,11 +112,14 @@ class DocumentProcessor:
             return ExtractionResult(
                 content=processed_content,
                 metadata=metadata,
+                blob_data=blob_data,
                 quality_score=quality_score,
             )
 
         except Exception as e:
-            logger.error(f"Error processing file {file_path}: {str(e)}")
+            logger.error(
+                "Error processing file {file_path}: {str(e)}",
+            )
             return ExtractionResult(
                 content="",
                 metadata=(
@@ -333,7 +365,9 @@ class DocumentProcessor:
                 "file_path": str(path),
             }
         except Exception as e:
-            logger.error(f"Error generating metadata for {file_path}: {str(e)}")
+            logger.error(
+                "Error generating metadata for {file_path}: {str(e)}",
+            )
             raise
 
     def _post_process_content(self, content: str) -> str:

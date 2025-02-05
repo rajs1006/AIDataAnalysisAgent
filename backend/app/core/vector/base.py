@@ -1,12 +1,12 @@
+from app.core.logging_config import get_logger
 from typing import List, Union
 import numpy as np
 from functools import lru_cache
-import logging
 from sentence_transformers import SentenceTransformer
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class BaseVectorizer:
     """Base class for vectorization operations"""
 
@@ -16,7 +16,7 @@ class BaseVectorizer:
         try:
             return SentenceTransformer(model_name)
         except Exception as e:
-            logger.error(f"Failed to load model {model_name}: {str(e)}")
+            logger.error("Failed to load model {model_name}: {str(e)}", )
             raise
 
     def _batch_encode(

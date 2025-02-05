@@ -4,9 +4,9 @@ import {
   OneDriveAuth,
   OneDriveFolderInfo,
   OneDriveConnectorConfig,
-} from "../types/onedrive";
-import { ConnectorMetrics } from "../types/connectors";
-import { MicrosoftTokenResponse } from "../types/onedrive";
+} from "../store/types/onedrive";
+import { ConnectorMetrics } from "../store/types/connectors";
+import { MicrosoftTokenResponse } from "../store/types/onedrive";
 import { API_URL } from "../utils";
 
 const MICROSOFT_CLIENT_ID = process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID;

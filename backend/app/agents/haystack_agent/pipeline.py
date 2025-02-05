@@ -1,5 +1,5 @@
+from app.core.logging_config import get_logger
 from typing import Dict, Any, List, Optional
-import logging
 import asyncio
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
@@ -22,9 +22,9 @@ from app.agents.haystack_agent.base import BasePipeline, PipelineInput, Pipeline
 from app.agents.haystack_agent.config import HybridPipelineConfig
 from app.agents.prompts.prompt_manager import PromptManager
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class HaystackRAGPipeline(BasePipeline):
     """Enhanced RAG pipeline with proper component isolation and error handling"""
 
@@ -74,7 +74,7 @@ class HaystackRAGPipeline(BasePipeline):
                 logger.info("Pipeline initialized successfully")
 
         except Exception as e:
-            logger.error(f"Pipeline initialization failed: {str(e)}")
+            logger.error("Pipeline initialization failed: {str(e)}", )
             self.reset_state()
             raise
 
@@ -96,7 +96,7 @@ class HaystackRAGPipeline(BasePipeline):
             )
 
         except Exception as e:
-            logger.error(f"Failed to initialize core components: {str(e)}")
+            logger.error("Failed to initialize core components: {str(e)}", )
             raise
 
     async def _build_query_pipeline(self):
@@ -131,7 +131,7 @@ class HaystackRAGPipeline(BasePipeline):
             self.query_pipeline.connect("prompt_builder", "generator")
 
         except Exception as e:
-            logger.error(f"Failed to build query pipeline: {str(e)}")
+            logger.error("Failed to build query pipeline: {str(e)}", )
             raise
 
     async def _build_indexing_pipeline(self):
@@ -165,7 +165,7 @@ class HaystackRAGPipeline(BasePipeline):
             self.indexing_pipeline.connect("dense_doc_embedder", "writer")
 
         except Exception as e:
-            logger.error(f"Failed to build indexing pipeline: {str(e)}")
+            logger.error("Failed to build indexing pipeline: {str(e)}", )
             raise
 
     async def process(self, input_data: PipelineInput) -> PipelineOutput:
@@ -219,7 +219,7 @@ class HaystackRAGPipeline(BasePipeline):
             )
 
         except Exception as e:
-            logger.error(f"Query processing failed: {str(e)}")
+            logger.error("Query processing failed: {str(e)}", )
             self._record_error(str(e))
             raise
 
@@ -252,7 +252,7 @@ class HaystackRAGPipeline(BasePipeline):
             }
 
         except Exception as e:
-            logger.error(f"Document indexing failed: {str(e)}")
+            logger.error("Document indexing failed: {str(e)}", )
             self._record_error(str(e))
             raise
 
@@ -306,7 +306,7 @@ class HaystackRAGPipeline(BasePipeline):
             return (parsed_answer.get("answer", ""), parsed_answer.get("sources", ""))
 
         except json.JSONDecodeError as e:
-            logger.error(f"Error parsing JSON response: {str(e)}")
+            logger.error("Error parsing JSON response: {str(e)}", )
             return (self._clean_answer(answer_text), "")
 
     def _clean_answer(self, answer: str) -> str:
@@ -521,7 +521,7 @@ class HaystackRAGPipeline(BasePipeline):
             }
 
         except Exception as e:
-            logger.error(f"Failed to gather pipeline stats: {str(e)}")
+            logger.error("Failed to gather pipeline stats: {str(e)}", )
             return {
                 "status": {
                     "status": "error",
@@ -562,7 +562,7 @@ class HaystackRAGPipeline(BasePipeline):
             logger.info("Pipeline cleaned up successfully")
 
         except Exception as e:
-            logger.error(f"Cleanup failed: {str(e)}")
+            logger.error("Cleanup failed: {str(e)}", )
 
     def __del__(self):
         """Cleanup on deletion"""
@@ -570,4 +570,4 @@ class HaystackRAGPipeline(BasePipeline):
             try:
                 self.executor.shutdown(wait=False)
             except Exception as e:
-                logger.error(f"Error during executor shutdown: {str(e)}")
+                logger.error("Error during executor shutdown: {str(e)}", )

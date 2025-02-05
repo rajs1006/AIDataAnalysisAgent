@@ -1,13 +1,12 @@
+from app.core.logging_config import get_logger
 from typing import List
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from haystack import Document
 from haystack.components.writers import DocumentWriter
-import logging
-
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class AsyncDocumentWriter(DocumentWriter):
     def __init__(self, document_store, **kwargs):
         super().__init__(document_store=document_store, **kwargs)
@@ -31,7 +30,7 @@ class AsyncDocumentWriter(DocumentWriter):
             return {"documents_written": len(documents)}
 
         except Exception as e:
-            logger.error(f"Document writing failed: {str(e)}")
+            logger.error("Document writing failed: {str(e)}", )
             raise
 
     async def cleanup(self):
@@ -40,7 +39,7 @@ class AsyncDocumentWriter(DocumentWriter):
             try:
                 self.executor.shutdown(wait=True)
             except Exception as e:
-                logger.error(f"Error during writer cleanup: {str(e)}")
+                logger.error("Error during writer cleanup: {str(e)}", )
 
     def __del__(self):
         """Cleanup executor on deletion"""
@@ -48,4 +47,4 @@ class AsyncDocumentWriter(DocumentWriter):
             try:
                 self.executor.shutdown(wait=False)
             except Exception as e:
-                logger.error(f"Error during writer executor shutdown: {str(e)}")
+                logger.error("Error during writer executor shutdown: {str(e)}", )

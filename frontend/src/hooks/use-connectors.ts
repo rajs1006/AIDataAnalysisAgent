@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { connectorService } from "@/lib/api/connector";
-import { ConnectorType, Connector } from "@/lib/types/connectors";
+import { ConnectorType, Connector } from "@/lib/store/types/connectors";
 
 export function useConnectors() {
   const [setupDialogOpen, setSetupDialogOpen] = useState(false);
@@ -19,21 +19,24 @@ export function useConnectors() {
   });
 
   // Memoized active connector check
-  const hasActiveConnector = useMemo(() => 
-    connectors.some((c) => c.status === "active" || c.status === "connected"),
+  const hasActiveConnector = useMemo(
+    () =>
+      connectors.some((c) => c.status === "active" || c.status === "connected"),
     [connectors]
   );
 
   // Mutations for connector operations
   const updateConnectorMutation = useMutation({
-    mutationFn: (connector: Connector) => connectorService.updateConnector(connector),
+    mutationFn: (connector: Connector) =>
+      connectorService.updateConnector(connector),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["connectors"] });
     },
   });
 
   const deleteConnectorMutation = useMutation({
-    mutationFn: (connector: Connector) => connectorService.deleteConnector(connector),
+    mutationFn: (connector: Connector) =>
+      connectorService.deleteConnector(connector),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["connectors"] });
     },

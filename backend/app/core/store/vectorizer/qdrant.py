@@ -1,5 +1,5 @@
+from app.core.logging_config import get_logger
 from datetime import datetime
-import logging
 from typing import Dict, Any, Optional, List
 import uuid
 
@@ -15,9 +15,9 @@ from qdrant_client.models import PointIdsList
 from app.core.vector.text import TextVectorizer
 from app.models.schema.vector import VectorDocument
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class VectorStore:
     def __init__(self, qdrant_client: QdrantClient):
         self.client = qdrant_client
@@ -51,9 +51,9 @@ class VectorStore:
                         distance=Distance.COSINE,
                     ),
                 )
-                logger.info(f"Created new collection: {collection_name}")
+                logger.info("Created new collection: {collection_name}", )
         except Exception as e:
-            logger.error(f"Failed to ensure collection: {str(e)}")
+            logger.error("Failed to ensure collection: {str(e)}", )
             raise
 
     async def store_document(
@@ -106,11 +106,11 @@ class VectorStore:
             return point_ids
 
         except Exception as e:
-            logger.error(f"Failed to store document in vector database: {str(e)}")
+            logger.error("Failed to store document in vector database: {str(e)}", )
             raise
 
         except Exception as e:
-            logger.error(f"Failed to store document in vector database: {str(e)}")
+            logger.error("Failed to store document in vector database: {str(e)}", )
             raise
 
     async def search_similar(
@@ -136,7 +136,7 @@ class VectorStore:
             #     ]
             # )
             for _, (t, vector, _) in enumerate(query_vector_metadata):
-                logger.debug(f"answering user query : {query}")
+                logger.debug("answering user query : {query}", )
 
                 results = self.client.search(
                     collection_name=collection_name,
@@ -162,7 +162,7 @@ class VectorStore:
                 ]
 
         except Exception as e:
-            logger.error(f"Failed to search vector database: {str(e)}")
+            logger.error("Failed to search vector database: {str(e)}", )
             raise
 
     def delete_document(self, collection_name: str, doc_id: str) -> bool:
@@ -175,8 +175,8 @@ class VectorStore:
             )
             return True
         except Exception as e:
-            logger.error(f"Failed to delete document: {str(e)}")
-            logger.error(f"Original ID: {doc_id}")
+            logger.error("Failed to delete document: {str(e)}", )
+            logger.error("Original ID: {doc_id}", )
             raise
 
     def _get_collection_info(self, collection_name: str):
@@ -184,5 +184,5 @@ class VectorStore:
         try:
             return self.client.get_collection(collection_name)
         except Exception as e:
-            logger.error(f"Failed to get collection info: {str(e)}")
+            logger.error("Failed to get collection info: {str(e)}", )
             raise

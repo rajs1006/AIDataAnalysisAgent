@@ -2,7 +2,11 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { folderService } from "@/lib/api/folder";
 import { onedriveService } from "@/lib/api/onedrive";
-import { Connector, ConnectorType, CreateConnectorDto } from "@/lib/types/connectors";
+import {
+  Connector,
+  ConnectorType,
+  CreateConnectorDto,
+} from "@/lib/types/connectors";
 import { useConnectors } from "@/hooks/use-connectors";
 import {
   Dialog,
@@ -97,14 +101,6 @@ export function ConnectorGrid() {
 
         // Your service will handle FormData creation
         await folderService.createConnector(connectorData);
-
-        // Create the connector first
-        // const response = await folderService.createConnector({
-        //   name: formData.get("name") as string,
-        //   connector_type: selectedConnector,
-        //   platform_info: JSON.parse(formData.get("platform_info") as string),
-        //   // files: files, // You'll need to update your API to handle file uploads
-        // });
 
         toast({
           title: "Success",
@@ -210,25 +206,26 @@ export function ConnectorGrid() {
       name: "Local Folder",
       icon: FolderUp,
       description: "Connect to files on your device",
-      gradient: "from-purple-500 to-indigo-601",
-      hoverGradient: "from-purple-600 to-indigo-701",
+      gradient: "from-[#2C5530]/5 to-[#A7C4AA]/10",
+      hoverGradient: "from-[#A7C4AA]/20 to-[#2C5530]/20",
     },
     {
       type: ConnectorType.ONEDRIVE,
       name: "OneDrive",
       icon: Cloud,
       description: "Connect to your OneDrive files",
-      gradient: "from-purple-500 to-cyan-601",
-      hoverGradient: "from-purple-600 to-cyan-701",
+      gradient: "from-[#2C5530]/5 to-[#A7C4AA]/10",
+      hoverGradient: "from-[#A7C4AA]/20 to-[#2C5530]/20",
     },
   ];
 
   return (
-    <div className="p-8 bg-gray-900 rounded-xl">
+    <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 backdrop-blur-lg rounded-2xl shadow-2xl border border-gray-100/50">
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4"
       >
         {connectorTypes.map(
           ({
@@ -258,10 +255,15 @@ export function ConnectorGrid() {
               >
                 <button
                   onClick={() => handleConnectorClick(type)}
-                  className={`w-full h-full flex flex-col p-8 rounded-xl border border-gray-700 transition-all duration-300 
-                  bg-gradient-to-br ${
-                    isHovered ? hoverGradient : gradient
-                  } shadow-lg`}
+                  className={`w-full h-full flex flex-col p-4 sm:p-5 
+                  rounded-2xl border-2 transition-all duration-500 group
+                  ${isHovered 
+                    ? 'bg-gradient-to-br from-white via-gray-50 to-gray-100/50 border-gray-300/50 shadow-2xl' 
+                    : 'bg-white border-gray-200/50 shadow-xl'}
+                  hover:scale-[1.02] active:scale-[0.98] 
+                  touch-manipulation 
+                  ring-1 ring-gray-100/30 
+                  focus:outline-none focus:ring-2 focus:ring-gray-300/50`}
                 >
                   <AnimatePresence>
                     {loadingConnectorType === type ? (
@@ -269,10 +271,10 @@ export function ConnectorGrid() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute top-3 right-3 flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full"
+                        className="absolute top-2 right-2 flex items-center gap-2 px-2 py-1 bg-[#2C5530]/10 backdrop-blur-sm rounded-full"
                       >
-                        <Loader2 className="h-4 w-4 animate-spin text-white" />
-                        <span className="text-xs font-medium text-white">
+                        <Loader2 className="h-3 w-3 animate-spin text-[#2C5530]" />
+                        <span className="text-xs font-medium text-[#2C5530]">
                           Setting up...
                         </span>
                       </motion.div>
@@ -282,9 +284,9 @@ export function ConnectorGrid() {
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
-                          className="absolute top-3 right-3 px-3 py-1 bg-green-500/20 backdrop-blur-sm rounded-full"
+                          className="absolute top-2 right-2 px-2 py-1 bg-[#2C5530]/20 backdrop-blur-sm rounded-full"
                         >
-                          <span className="text-xs font-medium text-green-300">
+                          <span className="text-xs font-medium text-[#2C5530]">
                             Active
                           </span>
                         </motion.div>
@@ -292,23 +294,32 @@ export function ConnectorGrid() {
                     )}
                   </AnimatePresence>
 
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="p-3 bg-white/10 rounded-lg">
-                      <Icon className="h-6 w-6 text-white" />
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className={`p-2.5 rounded-xl transition-all duration-300 
+                      ${isHovered ? 'bg-gray-200/50 scale-105' : 'bg-gray-100/50'}`}>
+                      <Icon className={`h-5 w-5 
+                        ${isHovered ? 'text-gray-900' : 'text-gray-600'} 
+                        transition-all duration-300 group-hover:scale-110`} />
                     </div>
-                    <span className="text-lg font-semibold text-white">
+                    <span className={`text-sm font-semibold truncate max-w-[150px] 
+                      ${isHovered ? 'text-gray-900 tracking-tight' : 'text-gray-700'} 
+                      transition-all duration-300`}>
                       {name}
                     </span>
                   </div>
 
-                  <p className="text-sm text-gray-200 opacity-90">
+                  <p className={`text-xs truncate opacity-70 
+                    ${isHovered ? 'text-gray-800 tracking-wide' : 'text-gray-600'} 
+                    transition-all duration-300`}>
                     {description}
                   </p>
 
                   {!isActive && (
-                    <div className="mt-4 flex items-center gap-2 text-white/80">
-                      <Plus className="h-4 w-4" />
-                      <span className="text-sm">Add Connector</span>
+                    <div className={`mt-3 flex items-center gap-2 opacity-70 
+                      ${isHovered ? 'text-gray-900' : 'text-gray-600'} 
+                      transition-colors duration-300`}>
+                      <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform" />
+                      <span className="text-xs font-medium">Add Connector</span>
                     </div>
                   )}
                 </button>
@@ -323,9 +334,11 @@ export function ConnectorGrid() {
                       setActiveConnector(existingConnector);
                       setDeleteDialogOpen(true);
                     }}
-                    className="absolute top-3 right-3 p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 transition-colors"
+                    className="absolute top-3 right-3 p-1.5 rounded-full 
+                      bg-red-500/10 hover:bg-red-500/20 
+                      transition-all duration-300 group"
                   >
-                    <X className="h-4 w-4 text-red-300" />
+                    <X className="h-4 w-4 text-red-500 group-hover:rotate-90 transition-transform" />
                   </motion.button>
                 )}
               </motion.div>
@@ -334,11 +347,10 @@ export function ConnectorGrid() {
         )}
       </motion.div>
 
-      {/* Dialogs remain the same */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] bg-gray-900 text-white">
+        <DialogContent className="w-[95vw] sm:max-w-[95vw] md:max-w-[85vw] lg:max-w-[75vw] max-h-[95vh] overflow-y-auto bg-white/90 backdrop-blur-sm text-[#2C5530] border-[#2C5530]/20 rounded-lg p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="font-medium">
               Add{" "}
               {selectedConnector
                 ?.split("_")
@@ -346,35 +358,35 @@ export function ConnectorGrid() {
                 .join(" ")}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleConnectorSubmit} className="space-y-4">
+          <form onSubmit={handleConnectorSubmit} className="space-y-3 text-[#2C5530]">
             {renderConnectorForm()}
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="bg-gray-900 text-white">
+        <DialogContent className="w-[95vw] sm:max-w-[95vw] md:max-w-[85vw] lg:max-w-[75vw] bg-white/90 backdrop-blur-sm text-[#2C5530] border-[#2C5530]/20 rounded-lg p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <AlertTriangle className="h-4 w-4 text-red-500" />
               Delete Connector
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-[#2C5530]/70">
               Are you sure you want to delete this connector?
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-2">
             <Button
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
-              className="bg-transparent text-white hover:bg-gray-800"
+              className="bg-transparent text-[#2C5530] hover:bg-[#A7C4AA]/10 border-[#2C5530]"
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={handleDeleteConnector}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-[#2C5530] hover:bg-[#2C5530]/90 text-[#F5F5F0]"
             >
               Delete
             </Button>

@@ -79,6 +79,14 @@ class ConnectorMetadata(BaseModel):
     error_message: Optional[str] = None
     total_chunks: Optional[int] = None
 
+    # blob metadata
+    blob_file_id: Optional[str] = None
+    blob_content_type: Optional[str] = None
+    blob_size: Optional[int] = None
+    blob_filename: Optional[str] = None
+    blob_gcs_bucket: Optional[str] = None
+    blob_gcs_path: Optional[str] = None
+
     class Config:
         use_enum_values = True
         json_encoders = {datetime: lambda v: int(v.timestamp() * 1000) if v else None}
@@ -91,3 +99,43 @@ class ConnectorUpdate(BaseModel):
 
     class Config:
         extra = "forbid"
+
+
+# New schema for frontend representation
+class ConnectorFrontend(BaseModel):
+    config: Optional[dict] = None
+    connector_type: ConnectorType
+    created_at: str
+    description: Optional[str] = None
+    enabled: bool
+    error_message: Optional[str] = None
+    last_sync: Optional[str] = None
+    name: str
+    path: Optional[str] = None
+    status: str
+    supported_extensions: List[str]
+    updated_at: str
+    user_id: str
+    connector_id: str
+
+    @classmethod
+    def from_database_model(cls, db_model):
+        """
+        Convert a database Connectors model to frontend representation
+        """
+        return cls(
+            config=None,
+            connector_type=db_model.connector_type,
+            created_at=db_model.created_at.isoformat() if db_model.created_at else None,
+            description=None,
+            enabled=db_model.enabled,
+            error_message=None,
+            last_sync=db_model.last_sync.isoformat() if db_model.last_sync else None,
+            name=db_model.name,
+            path=None,
+            status=db_model.status,
+            supported_extensions=db_model.supported_extensions,
+            updated_at=db_model.updated_at.isoformat() if db_model.updated_at else None,
+            user_id=db_model.user_id,
+            connector_id=str(db_model.id),
+        )

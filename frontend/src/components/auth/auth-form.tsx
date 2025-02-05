@@ -9,8 +9,7 @@ import { useRouter } from "next/navigation";
 import * as z from "zod";
 
 import { useAppDispatch } from "@/lib/store/store";
-import { setUser, setToken } from "@/lib/store/auth";
-import { authService } from "@/lib/api/auth";
+import { loginUser, registerUser } from "@/lib/store/auth";
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -42,22 +41,23 @@ export function AuthForm() {
     try {
       if (isLogin) {
         // Login flow
-        const { token, user } = await authService.login(
-          data.email,
-          data.password
-        );
-        dispatch(setToken(token));
-        dispatch(setUser(user));
-        // Optionally set cookie for SSR or other purposes
-        document.cookie = `token=${token}; path=/`;
+        await dispatch(
+          loginUser({
+            email: data.email,
+            password: data.password,
+          })
+        ).unwrap();
         router.push("/dashboard");
       } else {
         // Registration flow
-        await authService.register({
-          email: data.email,
-          password: data.password,
-          full_name: data.name,
-        });
+        await dispatch(
+          registerUser({
+            name: data.name || "",
+            email: data.email,
+            userType: "individual",
+          })
+        ).unwrap();
+
         toast({
           title: "Success",
           description: "Registration successful! Please log in.",
@@ -93,7 +93,8 @@ export function AuthForm() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             className="text-3xl font-extrabold text-gray-100"
-          >Andrual
+          >
+            Andrual
           </motion.h2>
           <motion.p
             initial={{ opacity: 0 }}
@@ -101,9 +102,7 @@ export function AuthForm() {
             transition={{ delay: 0.3 }}
             className="mt-2 text-sm text-gray-400"
           >
-            {isLogin
-              ? "Sign in to your account"
-              : "Create your account"}
+            {isLogin ? "Sign in to your account" : "Create your account"}
           </motion.p>
         </div>
 

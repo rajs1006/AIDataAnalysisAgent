@@ -1,12 +1,12 @@
+from app.core.logging_config import get_logger
 from typing import List, Dict, Any, Optional, Union
-import logging
 from haystack.nodes.base import BaseComponent
 from haystack.schema import Document
 from sentence_transformers import CrossEncoder
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class ReRankerNode(BaseComponent):
     """Node for reranking documents using cross-encoder"""
 
@@ -58,7 +58,7 @@ class ReRankerNode(BaseComponent):
             return {"documents": scored_docs}
 
         except Exception as e:
-            logger.error(f"Document reranking failed: {str(e)}")
+            logger.error("Document reranking failed: {str(e)}", )
             return {"documents": documents}  # Return original documents on error
 
 
@@ -157,6 +157,6 @@ class DocumentMergerNode(BaseComponent):
             return {"documents": merged_docs}
 
         except Exception as e:
-            logger.error(f"Document merging failed: {str(e)}")
+            logger.error("Document merging failed: {str(e)}", )
             # Return documents from first source on error
             return {"documents": next(iter(documents_dict.values()), [])}

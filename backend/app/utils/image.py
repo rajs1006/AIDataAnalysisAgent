@@ -1,14 +1,14 @@
+from app.core.logging_config import get_logger
 from pydantic import BaseModel
 import io
 import base64
 import imghdr
 from PIL import Image, UnidentifiedImageError
-import logging
 from typing import Optional, Union
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class ImageValidator:
 
     def validate_and_process_image(self, image_data: dict) -> Optional[Image.Image]:
@@ -26,7 +26,7 @@ class ImageValidator:
             try:
                 image_bytes = base64.b64decode(content)
             except Exception as e:
-                logger.error(f"Failed to decode base64: {str(e)}")
+                logger.error("Failed to decode base64: {str(e)}", )
                 return None
 
             # Create PIL Image
@@ -45,9 +45,9 @@ class ImageValidator:
 
                 return img
             except Exception as e:
-                logger.error(f"Failed to create PIL Image: {str(e)}")
+                logger.error("Failed to create PIL Image: {str(e)}", )
                 return None
 
         except Exception as e:
-            logger.error(f"Image validation failed: {str(e)}", exc_info=True)
+            logger.error("Image validation failed: {str(e)}", exc_info=True)
             return None

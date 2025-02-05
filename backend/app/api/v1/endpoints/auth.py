@@ -1,38 +1,140 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
+
+from app.core.dependencies.auth import get_current_user
+from app.models.database.users import User
+from app.models.schema.user import (
+    UserRegistrationRequest,
+    UserRegistrationResponse,
+    UserVerificationRequest,
+    UserVerificationResponse,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+)
+from app.services.auth.service import AuthService
+from app.core.dependencies.service import get_auth_service
 
 from app.core.dependencies.auth import get_current_user, get_current_user_api
 from app.models.schema.user import (
-    UserCreate,
     UserResponse,
     Token,
-    RegistrationResponse,
     TokenValidationResponse,
 )
-from app.services.auth.service import AuthService
-from app.models.database.users import User
-from app.core.dependencies import get_auth_service
 from app.models.schema.connectors.onedrive import (
     OAuthCallbackRequest,
+)
+from app.core.exceptions.auth_exceptions import (
+    AuthenticationError,
+    TokenError,
+    EmailDeliveryError,
+    OAuthError,
+    AccountDisabledError,
 )
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=RegistrationResponse)
-async def register(
-    user_data: UserCreate,
+@router.post("/register", response_model=UserRegistrationResponse)
+async def register_user(
+    registration_data: UserRegistrationRequest,
     auth_service: AuthService = Depends(get_auth_service),
-):
+) -> UserRegistrationResponse:
+    """
+    Register a new user
+
+    :param registration_data: User registration details
+    :return: Registration response
+    """
     try:
-        message, user = await auth_service.register_user(user_data)
-        return {"message": message, "user": user}
-    except HTTPException as e:
-        raise e
+        response = await auth_service.register_user(registration_data)
+        return UserRegistrationResponse(**response)
+    except AccountDisabledError as e:
+        raise HTTPException(
+            status_code=e.status_code, 
+            detail={
+                "code": e.error_code, 
+                "message": str(e),
+                "admin_email": getattr(e, 'admin_email', None)
+            }
+        )
+    except EmailDeliveryError as e:
+        raise HTTPException(
+            status_code=e.status_code, 
+            detail={
+                "code": e.error_code,
+                "message": str(e)
+            }
+        )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred during registration",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=str(e)
+        )
+
+
+@router.post("/verify", response_model=UserVerificationResponse)
+async def verify_user(
+    verification_data: UserVerificationRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> UserVerificationResponse:
+    """
+    Verify user email or reset password
+
+    :param verification_data: Verification details
+    :return: Verification response
+    """
+    try:
+        response = await auth_service.verify_user(verification_data)
+        return UserVerificationResponse(**response)
+    except TokenError as e:
+        raise HTTPException(
+            status_code=e.status_code, 
+            detail={
+                "code": e.error_code,
+                "message": str(e)
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=str(e)
+        )
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+async def forgot_password(
+    forgot_password_data: ForgotPasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> ForgotPasswordResponse:
+    """
+    Initiate password reset process
+
+    :param forgot_password_data: Forgot password request details
+    :return: Password reset response
+    """
+    try:
+        response = await auth_service.forgot_password(forgot_password_data)
+        return ForgotPasswordResponse(**response)
+    except TokenError as e:
+        raise HTTPException(
+            status_code=e.status_code, 
+            detail={
+                "code": e.error_code,
+                "message": str(e)
+            }
+        )
+    except EmailDeliveryError as e:
+        raise HTTPException(
+            status_code=e.status_code, 
+            detail={
+                "code": e.error_code,
+                "message": str(e)
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=str(e)
         )
 
 
@@ -46,8 +148,14 @@ async def login(
             form_data.username, form_data.password
         )
         return {"access_token": access_token, "token_type": token_type}
-    except HTTPException as e:
-        raise e
+    except AuthenticationError as e:
+        raise HTTPException(
+            status_code=e.status_code, 
+            detail={
+                "code": e.error_code,
+                "message": str(e)
+            }
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -85,8 +193,15 @@ async def oauth_callback(
     """Handle OAuth callback from Microsoft"""
     try:
         return await auth_service.handle_oauth_callback(current_user, callback_data)
+    except OAuthError as e:
+        raise HTTPException(
+            status_code=e.status_code, 
+            detail={
+                "code": e.error_code,
+                "message": str(e)
+            }
+        )
     except Exception as e:
-        # logger.error(f"OAuth callback failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"OAuth callback failed: {str(e)}",

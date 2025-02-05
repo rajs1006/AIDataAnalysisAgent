@@ -1,7 +1,6 @@
+from app.core.logging_config import get_logger
 from fastapi import APIRouter, Depends, status, Request, HTTPException
 from typing import List
-import logging
-
 from app.core.dependencies import (
     get_current_user,
     get_vector_store,
@@ -17,7 +16,6 @@ from app.models.schema.connectors.onedrive import (
 from app.core.store.vectorizer import VectorStore
 from app.crud.onedrive import OneDriveCRUD
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -34,7 +32,7 @@ async def create_connector(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error creating connector: {str(e)}")
+        logger.error("Error creating connector: {str(e)}", )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create connector: {str(e)}",
@@ -52,7 +50,7 @@ async def webhook(
         await service.process_webhook(data)
         return {"status": "success"}
     except Exception as e:
-        logger.error(f"Webhook processing failed: {str(e)}")
+        logger.error("Webhook processing failed: {str(e)}", )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process webhook: {str(e)}",
@@ -70,7 +68,7 @@ async def sync_connector(
         await service.sync_folder(connector_id, current_user.id)
         return {"status": "success"}
     except Exception as e:
-        logger.error(f"Manual sync failed: {str(e)}")
+        logger.error("Manual sync failed: {str(e)}", )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to sync connector: {str(e)}",
@@ -99,7 +97,7 @@ async def get_connector_status(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting status: {str(e)}")
+        logger.error("Error getting status: {str(e)}", )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get status: {str(e)}",
@@ -117,7 +115,7 @@ async def delete_connector(
         await service.delete_connector(connector_id, str(current_user.id))
         return {"status": "success"}
     except Exception as e:
-        logger.error(f"Error deleting connector: {str(e)}")
+        logger.error("Error deleting connector: {str(e)}", )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete connector: {str(e)}",

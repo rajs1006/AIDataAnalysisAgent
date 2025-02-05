@@ -1,4 +1,4 @@
-import logging
+from app.core.logging_config import get_logger
 import uuid
 import io
 import pytesseract
@@ -21,9 +21,9 @@ from app.models.schema.context.image import ImageMetadata
 from app.models.schema.base.connector import FileStatus
 from app.utils.image import ImageValidator
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class ImageService:
     """Dynamic image processing with GPT-4 Vision"""
 
@@ -125,7 +125,7 @@ class ImageService:
             return {"content": analysis_result, "metadata": metadata}
 
         except Exception as e:
-            logger.error(f"Error in image analysis: {str(e)}")
+            logger.error("Error in image analysis: {str(e)}", )
             raise
 
     def _generate_searchable_text(self, analysis_result: Dict) -> str:

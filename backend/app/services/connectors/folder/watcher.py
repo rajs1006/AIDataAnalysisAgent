@@ -1,7 +1,7 @@
+from app.core.logging_config import get_logger
 import os
 import tempfile
 import subprocess
-import logging
 from pathlib import Path
 import shutil
 from typing import Tuple
@@ -9,9 +9,9 @@ from app.models.schema.watcher import BuildPaths
 from app.core.config.config import settings
 import tkinter
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class ExecutableBuilder:
     def __init__(self, connector, api_key):
         self.connector = connector
@@ -45,7 +45,7 @@ PORT={str(settings.WATCHER_PORT)}
             with open(env_path, "w") as f:
                 f.write(env_content)
         except Exception as e:
-            logger.error(f"Failed to write .env file: {str(e)}")
+            logger.error("Failed to write .env file: {str(e)}", )
             raise
 
     async def _verify_dependencies(self):
@@ -137,11 +137,11 @@ PORT={str(settings.WATCHER_PORT)}
             with open(final_path, "rb") as f:
                 executable_bytes = f.read()
 
-            logger.info(f"Successfully built executable: {executable_name}")
+            logger.info("Successfully built executable: {executable_name}", )
             return executable_bytes, executable_name
 
         except Exception as e:
-            logger.error(f"Failed to build executable: {str(e)}")
+            logger.error("Failed to build executable: {str(e)}", )
             raise
 
         # finally:
@@ -150,7 +150,7 @@ PORT={str(settings.WATCHER_PORT)}
         #         try:
         #             shutil.rmtree(paths.temp_dir)
         #         except Exception as e:
-        #             logger.warning(f"Failed to clean up temporary directory: {str(e)}")
+        #             logger.warning("Failed to clean up temporary directory: {str(e)}", )
 
     async def _run_build_command(
         self, command: list, cwd: str
@@ -169,15 +169,15 @@ PORT={str(settings.WATCHER_PORT)}
             if result.stderr and not result.stderr.strip().endswith(
                 "completed successfully."
             ):
-                logger.warning(f"Build warnings/errors: {result.stderr}")
+                logger.warning("Build warnings/errors: {result.stderr}", )
 
             return result
 
         except subprocess.CalledProcessError as e:
-            logger.error(f"PyInstaller build failed: {e.stderr}")
+            logger.error("PyInstaller build failed: {e.stderr}", )
             raise RuntimeError(f"PyInstaller build failed: {e.stderr}")
         except Exception as e:
-            logger.error(f"Build process failed: {str(e)}")
+            logger.error("Build process failed: {str(e)}", )
             raise RuntimeError(f"Build process failed: {str(e)}")
 
     @staticmethod
@@ -198,5 +198,5 @@ PORT={str(settings.WATCHER_PORT)}
             return True
 
         except Exception as e:
-            logger.error(f"Failed to verify executable: {str(e)}")
+            logger.error("Failed to verify executable: {str(e)}", )
             return False

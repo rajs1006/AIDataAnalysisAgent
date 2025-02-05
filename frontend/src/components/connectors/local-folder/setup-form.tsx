@@ -80,13 +80,13 @@ export const LocalFolderForm = ({
           placeholder="My Local Folder"
           required
           disabled={isSubmitting}
-          className="bg-[var(--input-bg)]"
+          className="bg-[#F5F5F0] border-[#2C5530] text-[#2C5530] focus:ring-[#2C5530]"
         />
       </div>
 
       <div className="space-y-2">
         <Label>Select Files</Label>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+        <div className="border-2 border-dashed border-[#2C5530] rounded-lg p-6 text-center">
           <input
             type="file"
             multiple
@@ -99,8 +99,8 @@ export const LocalFolderForm = ({
             htmlFor="file-upload"
             className="cursor-pointer flex flex-col items-center gap-2"
           >
-            <Upload className="w-8 h-8 text-gray-400" />
-            <span className="text-sm text-gray-500">
+            <Upload className="w-8 h-8 text-[#2C5530]" />
+            <span className="text-sm text-[#2C5530]">
               Click to select files or drag and drop
             </span>
           </label>
@@ -113,21 +113,21 @@ export const LocalFolderForm = ({
               {files.map((file, index) => (
                 <div
                   key={index}
-                  className="flex items-center bg-[var(--background)] rounded"
+                  className="flex items-center bg-[#F5F5F0] border border-[#2C5530]/20 rounded"
                 >
                   <div className="flex-shrink-0 p-2">
-                    <File className="w-4 h-4" />
+                    <File className="w-4 h-4 text-[#2C5530]" />
                   </div>
 
                   <div className="flex-1 min-w-0 w-64">
                     <div className="overflow-x-auto overflow-y-hidden scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                      <div className="truncate whitespace-nowrap text-slate-500">
+                      <div className="truncate whitespace-nowrap text-[#2C5530]">
                         {file.name}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex-shrink-0 px-2 text-xs text-gray-500">
+                    <div className="flex-shrink-0 px-2 text-xs text-[#2C5530]/70">
                     ({(file.size / 1024).toFixed(1)} KB)
                   </div>
 
@@ -137,7 +137,7 @@ export const LocalFolderForm = ({
                     size="sm"
                     onClick={() => handleRemoveFile(file)}
                     disabled={isSubmitting}
-                    className="flex-shrink-0 h-8 w-8 p-0 text-slate-800"
+                    className="flex-shrink-0 h-8 w-8 p-0 text-[#2C5530]"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -162,7 +162,7 @@ export const LocalFolderForm = ({
       <Button
         onClick={handleSubmit}
         type="submit"
-        className="w-full"
+        className="w-full bg-[#2C5530] text-[#F5F5F0] hover:bg-[#2C5530]/90"
         disabled={isSubmitting}
       >
         Create Connector

@@ -4,33 +4,33 @@
 
 @layer base {
   :root {
-    --background: 225 9% 9%;
-    --foreground: 210 40% 98%;
+    --background: 60 20% 96%; /* #F5F5F0 */
+    --foreground: 147 32% 15%; /* #1A331E */
 
-    --card: 228 9% 11%;
-    --card-foreground: 210 40% 98%;
+    --primary: 147 32% 25%; /* #2C5530 */
+    --primary-foreground: 60 20% 96%;
 
-    --popover: 228 9% 11%;
-    --popover-foreground: 210 40% 98%;
+    --secondary: 120 15% 71%; /* #A7C4AA */
+    --secondary-foreground: 147 32% 15%;
 
-    --primary: 252 100% 69%;
-    --primary-foreground: 0 0% 100%;
+    --muted: 120 15% 71%;
+    --muted-foreground: 147 32% 15%;
 
-    --secondary: 228 9% 15%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 228 9% 15%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 228 9% 15%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 120 15% 71%;
+    --accent-foreground: 147 32% 15%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 60 20% 96%;
 
-    --border: 228 9% 15%;
-    --input: 228 9% 15%;
-    --ring: 252 100% 69%;
+    --card: 60 20% 96%;
+    --card-foreground: 147 32% 15%;
+
+    --popover: 60 20% 96%;
+    --popover-foreground: 147 32% 15%;
+
+    --border: 147 32% 25%;
+    --input: 147 32% 25%;
+    --ring: 147 32% 25%;
 
     --radius: 0.5rem;
   }
@@ -43,6 +43,7 @@ body {
   line-height: 1.6;
 }
 
+/* Reusable Component Styles */
 .card {
   background-color: hsl(var(--card));
   color: hsl(var(--card-foreground));
@@ -51,31 +52,19 @@ body {
   border-radius: var(--radius);
 }
 
-.auth-container {
-  background: linear-gradient(
-    to bottom right,
-    hsl(252, 100%, 69%, 0.1),
-    hsl(252, 100%, 69%, 0.05)
-  );
-}
-
-.input-dark {
-  background-color: hsl(var(--secondary));
+.input-base {
+  background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   border: 1px solid hsl(var(--border));
 }
 
-.input-dark:focus {
+.input-base:focus {
   border-color: hsl(var(--ring));
   box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
 }
 
 .button-primary {
-  background: linear-gradient(
-    to right,
-    hsl(252, 100%, 69%),
-    hsl(252, 100%, 60%)
-  );
+  background-color: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   transition: all 0.2s ease;
 }
@@ -85,17 +74,6 @@ body {
   transform: translateY(-1px);
 }
 
-/* Dashboard specific styles */
-.dashboard-header {
-  background: hsl(var(--card));
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.dashboard-sidebar {
-  background: hsl(var(--card));
-  border-right: 1px solid hsl(var(--border));
-}
-
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 8px;
@@ -103,11 +81,11 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--secondary));
+  background: hsl(var(--background));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground));
+  background: hsl(var(--secondary));
   border-radius: 4px;
 }
 
@@ -115,60 +93,74 @@ body {
   background: hsl(var(--primary));
 }
 
-@layer base {
-  .toast-root {
-    @apply fixed flex items-center justify-between gap-4 p-4 rounded-lg shadow-lg;
-    @apply bg-background border border-border;
-    @apply data-[state=open]:animate-in data-[state=closed]:animate-out;
-    @apply data-[swipe=end]:animate-out data-[state=closed]:fade-out-80;
-    @apply slide-in-from-right-full slide-out-to-right-full;
-    @apply duration-300;
-  }
-
-  .toast-viewport {
-    @apply fixed top-0 right-0 flex flex-col gap-2 p-4 w-[420px] max-w-[100vw] m-0 list-none z-[9999];
-    @apply outline-none;
-  }
-
-  .toast-title {
-    @apply text-sm font-semibold;
-  }
-
-  .toast-description {
-    @apply text-sm opacity-90;
-  }
-
-  .toast-close {
-    @apply absolute right-2 top-2 rounded-md p-1;
-    @apply text-gray-500 opacity-0 transition-opacity;
-    @apply hover:text-gray-700 focus:opacity-100;
-    @apply group-hover:opacity-100;
-  }
-
-  /* Variant specific styles */
-  .toast-root[data-variant='destructive'] {
-    @apply bg-destructive text-white border-red-800;
-    @apply group relative;
-  }
-
-  .toast-root[data-variant='destructive'] .toast-close {
-    @apply text-white/70 hover:text-white;
-    @apply focus:ring-2 focus:ring-red-500;
-  }
-
-  /* Progress bar for long duration toasts */
-  .toast-root[data-variant='destructive']::after {
-    content: '';
-    @apply absolute bottom-0 left-0 h-1 bg-white/20;
-    animation: progress 60s linear;
-  }
+/* Markdown Content Styling */
+.markdown-content {
+  @apply text-sm text-[#2C5530]/80;
 }
 
-@keyframes progress {
-  from {
-    width: 100%;
-  }
-  to {
-    width: 0%;
-  }
+.markdown-content p {
+  @apply mb-4 last:mb-0;
+}
+
+.markdown-content ul {
+  @apply list-disc pl-6 mb-4 last:mb-0;
+}
+
+.markdown-content ol {
+  @apply list-decimal pl-6 mb-4 last:mb-0;
+}
+
+.markdown-content li {
+  @apply mb-1;
+}
+
+.markdown-content a {
+  @apply text-[#2C5530] underline hover:text-[#2C5530]/80;
+}
+
+.markdown-content code {
+  @apply bg-[#2C5530]/10 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+.markdown-content pre {
+  @apply bg-[#2C5530]/10 p-3 rounded-lg mb-4 last:mb-0 overflow-x-auto;
+}
+
+.markdown-content pre code {
+  @apply bg-transparent p-0;
+}
+
+.markdown-content blockquote {
+  @apply border-l-4 border-[#2C5530]/20 pl-4 italic mb-4 last:mb-0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  @apply font-semibold text-[#2C5530] mb-2;
+}
+
+.markdown-content h1 { @apply text-2xl; }
+.markdown-content h2 { @apply text-xl; }
+.markdown-content h3 { @apply text-lg; }
+.markdown-content h4 { @apply text-base; }
+.markdown-content h5 { @apply text-sm; }
+.markdown-content h6 { @apply text-xs; }
+
+/* Toast Styling */
+.toast-root {
+  @apply fixed flex items-center justify-between gap-4 p-4 rounded-lg shadow-lg;
+  @apply bg-background border border-border;
+  @apply data-[state=open]:animate-in data-[state=closed]:animate-out;
+  @apply data-[swipe=end]:animate-out data-[state=closed]:fade-out-80;
+  @apply slide-in-from-right-full slide-out-to-right-full;
+  @apply duration-300;
+}
+
+.toast-viewport {
+  @apply fixed top-0 right-0 flex flex-col gap-2 p-4 w-[420px] max-w-[100vw] m-0 list-none z-[9999];
+  @apply outline-none;
 }

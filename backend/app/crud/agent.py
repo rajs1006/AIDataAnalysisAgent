@@ -1,16 +1,16 @@
+from app.core.logging_config import get_logger
 # app/crud/agent.py
 
 from typing import List
-import logging
 from qdrant_client.http.models import Filter
 from beanie import PydanticObjectId
 from app.models.database.connectors.folder import BaseConnector
 from app.models.schema.agent import SearchContext
 from app.core.store.vectorizer import VectorStore
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class AgentCRUD:
     # def __init__(self, vector_store: VectorStore):
     #     self.vector_store = vector_store

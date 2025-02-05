@@ -67,7 +67,7 @@ export const OneDriveConnectorForm = ({
           placeholder="My OneDrive Connector"
           required
           disabled={isSubmitting}
-          className="bg-[var(--input-bg)]"
+          className="bg-white/50 border-[#2C5530]/20 text-[#2C5530] focus:ring-[#2C5530] focus:border-[#2C5530] placeholder:text-[#2C5530]/50"
         />
       </div>
 
@@ -86,7 +86,7 @@ export const OneDriveConnectorForm = ({
       <Button
         onClick={handleSubmit}
         type="submit"
-        className="w-full"
+        className="w-full bg-[#2C5530] text-[#F5F5F0] hover:bg-[#2C5530]/90"
         disabled={isSubmitting}
       >
         Create Connector

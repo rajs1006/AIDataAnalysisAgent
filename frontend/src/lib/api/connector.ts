@@ -11,7 +11,10 @@ import { boolean } from "zod";
 class ConnectorService {
   async getConnectors(): Promise<Connector[]> {
     const response = await fetch(`${API_URL}/connectors/`, {
-      headers: authService.getAuthHeader() as HeadersInit,
+      headers: {
+        "Content-Type": "application/json",
+        ...(authService.getAuthHeader() as HeadersInit),
+      },
     });
 
     if (!response.ok) {
@@ -29,7 +32,7 @@ class ConnectorService {
         ...(authService.getAuthHeader() as HeadersInit),
       },
       body: JSON.stringify({
-        id: String(connector._id),
+        id: String(connector.connector_id),
         enabled: Boolean(connector.enabled),
         status: String(connector.status),
       }),

@@ -1,7 +1,6 @@
+from app.core.logging_config import get_logger
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-import logging
-
 from haystack.document_stores import InMemoryDocumentStore
 from haystack.schema import Document
 from haystack.nodes import EmbeddingRetriever
@@ -9,9 +8,9 @@ from haystack.nodes import PreProcessor
 
 from app.core.store.vectorizer.base import BaseDocumentStore, MetadataValidator
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class VectorStore(BaseDocumentStore):
     """Haystack document store implementation"""
 
@@ -72,7 +71,7 @@ class VectorStore(BaseDocumentStore):
             return doc_id
 
         except Exception as e:
-            logger.error(f"Failed to store document: {str(e)}")
+            logger.error("Failed to store document: {str(e)}", )
             raise
 
     async def search_similar(
@@ -109,7 +108,7 @@ class VectorStore(BaseDocumentStore):
             return results
 
         except Exception as e:
-            logger.error(f"Search failed: {str(e)}")
+            logger.error("Search failed: {str(e)}", )
             raise
 
     async def delete_document(self, collection_name: str, doc_id: str) -> bool:
@@ -121,7 +120,7 @@ class VectorStore(BaseDocumentStore):
             )
             return True
         except Exception as e:
-            logger.error(f"Deletion failed: {str(e)}")
+            logger.error("Deletion failed: {str(e)}", )
             return False
 
     async def get_document(
@@ -141,7 +140,7 @@ class VectorStore(BaseDocumentStore):
                 return {"content": content, "metadata": metadata, "id": doc_id}
             return None
         except Exception as e:
-            logger.error(f"Document retrieval failed: {str(e)}")
+            logger.error("Document retrieval failed: {str(e)}", )
             return None
 
     async def update_document(
@@ -160,7 +159,7 @@ class VectorStore(BaseDocumentStore):
             await self.store_document(collection_name, doc_id, content, metadata)
             return True
         except Exception as e:
-            logger.error(f"Update failed: {str(e)}")
+            logger.error("Update failed: {str(e)}", )
             return False
 
     def __del__(self):

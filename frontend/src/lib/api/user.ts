@@ -1,6 +1,6 @@
 // src/lib/api/user.ts
 import { authService } from "./auth";
-import { UserUpdate } from "@/lib/types/auth";
+import { UserUpdate } from "@/lib/store/types/auth";
 import { API_URL } from "../utils";
 
 export const userService = {

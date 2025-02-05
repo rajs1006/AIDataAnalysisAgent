@@ -29,7 +29,7 @@ from app.crud.image import ImageAgentCRUD
 from app.crud.user import UserCRUD
 from app.crud.billing import BillingCRUD, ModelPricingCRUD
 from app.services.agent.service import AgentService
-from app.services.connectors.base import ConnectorService
+from app.services.connectors.service import ConnectorService
 from app.services.agent.image.service import ImageService
 from app.services.agent.rag.service import RagService
 from app.agents.haystack_agent.pipeline import HaystackRAGPipeline

@@ -1,12 +1,12 @@
+from app.core.logging_config import get_logger
 from haystack_integrations.document_stores.qdrant import QdrantDocumentStore
 from typing import Dict, Any, Optional, List
-import logging
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.models import Distance
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class VectorStore(QdrantDocumentStore):
     """
     Enhanced Qdrant store with multi-tenant support and collection management.
@@ -72,10 +72,10 @@ class VectorStore(QdrantDocumentStore):
                     #         )
 
                 self._initialized_collections.add(self.collection_name)
-                logger.info(f"Initialized collection: {self.collection_name}")
+                logger.info("Initialized collection: {self.collection_name}", )
 
             except Exception as e:
-                logger.error(f"Collection initialization failed: {str(e)}")
+                logger.error("Collection initialization failed: {str(e)}", )
                 raise
 
     async def write_documents(self, documents: List[Any], **kwargs) -> None:
@@ -93,7 +93,7 @@ class VectorStore(QdrantDocumentStore):
             return super().write_documents(documents, **kwargs)
 
         except Exception as e:
-            logger.error(f"Failed to write documents {documents}: {str(e)}")
+            logger.error("Failed to write documents {documents}: {str(e)}", )
             raise
 
     async def query_documents(
@@ -119,7 +119,7 @@ class VectorStore(QdrantDocumentStore):
             )
 
         except Exception as e:
-            logger.error(f"Query failed for filters {filters}: {str(e)}")
+            logger.error("Query failed for filters {filters}: {str(e)}", )
             raise
 
     async def get_user_stats(self, user_id: str) -> Dict[str, Any]:
@@ -139,7 +139,7 @@ class VectorStore(QdrantDocumentStore):
             }
 
         except Exception as e:
-            logger.error(f"Failed to get stats for user {user_id}: {str(e)}")
+            logger.error("Failed to get stats for user {user_id}: {str(e)}", )
             return {"status": "error", "error": str(e)}
 
     async def delete_user_documents(self, user_id: str) -> bool:
@@ -153,7 +153,7 @@ class VectorStore(QdrantDocumentStore):
             return True
 
         except Exception as e:
-            logger.error(f"Failed to delete documents for user {user_id}: {str(e)}")
+            logger.error("Failed to delete documents for user {user_id}: {str(e)}", )
             return False
 
     async def delete_connector_documents(self, user_id: str, connector_id: str) -> bool:
@@ -196,7 +196,7 @@ class VectorStore(QdrantDocumentStore):
                 return True
             return False
         except Exception as e:
-            logger.error(f"Metadata update failed: {str(e)}")
+            logger.error("Metadata update failed: {str(e)}", )
             raise
 
     async def get_collection_stats(
@@ -214,5 +214,5 @@ class VectorStore(QdrantDocumentStore):
                 ),
             }
         except Exception as e:
-            logger.error(f"Failed to get collection stats: {str(e)}")
+            logger.error("Failed to get collection stats: {str(e)}", )
             return {"status": "error", "error": str(e)}

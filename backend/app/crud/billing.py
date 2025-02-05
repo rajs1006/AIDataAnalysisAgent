@@ -1,14 +1,14 @@
+from app.core.logging_config import get_logger
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from beanie import PydanticObjectId
-import logging
 from app.models.database.users import User
 from app.models.database.conversation import Message
 from app.models.database.billing import ModelPricing
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class ModelPricingCRUD:
     @staticmethod
     async def create(data: dict) -> ModelPricing:

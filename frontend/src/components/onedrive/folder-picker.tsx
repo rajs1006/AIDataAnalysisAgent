@@ -245,19 +245,19 @@ export const OneDriveFolderPicker = () => {
   return (
     <div className="space-y-4">
       {selectedFolder ? (
-        <div className="p-4 border rounded-lg bg-muted text-gray-500">
+        <div className="p-4 border border-[#2C5530] rounded-lg bg-[#F5F5F0] text-[#2C5530]">
           <h4 className="font-medium mb-2">Selected Folder</h4>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[#2C5530]/80">
             Name: {selectedFolder.name}
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[#2C5530]/80">
             Path: {selectedFolder.path}
           </p>
           <Button
             variant="outline"
             size="sm"
             onClick={handleFolderSelection}
-            className="mt-2"
+            className="mt-2 border-[#2C5530] text-[#2C5530] hover:bg-[#A7C4AA]/10"
             disabled={isProcessing}
           >
             {isProcessing ? "Processing..." : "Change Folder"}
@@ -267,7 +267,7 @@ export const OneDriveFolderPicker = () => {
         <Button
           variant="outline"
           onClick={handleFolderSelection}
-          className="w-full"
+          className="w-full border-[#2C5530] text-[#2C5530] hover:bg-[#A7C4AA]/10"
           disabled={isProcessing}
         >
           {isProcessing

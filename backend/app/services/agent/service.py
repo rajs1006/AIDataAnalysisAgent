@@ -1,5 +1,5 @@
+from app.core.logging_config import get_logger
 from typing import List, Optional, Dict, Any
-import logging
 import traceback
 from app.crud.agent import AgentCRUD
 from app.models.schema.agent import (
@@ -17,7 +17,7 @@ from app.services.agent.image.service import ImageService
 from app.services.agent.rag.service import RagService
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AgentService:
@@ -78,7 +78,7 @@ class AgentService:
                         page_size=10,  # Get last 10 messages for context
                     )
                 )
-                
+
                 conversation_history = [
                     {"role": msg["role"], "content": msg["content"]}
                     for msg in conversation_data["messages"]
