@@ -93,13 +93,13 @@ export function TabSystem() {
     //   component: <LLMInteraction />,
     //   group: "secondary",
     // },
-    {
-      id: "reference",
-      label: "Reference",
-      icon: <BookOpen className="h-4 w-4" />,
-      component: <QuickReference />,
-      group: "secondary",
-    },
+    // {
+    //   id: "reference",
+    //   label: "Reference",
+    //   icon: <BookOpen className="h-4 w-4" />,
+    //   component: <QuickReference />,
+    //   group: "secondary",
+    // },
   ];
 
   const primaryTabs = tabs.filter((tab) => tab.group === "primary");
