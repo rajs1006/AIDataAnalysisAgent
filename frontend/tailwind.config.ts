@@ -61,7 +61,7 @@ const config = {
           700: "#15803d",
           800: "#166534",
           900: "#14532d",
-          950: "#052e16"
+          950: "#052e16",
         },
       },
       borderRadius: {
@@ -85,7 +85,7 @@ const config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 } satisfies Config;
 
 export default config;

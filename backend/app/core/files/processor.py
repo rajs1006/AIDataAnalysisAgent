@@ -1,4 +1,4 @@
-from app.core.logging_config import get_logger
+import logging
 from pathlib import Path
 import hashlib
 from dataclasses import dataclass
@@ -6,15 +6,13 @@ from typing import Dict, Any, Optional, Union
 import mimetypes
 import pdfplumber
 import magic
-import hashlib
 import re
-from pathlib import Path
-from dataclasses import dataclass
 
+from app.core.logging_config import get_logger
 from app.core.files.blob_storage import BlobStorage
 from app.core.files.hierarchy import FileHierarchyBuilder
 from app.models.schema.base.hierarchy import BlobData
-
+from app.agents.document_processor_agent import DocumentProcessorAgent
 
 logger = get_logger(__name__)
 
@@ -48,8 +46,11 @@ class DocumentProcessor:
             self._extract_pdf_with_tika,
         ]
 
+        # Initialize document processor agent
+        self.document_processor_agent = DocumentProcessorAgent()
+
     async def process_file(
-        self, file_path: str, store_blob: bool = True
+        self, file_path: str, extension: str, store_blob: bool = True
     ) -> ExtractionResult:
         """
         Process a file and extract text with metadata.
@@ -105,6 +106,19 @@ class DocumentProcessor:
 
             # Post-process and validate content
             processed_content = self._post_process_content(result.content)
+
+            # Use document processor agent to verify and summarize
+            try:
+                processed_result = await self.document_processor_agent.process_document(
+                    extracted_text=processed_content,
+                    file_path=file_path,
+                    metadata={"file_type": extension},
+                )
+                metadata["summary"] = processed_result.summary
+                metadata["ai_metadata"] = processed_result.metadata.ai_metadata
+            except Exception as agent_error:
+                logger.error(f"Document processor agent failed: {agent_error}")
+
             quality_score = self._calculate_quality_score(
                 processed_content, result.metadata
             )
@@ -117,9 +131,7 @@ class DocumentProcessor:
             )
 
         except Exception as e:
-            logger.error(
-                "Error processing file {file_path}: {str(e)}",
-            )
+            logger.error(f"Error processing file {file_path}: {str(e)}")
             return ExtractionResult(
                 content="",
                 metadata=(
@@ -338,6 +350,8 @@ class DocumentProcessor:
 
     def _generate_base_metadata(self, file_path: str) -> Dict:
         """Generate base metadata for a file with correct timestamp formats."""
+        print("-----file_path----")
+        print(file_path)
         path = Path(file_path)
         stats = path.stat()
 
@@ -365,9 +379,7 @@ class DocumentProcessor:
                 "file_path": str(path),
             }
         except Exception as e:
-            logger.error(
-                "Error generating metadata for {file_path}: {str(e)}",
-            )
+            logger.error(f"Error generating metadata for {file_path}: {str(e)}")
             raise
 
     def _post_process_content(self, content: str) -> str:
@@ -416,3 +428,35 @@ class DocumentProcessor:
                 return f"{size_bytes:.1f}{unit}"
             size_bytes /= 1024
         return f"{size_bytes:.1f}TB"
+
+    def _extract_doc(self, file_path: str) -> ExtractionResult:
+        """Placeholder for Word document extraction."""
+        return ExtractionResult(
+            content="",
+            metadata=self._generate_base_metadata(file_path),
+            quality_score=0.0,
+        )
+
+    def _extract_text(self, file_path: str) -> ExtractionResult:
+        """Placeholder for text file extraction."""
+        return ExtractionResult(
+            content="",
+            metadata=self._generate_base_metadata(file_path),
+            quality_score=0.0,
+        )
+
+    def _extract_image(self, file_path: str) -> ExtractionResult:
+        """Placeholder for image file extraction."""
+        return ExtractionResult(
+            content="",
+            metadata=self._generate_base_metadata(file_path),
+            quality_score=0.0,
+        )
+
+    def _extract_fallback(self, file_path: str) -> ExtractionResult:
+        """Placeholder for fallback extraction method."""
+        return ExtractionResult(
+            content="",
+            metadata=self._generate_base_metadata(file_path),
+            quality_score=0.0,
+        )

@@ -9,6 +9,7 @@ import { queryClient } from "@/lib/query-client";
 import { AuthInitializer } from "@/components/auth/auth-init";
 import "./globals.css";
 
+
 const inter = Inter({ subsets: ["latin"] });
 
 interface RootLayoutProps {

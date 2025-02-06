@@ -1,4 +1,3 @@
-// src/components/layouts/MainLayout.tsx
 "use client";
 
 import { useState } from "react";
@@ -15,6 +14,7 @@ import { DocumentViewer } from "../document/DocumentViewer";
 import { useConnectorFiles } from "@/hooks/use-connector-files";
 import { FileNode, FileContent } from "@/lib/types/files";
 import type { JSONContent } from "@tiptap/react";
+import { RightSidebarProvider } from "@/lib/store/right-sidebar";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -25,7 +25,7 @@ interface DocumentState {
   title: string;
   content: JSONContent | { type: string; content: any };
   blob?: Blob;
-  parsedContent?: string;
+  parsedContent?: JSONContent;
   fileNode?: FileNode;
 }
 
@@ -93,7 +93,22 @@ export function MainLayout({ children }: MainLayoutProps) {
             }
           : { type: "blob", content: fileContent.blob },
         blob: fileContent.blob,
-        parsedContent: fileContent.content,
+        parsedContent: fileContent.content 
+          ? {
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "text",
+                      text: fileContent.content,
+                    },
+                  ],
+                },
+              ],
+            }
+          : undefined,
         fileNode: {
           ...selectedFile,
           extension:
@@ -141,16 +156,16 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="flex flex-col h-screen bg-[#F5F5F0] text-[#1A331E]">
       <Navbar />
-      <div className="flex flex-1">
+      <div className="flex flex-1 relative">
         {/* Left Sidebar */}
         <motion.div
           initial={false}
           animate={{
-            width: isLeftSidebarCollapsed ? 64 : 280,
+            width: isLeftSidebarCollapsed ? "5%" : "15%",
           }}
           className={cn(
             "relative h-full border-r border-[#2C5530]/20",
-            "bg-[#F5F5F0] shadow-sm overflow-hidden"
+            "bg-[#F5F5F0] shadow-sm overflow-hidden z-10"
           )}
         >
           <Sidebar onFileSelect={handleFileSelect} />
@@ -172,13 +187,19 @@ export function MainLayout({ children }: MainLayoutProps) {
         </motion.div>
 
         {/* Main Content */}
-        <div className="flex flex-1 flex-col">
+        <motion.div
+          initial={false}
+          animate={{
+            width: isRightSidebarCollapsed
+              ? isLeftSidebarCollapsed
+                ? "95%"
+                : "85%"
+              : "20%",
+          }}
+          className="flex flex-1 flex-col relative z-0"
+        >
           <div className="flex flex-col">
             <DocumentTabs onTabChange={handleDocumentChange} />
-            {/* <DocumentToolbar
-              onFormatChange={() => {}}
-              onActionClick={() => {}}
-            /> */}
             <BreadcrumbNav
               items={
                 selectedFileBreadcrumbs.length > 0
@@ -209,27 +230,35 @@ export function MainLayout({ children }: MainLayoutProps) {
                   <h2 className="text-xl font-semibold mb-4">
                     No Document Selected
                   </h2>
-                  <p className="mb-4">Select a file from the file tree</p>
+                  <p className="mb-4">Select a file</p>
                 </div>
               </div>
             )}
           </main>
-        </div>
+        </motion.div>
 
         {/* Right Sidebar */}
         <motion.div
           initial={false}
           animate={{
-            width: isRightSidebarCollapsed ? 16 : 320,
+            width: isRightSidebarCollapsed ? "5%" : "20%",
           }}
           className={cn(
-            "relative h-full border-l border-[#2C5530]/20",
+            "absolute right-0 top-0 bottom-0 z-30",
+            "border-l border-[#2C5530]/20",
             "bg-[#F5F5F0] shadow-sm",
             "flex flex-col min-h-0",
             isRightSidebarCollapsed ? "w-0" : "w-80"
           )}
         >
-          <RightSidebar isCollapsed={isRightSidebarCollapsed} />
+          <RightSidebarProvider>
+            <RightSidebar
+              isExpanded={!isRightSidebarCollapsed}
+              onToggleExpansion={() =>
+                setIsRightSidebarCollapsed(!isRightSidebarCollapsed)
+              }
+            />
+          </RightSidebarProvider>
           <button
             onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
             className={cn(

@@ -226,6 +226,18 @@ export function PDFViewer({ blob, parsedContent }: PDFViewerProps) {
           </ScrollArea>
         </TabsContent>
       )}
+
+      {parsedContent?.metadata && (
+        <TabsContent value="metadata" className="flex-grow mt-4">
+          <ScrollArea className="w-full h-full">
+            <Card className="m-6">
+              <pre className="p-4 bg-gray-50 rounded-lg overflow-auto text-sm">
+                {JSON.stringify(parsedContent.metadata, null, 2)}
+              </pre>
+            </Card>
+          </ScrollArea>
+        </TabsContent>
+      )}
     </Tabs>
   );
 }

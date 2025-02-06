@@ -37,11 +37,12 @@ class FolderConnectorService:
             processed_files = []
             for file in connector_data.files:
                 try:
+                    extension = Path(file.filename).suffix
                     content = await file.read()
 
                     # Save to temporary file for DocumentProcessor
                     with tempfile.NamedTemporaryFile(
-                        delete=False, suffix=Path(file.filename).suffix
+                        delete=False, suffix=extension
                     ) as temp_file:
                         temp_file.write(content)
                         temp_path = temp_file.name
@@ -49,7 +50,9 @@ class FolderConnectorService:
                     try:
                         # Process with DocumentProcessor
                         processor = DocumentProcessor()
-                        result = await processor.process_file(temp_path)
+                        result = await processor.process_file(
+                            temp_path, extension=extension
+                        )
                         if result.error:
                             logger.error(
                                 "Error processing file",
@@ -77,7 +80,9 @@ class FolderConnectorService:
                         mime_type=file.content_type or "application/octet-stream",
                         last_modified=now,
                         created_at=now,  # milliseconds timestamp
-                        extension=Path(file.filename).suffix,
+                        extension=extension,
+                        summary=result.metadata["summary"],
+                        ai_metadata=result.metadata["ai_metadata"],
                         **result_blob,
                     )
 

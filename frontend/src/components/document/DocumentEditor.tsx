@@ -1,115 +1,84 @@
-// src/components/document/DocumentEditor.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
-import Youtube from "@tiptap/extension-youtube";
-import { createLowlight } from 'lowlight';
-import javascript from 'highlight.js/lib/languages/javascript';
-import python from 'highlight.js/lib/languages/python';
-import typescript from 'highlight.js/lib/languages/typescript';
+import { EditorContent, EditorRoot } from "novel";
 import type { JSONContent } from "@tiptap/react";
-import { cn } from "@/lib/utils";
 
-// Create a lowlight instance with specific languages
-const lowlight = createLowlight({
-  javascript,
-  python,
-  typescript,
-});
+// Import ProseMirror extensions
+import { Document } from "@tiptap/extension-document";
+import { Paragraph } from "@tiptap/extension-paragraph";
+import { Text } from "@tiptap/extension-text";
+import { Heading } from "@tiptap/extension-heading";
+import { Bold } from "@tiptap/extension-bold";
+import { Italic } from "@tiptap/extension-italic";
+import { Strike } from "@tiptap/extension-strike";
+import { Code } from "@tiptap/extension-code";
+import { CodeBlock } from "@tiptap/extension-code-block";
+import { OrderedList } from "@tiptap/extension-ordered-list";
+import { BulletList } from "@tiptap/extension-bullet-list";
+import { ListItem } from "@tiptap/extension-list-item";
+import { HardBreak } from "@tiptap/extension-hard-break";
 
 interface DocumentEditorProps {
   initialContent?: JSONContent;
   onUpdate?: (content: JSONContent) => void;
-  onSave?: (content: JSONContent) => Promise<void>;
   readOnly?: boolean;
   className?: string;
 }
 
 export function DocumentEditor({
   initialContent,
-  onUpdate,
-  onSave,
+  // onUpdate,
   readOnly = false,
-  className,
+  className = "",
 }: DocumentEditorProps) {
-  const [content, setContent] = useState<JSONContent | undefined>(
-    initialContent
-  );
-
-  const extensions = useMemo(() => [
-    StarterKit,
-    CodeBlockLowlight.configure({
-      lowlight,
-    }),
-    Image,
-    Link.configure({
-      openOnClick: true,
-    }),
-    TaskList,
-    TaskItem.configure({
-      nested: true,
-    }),
-    Youtube.configure({
-      width: 480,
-      height: 320,
-    }),
-  ], []);
-
-  const editor = useEditor({
-    extensions,
-    content: initialContent,
-    editable: !readOnly,
-    onUpdate: ({ editor }) => {
-      const json = editor.getJSON();
-      setContent(json);
-      onUpdate?.(json);
-    },
-    editorProps: {
-      attributes: {
-        class: cn(
-          "prose prose-green max-w-none dark:prose-invert",
-          "focus:outline-none",
-          "min-h-[500px] p-4",
-          className
-        ),
+  // Default content if nothing is provided
+  const defaultContent: JSONContent = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Start typing here..." }],
       },
-    },
-    immediatelyRender: false,
-  });
+    ],
+  };
 
-  // Debounced auto-save
-  const debouncedSave = useCallback(() => {
-    if (editor && onSave) {
-      onSave(editor.getJSON());
-    }
-  }, [editor, onSave]);
+  // Use initial content if provided; otherwise, use the default.
+  const processedContent: JSONContent = initialContent || defaultContent;
 
-  useEffect(() => {
-    if (!content) return;
-    
-    const timeoutId = setTimeout(() => {
-      debouncedSave();
-    }, 1000); // 1 second debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [content, debouncedSave]);
+  // Define the editor extensions.
+  const extensions = [
+    Document,
+    Paragraph,
+    Text,
+    Heading.configure({ levels: [1, 2, 3, 4, 5, 6] }),
+    Bold,
+    Italic,
+    Strike,
+    Code,
+    CodeBlock,
+    OrderedList,
+    BulletList,
+    ListItem,
+    HardBreak,
+  ];
 
   return (
-    <div
-      className={cn(
-        "relative min-h-[500px] w-full rounded-lg border",
-        "border-[#2C5530]/20 bg-white shadow-sm",
-        className
-      )}
-    >
-      <EditorContent editor={editor} />
+    <div className="relative w-full max-w-screen-lg mx-auto p-4">
+      {/* You can try removing or modifying the prose classes if the output seems off */}
+      <div className="prose prose-stone dark:prose-invert">
+        <EditorRoot>
+          <EditorContent
+            initialContent={initialContent}
+            editable={!readOnly}
+            extensions={extensions}
+            className={`novel-editor-container ${className}`}
+            // Uncomment and modify the onDebouncedUpdate if you need live updates:
+            // onDebouncedUpdate={(editor) => {
+            //   if (onUpdate) onUpdate(editor.getJSON());
+            // }}
+          />
+        </EditorRoot>
+      </div>
     </div>
   );
 }

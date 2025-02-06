@@ -27,6 +27,11 @@ class BaseConfig(BaseSettings):
     OPENAI_API_KEY: str
     WATCHER_PORT: int = 8001
 
+    # Add new environment variables for document processing agent
+    SUMMARY_MODEL_ENDPOINT: str = "https://api.openai.com/v1/chat/completions"
+    SUMMARY_MODEL_NAME: str = "gpt-4o-mini"
+    SUMMARY_MAX_TOKEN: int = 16384
+
     ONEDRIVE_CLIENT_ID: str
     ONEDRIVE_CLIENT_SECRET: str
     MICROSOFT_TENANT_ID: str

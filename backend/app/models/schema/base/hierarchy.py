@@ -56,11 +56,9 @@ class BlobData(BaseModel):
 
 class FileContentResponse(BaseModel):
     """Response model for file content."""
-    text: str
+
+    text: Dict
     metadata: Dict[str, Optional[str]] = Field(
         description="Metadata associated with the file content",
-        example={
-            "file_path": "/path/to/file.txt", 
-            "file_name": "example.txt"
-        }
+        example={"file_path": "/path/to/file.txt", "file_name": "example.txt"},
     )

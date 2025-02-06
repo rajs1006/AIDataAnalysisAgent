@@ -71,6 +71,7 @@ class ConnectorMetadata(BaseModel):
     created_at: int  # milliseconds timestamp
     content_hash: str
     content: Optional[str] = None
+    summary: Optional[dict] = None
     file_path: Optional[str] = None
     status: FileStatus = FileStatus.ACTIVE
     doc_id: Optional[str] = None
@@ -86,6 +87,8 @@ class ConnectorMetadata(BaseModel):
     blob_filename: Optional[str] = None
     blob_gcs_bucket: Optional[str] = None
     blob_gcs_path: Optional[str] = None
+
+    ai_metadata: Optional[dict] = None
 
     class Config:
         use_enum_values = True

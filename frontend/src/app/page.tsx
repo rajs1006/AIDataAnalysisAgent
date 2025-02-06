@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
 import { motion } from "framer-motion";
 
+
 export default function Home() {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);

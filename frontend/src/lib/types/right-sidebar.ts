@@ -8,10 +8,12 @@ export interface RightSidebarState {
   activeTab: string;
   pinnedChats: PinnedChat[];
   isChatPopupVisible: boolean;
+  isExpanded: boolean;
 }
 
 export type RightSidebarAction = 
   | { type: 'SET_ACTIVE_TAB', payload: string }
   | { type: 'TOGGLE_CHAT_POPUP', payload?: boolean }
   | { type: 'PIN_CHAT', payload: PinnedChat }
-  | { type: 'UNPIN_CHAT', payload: string };
+  | { type: 'UNPIN_CHAT', payload: string }
+  | { type: 'TOGGLE_SIDEBAR_EXPANSION', payload?: boolean };

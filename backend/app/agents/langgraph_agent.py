@@ -523,7 +523,6 @@ class ReActAgent:
                 verbose=True,
                 max_iterations=3,
                 handle_parsing_errors=True,
-                early_stopping_method="force",
                 return_intermediate_steps=True,
             )
 

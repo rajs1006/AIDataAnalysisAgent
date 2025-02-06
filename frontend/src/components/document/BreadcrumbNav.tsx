@@ -17,7 +17,7 @@ interface BreadcrumbNavProps {
 
 export function BreadcrumbNav({ items, onNavigate }: BreadcrumbNavProps) {
   return (
-    <nav className="flex items-center gap-1 px-2 py-1 text-sm">
+    <nav className="flex items-center gap-1 px-2 py-1 text-sm  bg-white border-spacing-4 border">
       <button
         onClick={() => onNavigate("root")}
         className={cn(

@@ -90,7 +90,7 @@ class FileService {
   }
 
   async getParsedFileContent(fileNode: FileNode): Promise<{
-    text: string;
+    text: Record<string, any>;
     metadata?: Record<string, any>;
   }> {
     const response = await fetch(

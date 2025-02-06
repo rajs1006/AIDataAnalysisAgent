@@ -1,31 +1,25 @@
-import React, { createContext, useReducer, useContext, Dispatch, ReactNode } from 'react';
-import { RightSidebarState, RightSidebarAction, PinnedChat } from '@/lib/types/right-sidebar';
+import React, { createContext, useContext, useReducer, ReactNode, FC } from 'react';
+
+export interface RightSidebarState {
+  isExpanded: boolean;
+  activeTab: string;
+}
+
+export type RightSidebarAction = 
+  | { type: 'TOGGLE_SIDEBAR_EXPANSION' }
+  | { type: 'SET_ACTIVE_TAB', payload: string };
 
 const initialState: RightSidebarState = {
-  activeTab: 'insights',
-  pinnedChats: [],
-  isChatPopupVisible: false
+  isExpanded: false,
+  activeTab: 'insights'
 };
 
 function rightSidebarReducer(state: RightSidebarState, action: RightSidebarAction): RightSidebarState {
   switch (action.type) {
+    case 'TOGGLE_SIDEBAR_EXPANSION':
+      return { ...state, isExpanded: !state.isExpanded };
     case 'SET_ACTIVE_TAB':
       return { ...state, activeTab: action.payload };
-    case 'TOGGLE_CHAT_POPUP':
-      return { 
-        ...state, 
-        isChatPopupVisible: action.payload ?? !state.isChatPopupVisible 
-      };
-    case 'PIN_CHAT':
-      return { 
-        ...state,
-        pinnedChats: [...state.pinnedChats, action.payload]
-      };
-    case 'UNPIN_CHAT':
-      return {
-        ...state,
-        pinnedChats: state.pinnedChats.filter((chat: PinnedChat) => chat.id !== action.payload)
-      };
     default:
       return state;
   }
@@ -33,23 +27,35 @@ function rightSidebarReducer(state: RightSidebarState, action: RightSidebarActio
 
 const RightSidebarContext = createContext<{
   state: RightSidebarState;
-  dispatch: Dispatch<RightSidebarAction>;
-} | undefined>(undefined);
+  dispatch: React.Dispatch<RightSidebarAction>;
+} | null>(null);
 
-export const RightSidebarProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+// export function RightSidebarProvider({ children }: { children: ReactNode }) {
+//   const [state, dispatch] = useReducer(rightSidebarReducer, initialState);
+
+//   return (
+//     <RightSidebarContext.Provider value={{ state, dispatch }}>
+//       {children}
+//     </RightSidebarContext.Provider>
+//   );
+// }
+
+export const RightSidebarProvider: FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [state, dispatch] = useReducer(rightSidebarReducer, initialState);
 
-  return (
-    <RightSidebarContext.Provider value={{ state, dispatch }}>
-      {children}
-    </RightSidebarContext.Provider>
+  return React.createElement(
+    RightSidebarContext.Provider,
+    { value: { state, dispatch } },
+    children
   );
 };
 
-export const useRightSidebar = () => {
+export function useRightSidebar() {
   const context = useContext(RightSidebarContext);
-  if (context === undefined) {
+  if (context === null) {
     throw new Error('useRightSidebar must be used within a RightSidebarProvider');
   }
   return context;
-};
+}

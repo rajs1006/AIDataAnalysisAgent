@@ -5,8 +5,8 @@ import { FileNode } from "@/lib/types/files";
 import { Share2, Download, History, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { DocumentEditor } from "./DocumentEditor";
+import { DocumentViewerProps } from "@/lib/types/document";
 
 export function DocumentViewer({
   documents,
@@ -17,8 +17,362 @@ export function DocumentViewer({
 }: DocumentViewerProps) {
   const [viewMode, setViewMode] = useState<"parsed" | "blob">("parsed");
   const activeDocument = activeDocumentId
-    ? documents.find((doc) => doc.id === activeDocumentId)
+    ? documents.find((doc: { id: string }) => doc.id === activeDocumentId)
     : documents[0];
+
+  const extractContent = (rawContent: any): JSONContent => {
+    // If it's nested in a text node, extract it
+    if (
+      rawContent?.type === "doc" &&
+      rawContent?.content?.[0]?.type === "paragraph" &&
+      rawContent?.content?.[0]?.content?.[0]?.type === "text" &&
+      typeof rawContent?.content?.[0]?.content?.[0]?.text === "object"
+    ) {
+      return rawContent?.content?.[0]?.content?.[0]?.text;
+    }
+
+    // If it's already in the correct format
+    if (rawContent?.type === "doc" && Array.isArray(rawContent?.content)) {
+      return rawContent;
+    }
+
+    // If it's just text
+    if (typeof rawContent === "string") {
+      return {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: rawContent }],
+          },
+        ],
+      };
+    }
+
+    // Default empty document
+    return {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [],
+        },
+      ],
+    };
+  };
+
+  const rawContent =
+    activeDocument?.parsedContent?.text ||
+    activeDocument?.content?.text ||
+    activeDocument?.content;
+
+  const editorContent = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Raskoshinskii Vladislav is a Data Scientist based in St. Petersburg, Russia, with a strong educational background and extensive work experience in the field of data science and machine learning.",
+          },
+        ],
+      },
+      {
+        type: "heading",
+        attrs: {
+          level: 2,
+        },
+        content: [
+          {
+            type: "text",
+            text: "Contact Information",
+          },
+        ],
+      },
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Email: vladrask.ds@gmail.com",
+          },
+          {
+            type: "text",
+            text: " | Phone: +7-982-437-53-72",
+          },
+        ],
+      },
+      {
+        type: "heading",
+        attrs: {
+          level: 2,
+        },
+        content: [
+          {
+            type: "text",
+            text: "Education",
+          },
+        ],
+      },
+      {
+        type: "bulletList",
+        content: [
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "M.Sc. in Data Science, Data Lab, Anhalt University of Applied Sciences, Aug 2019 - Oct 2020, Kothen (Anhalt), Germany",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "M.Sc. in Automation and Technological Processes, PSTU, 2018 - 2020, Perm, Russia",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "B.Sc. in Automation and Technological Processes, PSTU, 2014 - 2018, Perm, Russia",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        type: "heading",
+        attrs: {
+          level: 2,
+        },
+        content: [
+          {
+            type: "text",
+            text: "Work Experience",
+          },
+        ],
+      },
+      {
+        type: "bulletList",
+        content: [
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "Data Scientist at Mega Fon, Jan 2021 - Present, St. Petersburg, Russia",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        type: "heading",
+        attrs: {
+          level: 2,
+        },
+        content: [
+          {
+            type: "text",
+            text: "Key Projects",
+          },
+        ],
+      },
+      {
+        type: "bulletList",
+        content: [
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "Developed Anomaly Detection System to track main cellular network KPIs.",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "Created Client Messages Clustering System, improving problem resolution speed by 2-4 times.",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "Participated in MVP projects in Telecom and Banking sectors.",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        type: "heading",
+        attrs: {
+          level: 2,
+        },
+        content: [
+          {
+            type: "text",
+            text: "Technical Skills",
+          },
+        ],
+      },
+      {
+        type: "bulletList",
+        content: [
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "Proficient in Python, SQL, PySpark, Scikit-learn, Keras, and XGBoost.",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "Experience with Docker, Git, and various data processing tools.",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        type: "heading",
+        attrs: {
+          level: 2,
+        },
+        content: [
+          {
+            type: "text",
+            text: "Languages",
+          },
+        ],
+      },
+      {
+        type: "bulletList",
+        content: [
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "Russian - Native Speaker",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "English - Advanced (C1)",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "Italian - Elementary (A2)",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "German - Elementary (A2)",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  // extractContent(rawContent);
 
   if (!activeDocument) {
     return (
@@ -28,7 +382,18 @@ export function DocumentViewer({
     );
   }
 
-  const fileNode = activeDocument?.fileNode;
+  const fileNode =
+    activeDocument?.fileNode ||
+    ({
+      id: "",
+      name: "",
+      path: "",
+      type: "file",
+      connector_id: "",
+      connector_type: "local_folder",
+      last_indexed: "",
+    } as FileNode);
+
   const blob =
     activeDocument.blob ||
     new Blob([JSON.stringify(activeDocument.content)], {
@@ -61,7 +426,7 @@ export function DocumentViewer({
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              PDF
+              File
             </Button>
             <Button
               variant="ghost"
@@ -106,40 +471,20 @@ export function DocumentViewer({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 relative">
         {viewMode === "parsed" ? (
-          <FileContentRenderer blob={blob} fileNode={fileNode} />
+          <div className="absolute inset-0">
+            <FileContentRenderer blob={blob} fileNode={fileNode} />
+          </div>
         ) : (
-          <ScrollArea className="h-full">
-            <div className="max-w-4xl mx-auto py-16 px-8">
-              <article className="prose prose-slate lg:prose-lg mx-auto">
-                <div
-                  className="text-gray-800"
-                  style={{
-                    fontFamily:
-                      "ui-serif, Georgia, Cambria, Times New Roman, Times, serif",
-                  }}
-                >
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    className="prose-headings:font-semibold prose-headings:text-gray-900
-                             prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl
-                             prose-p:text-gray-700 prose-p:leading-7
-                             prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
-                             prose-strong:font-semibold prose-strong:text-gray-900
-                             prose-code:text-sm prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
-                             prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded-lg
-                             prose-blockquote:border-l-4 prose-blockquote:border-gray-300 prose-blockquote:pl-4 prose-blockquote:italic
-                             prose-ul:list-disc prose-ol:list-decimal
-                             prose-li:text-gray-700"
-                  >
-                    {activeDocument.parsedContent ||
-                      JSON.stringify(activeDocument.content, null, 2)}
-                  </ReactMarkdown>
-                </div>
-              </article>
-            </div>
-          </ScrollArea>
+          // <div className="absolute inset-0">
+            <DocumentEditor
+              // key={editorContent}
+              initialContent={editorContent}
+              readOnly={true}
+              className="h-full border-0 shadow-none"
+            />
+          // </div>
         )}
       </div>
     </div>

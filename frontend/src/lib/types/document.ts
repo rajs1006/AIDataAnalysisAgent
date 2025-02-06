@@ -1,14 +1,17 @@
 import type { JSONContent } from "@tiptap/react";
+import { FileNode } from "./files";
 
-export interface Document {
-  id: string;
-  title: string;
-  content: JSONContent;
-}
-
-export interface DocumentState {
-  documents: Document[];
+export interface DocumentViewerProps {
+  documents: Array<{
+    id: string;
+    title: string;
+    fileNode?: FileNode;
+    blob?: Blob;
+    content: JSONContent;
+    parsedContent?: JSONContent;
+  }>;
   activeDocumentId?: string;
-  isLoading: boolean;
-  error: string | null;
+  onDocumentChange?: (documentId: string) => void;
+  onDocumentClose?: (documentId: string) => void;
+  onDocumentSave?: (documentId: string, content: JSONContent) => void;
 }
