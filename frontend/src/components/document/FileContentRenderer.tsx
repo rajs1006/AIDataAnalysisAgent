@@ -1,8 +1,20 @@
+"use client";
+
 import React from "react";
 import { FileNode } from "@/lib/types/files";
-import { PDFViewer } from "./PDFViewer";
+// import { PDFViewer } from "./PDFViewer";
+// const PDFViewer = dynamic(() => import("./PDFViewer"), {
+//   ssr: false,
+// });
 import { ImageViewer } from "./ImageViewer";
 import { TextViewer } from "./TextViewer";
+
+import dynamic from "next/dynamic";
+
+const PDFViewer = dynamic(
+  () => import("./PDFViewer").then((mod) => mod.PDFViewer),
+  { ssr: false }
+);
 
 interface FileContentRendererProps {
   blob: Blob;
