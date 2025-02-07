@@ -2,11 +2,12 @@ import React, { useEffect, useState } from "react";
 import { FileContentRenderer } from "./FileContentRenderer";
 import type { JSONContent } from "@tiptap/react";
 import { FileNode } from "@/lib/types/files";
-import { Share2, Download, History, X } from "lucide-react";
+import { Share2, Download, History, X, Clipboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DocumentEditor } from "./DocumentEditor";
 import { DocumentViewerProps } from "@/lib/types/document";
+import { toast } from "@/components/ui/use-toast";
 
 export function DocumentViewer({
   documents,
@@ -66,313 +67,7 @@ export function DocumentViewer({
     activeDocument?.content?.text ||
     activeDocument?.content;
 
-  const editorContent = {
-    type: "doc",
-    content: [
-      {
-        type: "paragraph",
-        content: [
-          {
-            type: "text",
-            text: "Raskoshinskii Vladislav is a Data Scientist based in St. Petersburg, Russia, with a strong educational background and extensive work experience in the field of data science and machine learning.",
-          },
-        ],
-      },
-      {
-        type: "heading",
-        attrs: {
-          level: 2,
-        },
-        content: [
-          {
-            type: "text",
-            text: "Contact Information",
-          },
-        ],
-      },
-      {
-        type: "paragraph",
-        content: [
-          {
-            type: "text",
-            text: "Email: vladrask.ds@gmail.com",
-          },
-          {
-            type: "text",
-            text: " | Phone: +7-982-437-53-72",
-          },
-        ],
-      },
-      {
-        type: "heading",
-        attrs: {
-          level: 2,
-        },
-        content: [
-          {
-            type: "text",
-            text: "Education",
-          },
-        ],
-      },
-      {
-        type: "bulletList",
-        content: [
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "M.Sc. in Data Science, Data Lab, Anhalt University of Applied Sciences, Aug 2019 - Oct 2020, Kothen (Anhalt), Germany",
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "M.Sc. in Automation and Technological Processes, PSTU, 2018 - 2020, Perm, Russia",
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "B.Sc. in Automation and Technological Processes, PSTU, 2014 - 2018, Perm, Russia",
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        type: "heading",
-        attrs: {
-          level: 2,
-        },
-        content: [
-          {
-            type: "text",
-            text: "Work Experience",
-          },
-        ],
-      },
-      {
-        type: "bulletList",
-        content: [
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "Data Scientist at Mega Fon, Jan 2021 - Present, St. Petersburg, Russia",
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        type: "heading",
-        attrs: {
-          level: 2,
-        },
-        content: [
-          {
-            type: "text",
-            text: "Key Projects",
-          },
-        ],
-      },
-      {
-        type: "bulletList",
-        content: [
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "Developed Anomaly Detection System to track main cellular network KPIs.",
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "Created Client Messages Clustering System, improving problem resolution speed by 2-4 times.",
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "Participated in MVP projects in Telecom and Banking sectors.",
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        type: "heading",
-        attrs: {
-          level: 2,
-        },
-        content: [
-          {
-            type: "text",
-            text: "Technical Skills",
-          },
-        ],
-      },
-      {
-        type: "bulletList",
-        content: [
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "Proficient in Python, SQL, PySpark, Scikit-learn, Keras, and XGBoost.",
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "Experience with Docker, Git, and various data processing tools.",
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        type: "heading",
-        attrs: {
-          level: 2,
-        },
-        content: [
-          {
-            type: "text",
-            text: "Languages",
-          },
-        ],
-      },
-      {
-        type: "bulletList",
-        content: [
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "Russian - Native Speaker",
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "English - Advanced (C1)",
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "Italian - Elementary (A2)",
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "German - Elementary (A2)",
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  };
-  // extractContent(rawContent);
+  const editorContent = extractContent(rawContent);
 
   if (!activeDocument) {
     return (
@@ -411,6 +106,29 @@ export function DocumentViewer({
     URL.revokeObjectURL(url);
   };
 
+  const handleCopyToClipboard = () => {
+    const contentToCopy =
+      typeof rawContent === "string"
+        ? rawContent
+        : JSON.stringify(rawContent, null, 2);
+
+    navigator.clipboard
+      .writeText(contentToCopy)
+      .then(() => {
+        toast({
+          title: "Copied to Clipboard",
+          description: "Document content has been copied successfully.",
+        });
+      })
+      .catch((err) => {
+        toast({
+          title: "Copy Failed",
+          description: "Unable to copy content to clipboard.",
+          variant: "destructive",
+        });
+      });
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between p-3 border-b bg-white">
@@ -421,7 +139,7 @@ export function DocumentViewer({
               size="sm"
               onClick={() => setViewMode("parsed")}
               className={`rounded-full px-4 py-1.5 text-sm ${
-                viewMode === "parsed"
+                viewMode === "blob"
                   ? "bg-white shadow-sm text-gray-800"
                   : "text-gray-500 hover:text-gray-700"
               }`}
@@ -433,7 +151,7 @@ export function DocumentViewer({
               size="sm"
               onClick={() => setViewMode("blob")}
               className={`rounded-full px-4 py-1.5 text-sm ${
-                viewMode === "blob"
+                viewMode === "parsed"
                   ? "bg-white shadow-sm text-gray-800"
                   : "text-gray-500 hover:text-gray-700"
               }`}
@@ -443,20 +161,36 @@ export function DocumentViewer({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" title="Share">
-            <Share2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Download"
-            onClick={handleDownload}
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" title="Version History">
-            <History className="h-4 w-4" />
-          </Button>
+          {viewMode === "parsed" && (
+            <>
+              <Button variant="ghost" size="icon" title="Share">
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Download"
+                onClick={handleDownload}
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" title="Version History">
+                <History className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          {viewMode === "blob" && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Copy to Clipboard"
+                onClick={handleCopyToClipboard}
+              >
+                <Clipboard className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           {onDocumentClose && (
             <Button
               variant="ghost"
@@ -477,14 +211,14 @@ export function DocumentViewer({
             <FileContentRenderer blob={blob} fileNode={fileNode} />
           </div>
         ) : (
-          // <div className="absolute inset-0">
+          <div className="absolute inset-0">
             <DocumentEditor
-              // key={editorContent}
+              key={JSON.stringify(editorContent)}
               initialContent={editorContent}
               readOnly={true}
               className="h-full border-0 shadow-none"
             />
-          // </div>
+          </div>
         )}
       </div>
     </div>
