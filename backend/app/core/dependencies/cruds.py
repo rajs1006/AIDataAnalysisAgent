@@ -6,6 +6,7 @@ from app.crud.conversation import ConversationCRUD
 from app.crud.onedrive import OneDriveCRUD
 from app.crud.image import ImageAgentCRUD
 from app.crud.billing import BillingCRUD, ModelPricingCRUD
+from app.crud.collaborator import CollaboratorCRUD
 
 
 async def get_connector_crud() -> ConnectorCRUD:
@@ -49,3 +50,8 @@ def get_billing_crud() -> BillingCRUD:
 def get_model_pricing_crud() -> ModelPricingCRUD:
     """Get ModelPricingCRUD instance."""
     return ModelPricingCRUD()
+
+
+def get_collaborator_crud() -> CollaboratorCRUD:
+    """Get CollaboratorCRUD instance."""
+    return CollaboratorCRUD()

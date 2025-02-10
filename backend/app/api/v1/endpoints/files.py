@@ -11,6 +11,7 @@ from app.models.schema.base.hierarchy import (
 )
 from app.core.exceptions.connector_exceptions import FileNotFoundException
 from app.core.dependencies.service import get_connector_service
+from app.services.connectors.service import ConnectorService
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ router = APIRouter()
 )
 async def get_connector_file_hierarchy(
     current_user: User = Depends(get_current_user),
-    connector_service=Depends(get_connector_service),
+    connector_service: ConnectorService = Depends(get_connector_service),
 ):
     """
     Retrieve the file hierarchy for a specific connector.

@@ -16,7 +16,7 @@ from app.models.schema.user import (
     UserVerificationRequest,
     ForgotPasswordRequest,
 )
-from app.services.email.smtp import send_verification_email
+from app.services.email.smtp import EmailService
 from app.crud.user import UserCRUD
 from typing import Optional, Tuple
 from app.models.schema.user import TokenValidationResponse
@@ -35,8 +35,9 @@ logger = get_logger(__name__)
 
 
 class AuthService:
-    def __init__(self, user_crud: UserCRUD):
+    def __init__(self, user_crud: UserCRUD, email_service: EmailService):
         self.user_crud = user_crud
+        self.email_service = email_service
 
     async def register_user(
         self, registration_data: UserRegistrationRequest
@@ -75,7 +76,7 @@ class AuthService:
                     f"&email={existing_user.email}"
                     f"&type=registration"
                 )
-                email_sent = send_verification_email(
+                email_sent = await self.email_service.send_verification_email(
                     existing_user.email,
                     verification_link,
                     "registration",
@@ -124,7 +125,7 @@ class AuthService:
                 f"&email={new_user.email}"
                 f"&type=registration"
             )
-            email_sent = send_verification_email(
+            email_sent = await self.email_service.send_verification_email(
                 new_user.email,
                 verification_link,
                 "registration",
@@ -234,7 +235,7 @@ class AuthService:
             f"&email={user.email}"
             f"&type=reset-password"
         )
-        email_sent = send_verification_email(
+        email_sent = await self.email_service.send_verification_email(
             user.email,
             verification_link,
             "reset-password",
@@ -250,7 +251,7 @@ class AuthService:
         user = await self.user_crud.get_enabled_user_by_email(email)
         if not user:
             raise AuthenticationError("No active account found with this email")
-        
+
         if not verify_password(password, user.hashed_password):
             raise AuthenticationError("Incorrect password")
 

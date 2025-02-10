@@ -7,7 +7,8 @@ from app.models.database.connectors.connector import Connectors
 from app.models.database.conversation import Conversation, Message
 from app.models.database.context.image import ImageContext
 from app.models.database.billing import ModelPricing
-from app.models.database.collaborators import CollaboratorInvite  # New import
+from app.models.database.collaborators import Collaborator, DocumentAccess  # New import
+from app.models.database.email import EmailLog
 
 # List of all document models to be registered with Beanie
 document_models = [
@@ -19,5 +20,7 @@ document_models = [
     Conversation,
     Message,
     ModelPricing,
-    CollaboratorInvite,  # Add CollaboratorInvite to document models
+    Collaborator,  # Add CollaboratorInvite to document models
+    DocumentAccess,
+    EmailLog
 ]

@@ -190,26 +190,26 @@ class FolderConnectorService:
                 }
 
             doc_id = f"{connector.id}_{event.metadata.content_hash}"
-
+            event.metadata.file_id = doc_id
             if event.content:
                 # Create document metadata
-                doc_metadata = {
-                    "user_id": str(connector.user_id),
-                    "connector_id": str(connector.id),
-                    "file_path": event.metadata.file_path,
-                    "parent_doc_id": doc_id,
-                    "file_type": event.metadata.extension,
-                    "file_name": event.metadata.filename,
-                    "content_hash": event.metadata.content_hash,
-                    **event.metadata.dict(),
-                }
+                # doc_metadata = {
+                #     "user_id": str(connector.user_id),
+                #     "connector_id": str(connector.id),
+                #     # "file_path": event.metadata.file_path,
+                #     # "parent_doc_id": doc_id,
+                #     # "file_type": event.metadata.extension,
+                #     # "file_name": event.metadata.filename,
+                #     "content_hash": event.metadata.content_hash,
+                #     **event.metadata.dict(),
+                # }
 
                 # Add document using RAG service
                 await self.rag_service.add_documents(
                     documents=[
                         {
                             "content": event.content,
-                            "doc_id": doc_id,
+                            "file_id": doc_id,
                             "file_path": event.metadata.file_path,
                             "file_type": event.metadata.extension,
                             "file_name": event.metadata.filename,
@@ -217,7 +217,7 @@ class FolderConnectorService:
                     ],
                     user_id=str(connector.user_id),
                     connector_id=str(connector.id),
-                    metadata=doc_metadata,
+                    # metadata=event.metadata.dict(),
                 )
 
                 # Update metadata for tracking

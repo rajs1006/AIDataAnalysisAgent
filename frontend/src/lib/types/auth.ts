@@ -42,6 +42,29 @@ export interface CollaboratorInvite {
   status: "pending" | "accepted" | "rejected";
   invited_at?: Date;
   expires_at?: Date;
+  auth_role?: 'read' | 'comment' | 'update' | 'create' | 'none';
+}
+
+export interface DocumentCollaborator {
+  id: string;
+  inviter_id: string;
+  collaborator_email: string;
+  status: "accepted" | "pending" | "rejected";
+  invited_at: string;
+  expires_at: string;
+  auth_role: 'read' | 'comment' | 'update' | 'create' | 'none';
+}
+
+export interface AuthorizeCollaboratorRequest {
+  document_id: string;
+  collaborator_ids: string[];
+  auth_role: 'read' | 'comment' | 'update' | 'create' | 'none';
+}
+
+export interface AuthorizeCollaboratorResponse {
+  document_id: string;
+  auth_role: string;
+  message: string;
 }
 
 export interface LoginPayload {

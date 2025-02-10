@@ -69,7 +69,7 @@ async def watch_event(
         raise
     except Exception as e:
         logger.error(
-            "Error processing watch event: {str(e)}",
+            "Error processing watch event: {str(etypes)}",
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

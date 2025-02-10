@@ -18,64 +18,111 @@ import { BulletList } from "@tiptap/extension-bullet-list";
 import { ListItem } from "@tiptap/extension-list-item";
 import { HardBreak } from "@tiptap/extension-hard-break";
 
+// Define default content structure
+const DEFAULT_CONTENT: JSONContent = {
+  type: "doc",
+  content: [
+    {
+      type: "paragraph",
+      content: [{ type: "text", text: "Start typing here..." }],
+    },
+  ],
+};
+
+// Define editor extensions configuration
+const EDITOR_EXTENSIONS = [
+  Document,
+  Paragraph,
+  Text,
+  Heading.configure({ levels: [1, 2, 3, 4, 5, 6] }),
+  Bold,
+  Italic,
+  Strike,
+  Code,
+  CodeBlock,
+  OrderedList,
+  BulletList,
+  ListItem,
+  HardBreak,
+];
+
 interface DocumentEditorProps {
   initialContent?: JSONContent;
   onUpdate?: (content: JSONContent) => void;
   readOnly?: boolean;
   className?: string;
+  placeholder?: string;
+  autofocus?: boolean;
 }
 
 export function DocumentEditor({
   initialContent,
-  // onUpdate,
+  onUpdate,
   readOnly = false,
   className = "",
+  placeholder = "Start typing here...",
+  autofocus = false,
 }: DocumentEditorProps) {
-  // Default content if nothing is provided
+  // Use custom default content with provided placeholder
   const defaultContent: JSONContent = {
     type: "doc",
     content: [
       {
         type: "paragraph",
-        content: [{ type: "text", text: "Start typing here..." }],
+        content: [{ type: "text", text: placeholder }],
       },
     ],
   };
 
-  // Use initial content if provided; otherwise, use the default.
-  const processedContent: JSONContent = initialContent || defaultContent;
+  // Process initial content
+  const processedContent = initialContent || defaultContent;
 
-  // Define the editor extensions.
-  const extensions = [
-    Document,
-    Paragraph,
-    Text,
-    Heading.configure({ levels: [1, 2, 3, 4, 5, 6] }),
-    Bold,
-    Italic,
-    Strike,
-    Code,
-    CodeBlock,
-    OrderedList,
-    BulletList,
-    ListItem,
-    HardBreak,
-  ];
+  const handleUpdate = (editor: any) => {
+    if (onUpdate) {
+      const content = editor.getJSON();
+      onUpdate(content);
+    }
+  };
 
   return (
-    <div className="relative w-full max-w-screen-lg mx-auto p-4">
-      {/* You can try removing or modifying the prose classes if the output seems off */}
-      <div className="prose prose-stone dark:prose-invert">
+    <div className="relative w-full max-w-screen-lg mx-auto">
+      <h1 className="text-2xl font-bold mb-2 text-center text-gray-800 dark:text-gray-200">
+        Summary
+      </h1>
+      <div
+        className={`
+        prose 
+        prose-stone 
+        dark:prose-invert 
+        max-w-none 
+        px-4 
+        py-2 
+        rounded-lg 
+        border 
+        border-gray-200 
+        dark:border-gray-800
+        [&>*]:my-1
+        [&_p]:my-1
+        [&_h1]:mb-2
+        [&_h2]:mb-2
+        [&_h3]:mb-2
+        [&_ul]:my-1
+        [&_ol]:my-1
+        [&_li]:my-0.5
+        ${
+          readOnly ? "bg-gray-50 dark:bg-gray-900" : "bg-white dark:bg-gray-950"
+        }
+        ${className}
+      `}
+      >
         <EditorRoot>
           <EditorContent
-            initialContent={initialContent}
+            initialContent={processedContent}
             editable={!readOnly}
-            extensions={extensions}
-            className={`novel-editor-container ${className}`}
-            // Uncomment and modify the onDebouncedUpdate if you need live updates:
-            // onDebouncedUpdate={(editor) => {
-            //   if (onUpdate) onUpdate(editor.getJSON());
-            // }}
+            extensions={EDITOR_EXTENSIONS}
+            className="novel-editor-container focus:outline-none"
+            autofocus={autofocus}
+            // onDebouncedUpdate={handleUpdate}
           />
         </EditorRoot>
       </div>

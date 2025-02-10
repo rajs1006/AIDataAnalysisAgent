@@ -9,7 +9,7 @@ import {
 } from "@/lib/types/files";
 import { Connector, ConnectorType } from "@/lib/types/connectors";
 
-export function useConnectorFiles() {
+export function useConnectorFiles(interval = 5000) {
   const [connectors, setConnectors] = useState<Connector[]>([]);
   const [fileHierarchy, setFileHierarchy] = useState<{
     [connectorId: string]: FileHierarchyResponse;
@@ -22,6 +22,7 @@ export function useConnectorFiles() {
     isLoading: true,
     error: null,
   });
+  const [isPeriodicRefresh, setIsPeriodicRefresh] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [fileContent, setFileContent] = useState<FileContent | null>(null);
   const [fileBlob, setFileBlob] = useState<Blob | null>(null);
@@ -97,7 +98,6 @@ export function useConnectorFiles() {
       // Fetch blob first
       const blob = await fileService.getFileBlob(file);
       setFileBlob(blob);
-      
 
       // Try to fetch parsed content, but don't fail if it's not available
       let parsedContent;
@@ -132,7 +132,6 @@ export function useConnectorFiles() {
               : "Failed to load file content",
         },
       });
-      throw error;
     }
   }, []);
 
@@ -171,8 +170,20 @@ export function useConnectorFiles() {
   }, [fileHierarchy, connectors]);
 
   useEffect(() => {
+    // Initial fetch
     fetchConnectorsAndFiles();
-  }, [fetchConnectorsAndFiles]);
+
+    // Set up periodic refresh
+    const refreshInterval = setInterval(() => {
+      setIsPeriodicRefresh(true);
+      fetchConnectorsAndFiles().finally(() => {
+        setIsPeriodicRefresh(false);
+      });
+    }, interval);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(refreshInterval);
+  }, [fetchConnectorsAndFiles, interval]);
 
   return {
     connectors,
@@ -191,5 +202,6 @@ export function useConnectorFiles() {
     loadFileContent,
     saveFileContent,
     setSelectedFile,
+    isPeriodicRefresh,
   };
 }

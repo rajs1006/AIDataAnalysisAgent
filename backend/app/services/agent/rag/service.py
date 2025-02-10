@@ -12,8 +12,9 @@ from app.agents.haystack_agent.base import PipelineInput, PipelineOutput
 from app.core.store.vectorizer.haystacks import VectorStore
 
 
-
 logger = get_logger(__name__)
+
+
 class RagService:
     """Service layer for RAG implementation using Haystack components"""
 
@@ -41,7 +42,9 @@ class RagService:
             logger.info("RAG service initialized successfully")
 
         except Exception as e:
-            logger.error("Failed to initialize RAG service: {str(e)}", )
+            logger.error(
+                "Failed to initialize RAG service: {str(e)}",
+            )
             raise
 
     async def ensure_initialized(self):
@@ -65,9 +68,10 @@ class RagService:
             haystack_docs = []
             for doc in documents:
                 doc_metadata = {
-                    "user_id": user_id,
+                    "user_ids": [user_id],
                     "connector_id": connector_id,
                     "indexed_at": datetime.utcnow().isoformat(),
+                    "file_id": doc.get("file_id"),
                     "file_path": doc.get("file_path", "Unknown"),
                     "file_type": doc.get("file_type", "Unknown"),
                     "file_name": doc.get("file_name", "Unknown"),
@@ -77,7 +81,8 @@ class RagService:
                 haystack_doc = Document(
                     content=doc["content"],
                     meta=doc_metadata,
-                    id=f"{connector_id}_{doc.get('doc_id', str(uuid.uuid4()))}",
+                    # id=doc.get("doc_id"),
+                    # id=f"{connector_id}_{doc.get('doc_id', str(uuid.uuid4()))}",
                 )
                 haystack_docs.append(haystack_doc)
 
@@ -97,7 +102,46 @@ class RagService:
             }
 
         except Exception as e:
-            logger.error("Failed to add documents: {str(e)}", )
+            logger.error(
+                "Failed to add documents: {str(e)}",
+            )
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def update_document_access(
+        self,
+        doc_id: str,
+        add_user_ids: List[str],
+        remove_user_ids: List[str],
+    ) -> Dict[str, Any]:
+        """Update metadata for a specific document with proper user isolation and collaborator management.
+
+        Args:
+            doc_id (str): The ID of the document to update
+            user_id (List[str]): The IDs of the user to add to the access
+
+        Returns:
+            Dict[str, Any]: Status of the update operation
+
+        Raises:
+            HTTPException: If update fails or document not found
+        """
+        try:
+
+            await self.ensure_initialized()
+
+            return await self.document_store.update_document_access(
+                doc_id=doc_id,
+                add_user_ids=add_user_ids,
+                remove_user_ids=remove_user_ids,
+            )
+
+        except HTTPException as he:
+            logger.error(f"Metadata update failed for doc {doc_id}: {str(he)}")
+            raise
+        except Exception as e:
+            logger.error(
+                f"Unexpected error updating metadata for doc {doc_id}: {str(e)}"
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     async def delete_documents(
@@ -115,7 +159,9 @@ class RagService:
             )
 
         except Exception as e:
-            logger.error("Delete operation failed: {str(e)}", )
+            logger.error(
+                "Delete operation failed: {str(e)}",
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     async def search_documents(
@@ -146,7 +192,9 @@ class RagService:
 
             return result
         except Exception as e:
-            logger.error("Document search failed: {str(e)}", )
+            logger.error(
+                "Document search failed: {str(e)}",
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_pipeline_stats(self) -> Dict[str, Any]:
@@ -166,8 +214,150 @@ class RagService:
             }
 
         except Exception as e:
-            logger.error("Failed to get stats: {str(e)}", )
+            logger.error(
+                "Failed to get stats: {str(e)}",
+            )
             return {"status": "error", "detail": str(e)}
+
+    async def remove_collaborators(
+        self, doc_id: str, user_id: str, collaborator_ids: List[str]
+    ) -> Dict[str, Any]:
+        """Remove specified collaborators from a document.
+
+        Args:
+            doc_id (str): The ID of the document
+            user_id (str): The ID of the user making the removal request
+            collaborator_ids (List[str]): List of collaborator user IDs to remove
+
+        Returns:
+            Dict[str, Any]: Status of the removal operation
+
+        Raises:
+            HTTPException: If removal fails or document not found
+        """
+        try:
+            await self.ensure_initialized()
+
+            # Verify document exists and check authorization
+            doc = await self.document_store.get_document(doc_id)
+            if not doc:
+                raise HTTPException(
+                    status_code=404, detail=f"Document with ID {doc_id} not found"
+                )
+
+            # Check if user is owner or admin collaborator
+            existing_collaborators = doc.meta.get("collaborators", [])
+            is_admin = any(
+                collab.get("user_id") == user_id
+                and collab.get("access_level") == "admin"
+                for collab in existing_collaborators
+            )
+
+            if doc.meta.get("user_id") != user_id and not is_admin:
+                raise HTTPException(
+                    status_code=403, detail="Not authorized to modify collaborators"
+                )
+
+            # Filter out the specified collaborators
+            updated_collaborators = [
+                collab
+                for collab in existing_collaborators
+                if collab["user_id"] not in collaborator_ids
+            ]
+
+            # Update metadata with new collaborator information
+            updated_metadata = {**doc.meta}
+            updated_metadata["collaborators"] = updated_collaborators
+            updated_metadata["collaborator_ids"] = [
+                collab["user_id"] for collab in updated_collaborators
+            ]
+            updated_metadata["access_levels"] = {
+                collab["user_id"]: collab["access_level"]
+                for collab in updated_collaborators
+            }
+            updated_metadata["updated_at"] = datetime.utcnow().isoformat()
+
+            # Create updated document
+            updated_doc = Document(
+                content=doc.content, meta=updated_metadata, id=doc_id
+            )
+
+            # Update through document store
+            await self.document_store.update_document(updated_doc)
+
+            return {
+                "status": "success",
+                "doc_id": doc_id,
+                "removed_collaborators": collaborator_ids,
+                "remaining_collaborators": updated_metadata["collaborator_ids"],
+            }
+
+        except HTTPException as he:
+            logger.error(f"Collaborator removal failed for doc {doc_id}: {str(he)}")
+            raise
+        except Exception as e:
+            logger.error(
+                f"Unexpected error removing collaborators for doc {doc_id}: {str(e)}"
+            )
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def clear_all_collaborators(
+        self, doc_id: str, user_id: str
+    ) -> Dict[str, Any]:
+        """Remove all collaborators from a document.
+
+        Args:
+            doc_id (str): The ID of the document
+            user_id (str): The ID of the user making the request
+
+        Returns:
+            Dict[str, Any]: Status of the clear operation
+        """
+        try:
+            await self.ensure_initialized()
+
+            # Verify document exists and check authorization
+            doc = await self.document_store.get_document(doc_id)
+            if not doc:
+                raise HTTPException(
+                    status_code=404, detail=f"Document with ID {doc_id} not found"
+                )
+
+            if doc.meta.get("user_id") != user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only document owner can clear all collaborators",
+                )
+
+            # Reset collaborator fields in metadata
+            updated_metadata = {**doc.meta}
+            updated_metadata["collaborators"] = []
+            updated_metadata["collaborator_ids"] = []
+            updated_metadata["access_levels"] = {}
+            updated_metadata["updated_at"] = datetime.utcnow().isoformat()
+
+            # Create updated document
+            updated_doc = Document(
+                content=doc.content, meta=updated_metadata, id=doc_id
+            )
+
+            # Update through document store
+            await self.document_store.update_document(updated_doc)
+
+            return {
+                "status": "success",
+                "doc_id": doc_id,
+                "message": "All collaborators removed",
+            }
+
+        except HTTPException as he:
+            logger.error(f"Clear collaborators failed for doc {doc_id}: {str(he)}")
+            raise
+        except Exception as e:
+            logger.error(
+                f"Unexpected error clearing collaborators for doc {doc_id}: {str(e)}"
+            )
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def cleanup(self):
         """Clean up service resources"""
@@ -187,7 +377,9 @@ class RagService:
             logger.info("RAG service cleaned up successfully")
 
         except Exception as e:
-            logger.error("Service cleanup failed: {str(e)}", )
+            logger.error(
+                "Service cleanup failed: {str(e)}",
+            )
             # Don't re-raise the exception to allow cleanup to continue
 
     def __del__(self):
@@ -200,4 +392,6 @@ class RagService:
                 loop.run_until_complete(self.cleanup())
                 loop.close()
         except Exception as e:
-            logger.error("Error during service cleanup: {str(e)}", )
+            logger.error(
+                "Error during service cleanup: {str(e)}",
+            )

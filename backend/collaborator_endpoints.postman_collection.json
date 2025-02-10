@@ -1,0 +1,216 @@
+{
+	"info": {
+		"_postman_id": "collaborator-endpoints",
+		"name": "Collaborator Endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api/v1",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Invite Collaborator",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"collaborator@example.com\",\n    \"role\": \"viewer\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/collaborator/invite",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"collaborator",
+						"invite"
+					]
+				}
+			}
+		},
+		{
+			"name": "Complete Collaborator Registration",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"invite_token\": \"\",\n    \"full_name\": \"\",\n    \"password\": \"\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/collaborator/register",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"collaborator",
+						"register"
+					]
+				}
+			}
+		},
+		{
+			"name": "List Collaborator Invites",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/collaborator/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"collaborator",
+						""
+					]
+				}
+			}
+		},
+		{
+			"name": "Delete Collaborator Invite",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/collaborator/{{invite_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"collaborator",
+						"{{invite_id}}"
+					]
+				}
+			}
+		},
+		{
+			"name": "Get Document Collaborators",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/collaborator/file/share?document_id={{document_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"collaborator",
+						"file",
+						"share"
+					],
+					"query": [
+						{
+							"key": "document_id",
+							"value": "{{document_id}}"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Invite Document Collaborator",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"document_id\": \"\",\n    \"email\": \"\",\n    \"role\": \"viewer\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/collaborator/file/share",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"collaborator",
+						"file",
+						"share"
+					]
+				}
+			}
+		},
+		{
+			"name": "Remove Document Access",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"document_id\": \"\",\n    \"collaborator_id\": \"\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/collaborator/file/share",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"collaborator",
+						"file",
+						"share"
+					]
+				}
+			}
+		}
+	]
+}

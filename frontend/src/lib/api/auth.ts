@@ -10,9 +10,11 @@ import {
   AuthErrorResponse,
   AuthErrorCode,
   RegistrationResponse,
+  DocumentCollaborator,
 } from "../types/auth";
 
 import { API_URL } from "../utils";
+import { json } from "stream/consumers";
 
 export function setAuthToken(token: string) {
   // Store in localStorage and set cookie consistently
@@ -154,7 +156,7 @@ export const authService = {
       {
         headers: {
           "Content-Type": "application/json",
-          ...authService.getAuthHeader(),
+          ...this.getAuthHeader(),
         },
       }
     );
@@ -167,7 +169,7 @@ export const authService = {
       const response = await axios.get(`${API_URL}/collaborators/`, {
         headers: {
           "Content-Type": "application/json",
-          ...authService.getAuthHeader(),
+          ...this.getAuthHeader(),
         },
       });
       console.log("Collaborators fetched successfully:", response.data);
@@ -262,6 +264,111 @@ export const authService = {
     await axios.delete(`${API_URL}/collaborators/${collaboratorId}`, {
       headers: this.getAuthHeader(),
     });
+  },
+
+  async getDocumentCollaborators(
+    documentId: string
+  ): Promise<DocumentCollaborator[]> {
+    try {
+      const response = await axios.get(`${API_URL}/collaborators/file/share`, {
+        params: { document_id: documentId },
+        headers: {
+          "Content-Type": "application/json",
+          ...this.getAuthHeader(),
+        },
+      });
+      return response.data;
+      // response JSON
+      //[
+      //   {
+      //     id: "67a919e56ead4b1db4fe905a",
+      //     inviter_id: "679dfb9ceba11c8b17d19d05",
+      //     collaborator_email: "sourabhraj1006@gmail.com",
+      //     status: "accepted",
+      //     invited_at: "2025-02-09T21:11:01.887000",
+      //     expires_at: "2026-02-04T21:11:01.887000",
+      //     auth_role: "read",
+      //   },
+      // ];
+    } catch (error: any) {
+      console.error(
+        "Failed to fetch document collaborators:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
+
+  async authorizeDocumentCollaborator(payload: {
+    id?: string;
+    inviter_id: string;
+    collaborator_email: string;
+    invited_at?: Date;
+    auth_role: "read" | "comment" | "update" | "create";
+  }): Promise<CollaboratorInvite> {
+    try {
+      const response = await axios.post(
+        `${API_URL}/collaborators/file/share`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...this.getAuthHeader(),
+          },
+        }
+      );
+      return response.data;
+      //   Response json
+      //   [
+      //     {
+      //         "document_id": "read",
+      //         "auth_role": "67a51e83a1e322c37c301262_945990c3b2ed212eb44c563153c0bd56ddb6f12fbaaaa538a874c533080d5570",
+      //         "message": "Document is successfully shared !"
+      //     }
+      // ]
+    } catch (error: any) {
+      console.error(
+        "Failed to authorize collaborator:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
+
+  async removeCollaboratorDocument(payload: {
+    id?: string;
+    inviter_id: string;
+    collaborator_email: string;
+    invited_at?: Date;
+    auth_role: "read" | "comment" | "update" | "create";
+  }): Promise<CollaboratorInvite> {
+    try {
+      const response = await axios.delete(
+        `${API_URL}/collaborators/file/share`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...this.getAuthHeader(),
+          },
+        }
+      );
+      return response.data;
+      //   Response json
+      //   [
+      //     {
+      //         "document_id": "read",
+      //         "auth_role": "67a51e83a1e322c37c301262_945990c3b2ed212eb44c563153c0bd56ddb6f12fbaaaa538a874c533080d5570",
+      //         "message": "Access is successfully removed !"
+      //     }
+      // ]
+    } catch (error: any) {
+      console.error(
+        "Failed to authorize collaborator:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
   },
 
   async collaborateRegister(payload: {

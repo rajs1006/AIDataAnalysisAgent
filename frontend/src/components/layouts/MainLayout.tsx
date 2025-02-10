@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -25,7 +26,7 @@ interface DocumentState {
   title: string;
   content: JSONContent | { type: string; content: any };
   blob?: Blob;
-  parsedContent?: JSONContent;
+  parsedContent?: string;
   fileNode?: FileNode;
 }
 
@@ -93,22 +94,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             }
           : { type: "blob", content: fileContent.blob },
         blob: fileContent.blob,
-        parsedContent: fileContent.content 
-          ? {
-              type: "doc",
-              content: [
-                {
-                  type: "paragraph",
-                  content: [
-                    {
-                      type: "text",
-                      text: fileContent.content,
-                    },
-                  ],
-                },
-              ],
-            }
-          : undefined,
+        parsedContent: fileContent.content,
         fileNode: {
           ...selectedFile,
           extension:
@@ -156,7 +142,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="flex flex-col h-screen bg-[#F5F5F0] text-[#1A331E]">
       <Navbar />
-      <div className="flex flex-1 relative">
+      <div className="flex flex-1">
         {/* Left Sidebar */}
         <motion.div
           initial={false}
@@ -165,7 +151,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           }}
           className={cn(
             "relative h-full border-r border-[#2C5530]/20",
-            "bg-[#F5F5F0] shadow-sm overflow-hidden z-10"
+            "bg-[#F5F5F0] shadow-sm overflow-hidden"
           )}
         >
           <Sidebar onFileSelect={handleFileSelect} />
@@ -187,16 +173,14 @@ export function MainLayout({ children }: MainLayoutProps) {
         </motion.div>
 
         {/* Main Content */}
-        <motion.div
+        <motion.div 
           initial={false}
           animate={{
-            width: isRightSidebarCollapsed
-              ? isLeftSidebarCollapsed
-                ? "95%"
-                : "85%"
-              : "20%",
+            width: isRightSidebarCollapsed 
+              ? (isLeftSidebarCollapsed ? "95%" : "85%") 
+              : (isLeftSidebarCollapsed ? "80%" : "70%")
           }}
-          className="flex flex-1 flex-col relative z-0"
+          className="flex flex-1 flex-col"
         >
           <div className="flex flex-col">
             <DocumentTabs onTabChange={handleDocumentChange} />
@@ -244,8 +228,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             width: isRightSidebarCollapsed ? "5%" : "20%",
           }}
           className={cn(
-            "absolute right-0 top-0 bottom-0 z-30",
-            "border-l border-[#2C5530]/20",
+            "relative h-full border-l border-[#2C5530]/20",
             "bg-[#F5F5F0] shadow-sm",
             "flex flex-col min-h-0",
             isRightSidebarCollapsed ? "w-0" : "w-80"

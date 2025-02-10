@@ -1,20 +1,30 @@
 from datetime import datetime, timedelta
-from typing import Literal
-from app.models.database.users import User
-from beanie import Document, Indexed, Link
-from pydantic import EmailStr, Field
-from app.utils.tools import PyObjectId
+from typing import Literal, List, Optional
+from beanie import Document, Indexed
+from pydantic import Field
+from app.models.enums import DocumentAccessEnum
 
 
-class CollaboratorInvite(Document):
-    inviter_id: str  # References User
-    invitee_id: str  # References invited User
+class DocumentAccess(Document):
+    document_id: str
+    auth_role: DocumentAccessEnum = DocumentAccessEnum.READ
+    invited_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime = Field(
+        default_factory=lambda: datetime.utcnow() + timedelta(days=360)
+    )
+
+
+
+class Collaborator(Document):
+    inviter_id: str
+    invitee_id: str
     status: Literal["pending", "accepted", "rejected"] = "pending"
     invited_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime = Field(
-        default_factory=lambda: datetime.utcnow() + timedelta(hours=48)
+        default_factory=lambda: datetime.utcnow() + timedelta(days=360)
     )
     invitation_token: str
+    document_access: Optional[List[DocumentAccess]] = []
 
     class Settings:
         name = "collaborator"
@@ -23,3 +33,48 @@ class CollaboratorInvite(Document):
     @classmethod
     def is_invite_expired(cls, invite):
         return datetime.utcnow() > invite.expires_at
+
+    @classmethod
+    async def get_collaborators_by_document(cls, document_id: str):
+        """
+        Fetch active collaborators that have access to a specific document.
+
+        Args:
+            document_id (str): The ID of the document to filter by
+
+        Returns:
+            List[Collaborator]: List of active collaborators with access to the document
+        """
+        return await cls.find(
+            {
+                "status": "accepted",
+                "expires_at": {"$gt": datetime.utcnow()},
+                "document_access": {"$elemMatch": {"document_id": document_id}},
+            }
+        ).to_list()
+
+    @classmethod
+    async def get_collaborators_except_document(cls, document_id: str):
+        """
+        Fetch active collaborators that don't have access to a specific document.
+
+        Args:
+            document_id (str): The ID of the document to exclude
+
+        Returns:
+            List[Collaborator]: List of active collaborators without access to the document
+        """
+        return await cls.find(
+            {
+                "status": "accepted",
+                "expires_at": {"$gt": datetime.utcnow()},
+                "$or": [
+                    {"document_access": None},
+                    {
+                        "document_access": {
+                            "$not": {"$elemMatch": {"document_id": document_id}}
+                        }
+                    },
+                ],
+            }
+        ).to_list()

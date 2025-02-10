@@ -1,4 +1,4 @@
-from fastapi import status
+from fastapi import HTTPException, status
 
 
 class CollaboratorServiceError(Exception):
@@ -37,4 +37,35 @@ class DuplicateCollaboratorInviteError(CollaboratorServiceError):
             message=message,
             error_code="DUPLICATE_COLLABORATOR_INVITE",
             status_code=status.HTTP_409_CONFLICT,
+        )
+
+
+class MaxCollaboratorsExceededException(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum number of collaborators (5) has been reached.",
+        )
+
+
+class CollaboratorAlreadyInvitedException(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Collaborator has already been invited to this document.",
+        )
+
+
+class InvalidCollaboratorRoleException(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid collaborator role specified.",
+        )
+
+
+class CollaboratorNotFoundException(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Collaborator not found."
         )

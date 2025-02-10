@@ -191,7 +191,6 @@ class ConnectorCRUD:
             file_metadata = next(
                 (file for file in connector.files if file.doc_id == file_id), None
             )
-            print(file_metadata.summary)
 
             if not file_metadata:
                 raise FileNotFoundException(file_id)

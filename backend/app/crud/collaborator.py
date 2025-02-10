@@ -1,169 +1,184 @@
-from typing import List, Optional
-from beanie import PydanticObjectId
-from pymongo.errors import DuplicateKeyError
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+import uuid
+from typing import Optional, List
+from datetime import datetime, timedelta
+from fastapi import APIRouter, HTTPException, Depends, status
 
-from app.models.database.collaborators import CollaboratorInvite
+from app.models.database.collaborators import DocumentAccess, Collaborator
 from app.models.database.users import User
-from app.core.config.config import settings
-from app.core.security.auth import get_password_hash
-from app.services.email.smtp import send_email
-from app.utils.tools import generate_unique_token
+from app.models.schema.collaborator import (
+    DocumentAccessCreate,
+    CollaboratorInviteRequest,
+)
+from app.core.exceptions.collaborator_exceptions import (
+    MaxCollaboratorsExceededException,
+    CollaboratorAlreadyInvitedException,
+    CollaboratorNotFoundException,
+    InvalidCollaboratorRoleException,
+)
+from app.models.enums import DocumentAccessEnum
+from beanie import PydanticObjectId
 
 
-async def create_collaborator_invite(
-    inviter_id: PydanticObjectId, 
-    invitee_id: PydanticObjectId
-) -> CollaboratorInvite:
-    """
-    Create a new collaborator invite
-    
-    :param inviter_id: ID of the user creating the invite
-    :param invitee_id: ID of the invited collaborator
-    :return: Created CollaboratorInvite instance
-    :raises ValueError: If invite already exists or max collaborators reached
-    """
-    # Check if inviter exists
-    inviter = await User.get(inviter_id)
-    if not inviter:
-        raise ValueError("Inviter user not found")
+class CollaboratorCRUD:
 
-    # Check if invitee exists
-    invitee = await User.get(invitee_id)
-    if not invitee:
-        raise ValueError("Invitee user not found")
+    @staticmethod
+    async def get_document_collaborators(
+        document_id: str, user_id: str
+    ) -> List[Collaborator]:
 
-    # Check if invitee is the same as inviter
-    if inviter_id == invitee_id:
-        raise ValueError("Cannot invite yourself as a collaborator")
+        return await Collaborator.find(
+            {
+                "$or": [{"inviter_id": user_id}, {"invitee_id": user_id}],
+                "status": "accepted",
+                "expires_at": {"$gt": datetime.utcnow()},
+                # "document_access": {"$elemMatch": {"document_id": document_id}},
+                # "$or": [
+                #     {"document_access": None},
+                #     {
+                #         "document_access": {
+                #             "$not": {"$elemMatch": {"document_id": document_id}}
+                #         }
+                #     },
+                # ],
+            }
+        ).to_list()
 
-    # Check maximum collaborators
-    existing_invites = await CollaboratorInvite.find(
-        CollaboratorInvite.inviter_id == inviter_id,
-        CollaboratorInvite.status == "pending"
-    ).to_list()
-    
-    if len(existing_invites) >= settings.MAX_COLLABORATORS_PER_USER:
-        raise ValueError("Maximum number of pending collaborator invites reached")
+    @staticmethod
+    async def update_document_access_to_collaborator(
+        collaborator_id: str,
+        document_id: str,
+        auth_role: DocumentAccessEnum = DocumentAccessEnum.READ,
+    ) -> Collaborator:  # Changed return type to single Collaborator
+        """
+        Update or add document access for a collaborator.
 
-    # Check for existing pending invite
-    existing_invite = await CollaboratorInvite.find_one(
-        CollaboratorInvite.inviter_id == inviter_id,
-        CollaboratorInvite.invitee_id == invitee_id,
-        CollaboratorInvite.status == "pending"
-    )
-    
-    if existing_invite:
-        raise ValueError("Collaborator already invited")
+        Args:
+            collaborator_id (str): The ID of the collaborator
+            document_id (str): The document ID to grant access to
+            auth_role (DocumentAccessEnum): The access role to grant. Defaults to READ.
 
-    # Generate invitation token
-    invitation_token = generate_unique_token()
+        Returns:
+            Collaborator: Updated collaborator object
 
-    # Create new invite
-    invite = CollaboratorInvite(
-        inviter_id=inviter_id,
-        invitee_id=invitee_id,
-        invitation_token=invitation_token
-    )
+        Raises:
+            HTTPException: If collaborator is not found or not in accepted status
+        """
+        now = datetime.utcnow()
+        # Fetch collaborator by ID and status
+        collaborator = await Collaborator.find_one(
+            {
+                "_id": PydanticObjectId(collaborator_id),
+                "status": "accepted",
+            }
+        )
 
-    try:
-        await invite.insert()
-    except DuplicateKeyError:
-        raise ValueError("Invite already exists")
+        if not collaborator:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Collaborator with ID {collaborator_id} not found or not in accepted status",
+            )
 
-    return invite
+        # Find existing access for this document
+        existing_access = next(
+            (
+                access
+                for access in collaborator.document_access
+                if access.document_id == document_id
+            ),
+            None,
+        )
 
+        if existing_access:
+            # Update existing access role
+            existing_access.auth_role = auth_role
+            existing_access.invited_at = now
+            existing_access.expires_at = now + timedelta(days=360)
+            # existing_access.updated_at = (
+            #     datetime.utcnow()
+            # )  # Track when access was modified
+        else:
+            # Create and add new document access
+            doc_access = DocumentAccess(
+                document_id=document_id,
+                invited_at=now,
+                expires_at=now + timedelta(days=360),
+            )
+            collaborator.document_access.append(doc_access)
 
-async def get_user_collaborators(
-    user_id: PydanticObjectId, 
-    status: Optional[str] = None
-) -> List[dict]:
-    """
-    Retrieve collaborator invites for a user
-    
-    :param user_id: ID of the user
-    :param status: Optional status filter
-    :return: List of collaborator invites with additional details
-    """
-    query = CollaboratorInvite.inviter_id == user_id
-    
-    if status:
-        query &= CollaboratorInvite.status == status
+        # Save the changes
+        await collaborator.save()
 
-    invites = await CollaboratorInvite.find(query).to_list()
-    
-    # Fetch invitee details
-    collaborator_details = []
-    for invite in invites:
-        # Fetch invitee user to get email
-        invitee = await User.get(invite.invitee_id)
-        
-        collaborator_details.append({
-            "id": str(invite.id),
-            "inviterId": str(invite.inviter_id),
-            "inviteeEmail": invitee.email,
-            "status": invite.status,
-            "invitedAt": invite.invited_at,
-            "expiresAt": invite.expires_at
-        })
+        return collaborator
 
-    return collaborator_details
+    @staticmethod
+    async def remove_document_access(collaborator_ids: List[str], document_id: str):
+        """
+        Remove document access from specified collaborators
 
+        Args:
+            collaborator_ids (List[str]): List of collaborator IDs to update
+            document_id (str): The document ID to remove access from
 
-async def update_collaborator_invite_status(
-    invite_id: PydanticObjectId, 
-    status: str,
-    current_user_id: PydanticObjectId
-) -> CollaboratorInvite:
-    """
-    Update the status of a collaborator invite
-    
-    :param invite_id: ID of the invite
-    :param status: New status (accepted/rejected)
-    :param current_user_id: ID of the user updating the invite
-    :return: Updated CollaboratorInvite instance
-    :raises ValueError: If invite not found or unauthorized
-    """
-    invite = await CollaboratorInvite.get(invite_id)
-    
-    if not invite:
-        raise ValueError("Invite not found")
-    
-    if invite.invitee_id != current_user_id:
-        raise ValueError("Unauthorized to update this invite")
-    
-    if invite.status != "pending":
-        raise ValueError("Invite can only be updated when in pending status")
-    
-    if CollaboratorInvite.is_invite_expired(invite):
-        invite.status = "rejected"
-        await invite.save()
-        raise ValueError("Invite has expired")
-    
-    invite.status = status
-    await invite.save()
-    
-    return invite
+        Returns:
+            int: Number of collaborators updated
+        """
+        result = await Collaborator.update_many(
+            {
+                "_id": {"$in": collaborator_ids},
+                "document_access": {"$elemMatch": {"document_id": document_id}},
+            },
+            {"$pull": {"document_access": {"document_id": document_id}}},
+        )
 
+        return result
 
-async def delete_collaborator_invite(
-    invite_id: PydanticObjectId, 
-    current_user_id: PydanticObjectId
-) -> bool:
-    """
-    Delete a collaborator invite
-    
-    :param invite_id: ID of the invite to delete
-    :param current_user_id: ID of the user attempting to delete
-    :return: True if deleted, False otherwise
-    :raises ValueError: If unauthorized or invite not found
-    """
-    invite = await CollaboratorInvite.get(invite_id)
-    
-    if not invite:
-        raise ValueError("Invite not found")
-    
-    if invite.inviter_id != current_user_id:
-        raise ValueError("Unauthorized to delete this invite")
-    
-    await invite.delete()
-    return True
+    # @staticmethod
+    # def update_collaborator_role(
+    #     db: Session, collaborator_id: str, new_role: str
+    # ) -> DocumentAccess:
+    #     # Validate auth role
+    #     valid_roles = ["read", "comment", "update", "create"]
+    #     if new_role not in valid_roles:
+    #         raise InvalidCollaboratorRoleException()
+
+    #     collaborator = (
+    #         db.query(DocumentAccess)
+    #         .filter(DocumentAccess.id == collaborator_id)
+    #         .first()
+    #     )
+
+    #     if not collaborator:
+    #         raise CollaboratorNotFoundException()
+
+    #     collaborator.auth_role = new_role
+    #     db.commit()
+    #     db.refresh(collaborator)
+
+    #     return collaborator
+
+    # @staticmethod
+    # def accept_invitation(
+    #     db: Session, collaborator_id: str, user_id: str
+    # ) -> DocumentAccess:
+    #     collaborator = (
+    #         db.query(DocumentAccess)
+    #         .filter(
+    #             DocumentAccess.id == collaborator_id, DocumentAccess.status == "pending"
+    #         )
+    #         .first()
+    #     )
+
+    #     if not collaborator:
+    #         raise CollaboratorNotFoundException()
+
+    #     # Ensure the user accepting the invitation matches the invitee
+    #     if collaborator.invitee_id != user_id:
+    #         raise CollaboratorNotFoundException()
+
+    #     collaborator.status = "accepted"
+    #     db.commit()
+    #     db.refresh(collaborator)
+
+    #     return collaborator
