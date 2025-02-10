@@ -24,24 +24,22 @@ from beanie import PydanticObjectId
 class CollaboratorCRUD:
 
     @staticmethod
-    async def get_document_collaborators(
-        document_id: str, user_id: str
-    ) -> List[Collaborator]:
-
+    async def get_document_collaborators(user_id: str) -> List[Collaborator]:
         return await Collaborator.find(
             {
-                "$or": [{"inviter_id": user_id}, {"invitee_id": user_id}],
+                "$or": [{"inviter_id": str(user_id)}, {"invitee_id": str(user_id)}],
                 "status": "accepted",
                 "expires_at": {"$gt": datetime.utcnow()},
-                # "document_access": {"$elemMatch": {"document_id": document_id}},
-                # "$or": [
-                #     {"document_access": None},
-                #     {
-                #         "document_access": {
-                #             "$not": {"$elemMatch": {"document_id": document_id}}
-                #         }
-                #     },
-                # ],
+            }
+        ).to_list()
+
+    @staticmethod
+    async def get_document_invitee(user_id: str) -> List[Collaborator]:
+        return await Collaborator.find(
+            {
+                "invitee_id": str(user_id),
+                "status": "accepted",
+                "expires_at": {"$gt": datetime.utcnow()},
             }
         ).to_list()
 

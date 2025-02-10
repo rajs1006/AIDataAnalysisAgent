@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from app.models.schema.base.connector import (
     ConnectorBase,
     ConnectorMetadata,
-    FileStatus,
+    FileStatusEnum,
 )
 from fastapi import UploadFile
 
@@ -21,7 +21,7 @@ class FileEvent(BaseModel):
     event_type: str  # created, modified, deleted
     metadata: FileMetadata
     content: Optional[str] = None
-    timestamp: int
+    timestamp: datetime
 
 
 class PlatformInfo(BaseModel):

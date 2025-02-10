@@ -7,7 +7,7 @@ from app.core.dependencies import (
     get_connector_service,
 )
 from app.services.connectors.service import ConnectorService
-from app.models.database.connectors.connector import Connectors
+from app.models.database.connectors.connector import Connector
 from app.crud.connector import ConnectorCRUD
 from app.models.schema.base.connector import ConnectorUpdate, ConnectorFrontend
 from app.core.logging_config import get_logger

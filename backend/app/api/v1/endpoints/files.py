@@ -10,8 +10,9 @@ from app.models.schema.base.hierarchy import (
     FileContentResponse,
 )
 from app.core.exceptions.connector_exceptions import FileNotFoundException
-from app.core.dependencies.service import get_connector_service
+from app.core.dependencies.service import get_file_service
 from app.services.connectors.service import ConnectorService
+from app.services.file.service import FileService
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ router = APIRouter()
 )
 async def get_connector_file_hierarchy(
     current_user: User = Depends(get_current_user),
-    connector_service: ConnectorService = Depends(get_connector_service),
+    file_service: FileService = Depends(get_file_service),
 ):
     """
     Retrieve the file hierarchy for a specific connector.
@@ -31,16 +32,18 @@ async def get_connector_file_hierarchy(
     - **connector_id**: ID of the connector
     - Returns a hierarchical representation of files
     """
-    return await connector_service.get_connector_file_hierarchy(str(current_user.id))
+    return await file_service.get_connector_file_hierarchy(str(current_user.id))
 
 
 @router.get(
-    "/{connector_id}/blob/{file_id}",
+    "/blob/{file_id}",
     summary="Retrieve file blob",
     description="Retrieve the raw file blob for a specific file in a connector",
 )
 async def get_file_blob(
-    connector_id: str, file_id: str, current_user: User = Depends(get_current_user)
+    file_id: str,
+    file_service: FileService = Depends(get_file_service),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Retrieve the raw file blob for a specific file.
@@ -50,9 +53,8 @@ async def get_file_blob(
     - Returns raw file data with appropriate content type
     """
     try:
-        blob_data = await ConnectorCRUD.get_file_blob(
-            connector_id, file_id, str(current_user.id)
-        )
+        connector_id = None  ## TODO: Need to be removed
+        blob_data = await file_service.get_file_blob(file_id, str(current_user.id))
         # Return blob as a streaming response
         return Response(
             content=blob_data.blob,
@@ -69,13 +71,15 @@ async def get_file_blob(
 
 
 @router.get(
-    "/{connector_id}/content/{file_id}",
+    "/content/{file_id}",
     response_model=FileContentResponse,
     summary="Retrieve file content",
     description="Retrieve the text content for a specific file in a connector",
 )
 async def get_file_content(
-    connector_id: str, file_id: str, current_user: User = Depends(get_current_user)
+    file_id: str,
+    file_service: FileService = Depends(get_file_service),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Retrieve the text content for a specific file.
@@ -85,9 +89,7 @@ async def get_file_content(
     - Returns file text content with metadata
     """
     try:
-        return await ConnectorCRUD.get_file_content(
-            connector_id, file_id, str(current_user.id)
-        )
+        return await file_service.get_file_content(file_id, str(current_user.id))
     except Exception as e:
         import traceback
 

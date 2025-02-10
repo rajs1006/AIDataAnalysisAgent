@@ -18,12 +18,13 @@ from app.core.store.vectorizer import VectorStore
 from app.crud.image import ImageAgentCRUD
 from app.models.schema.agent import ImageData
 from app.models.schema.context.image import ImageMetadata
-from app.models.schema.base.connector import FileStatus
+from app.models.schema.base.connector import FileStatusEnum
 from app.utils.image import ImageValidator
 
 
-
 logger = get_logger(__name__)
+
+
 class ImageService:
     """Dynamic image processing with GPT-4 Vision"""
 
@@ -110,7 +111,7 @@ class ImageService:
                 content_text=analysis_result["extracted_text"],
                 content_hash=str(content_hash),
                 doc_id=doc_id,
-                status=FileStatus.ACTIVE,
+                status=FileStatusEnum.ACTIVE,
                 last_indexed=datetime.utcnow(),
                 # vector_ids=point_ids,  # Store all chunk IDs
                 # total_chunks=len(point_ids),
@@ -125,7 +126,9 @@ class ImageService:
             return {"content": analysis_result, "metadata": metadata}
 
         except Exception as e:
-            logger.error("Error in image analysis: {str(e)}", )
+            logger.error(
+                "Error in image analysis: {str(e)}",
+            )
             raise
 
     def _generate_searchable_text(self, analysis_result: Dict) -> str:

@@ -1,24 +1,26 @@
 from app.core.logging_config import get_logger
+
 # app/crud/agent.py
 
 from typing import List
 from qdrant_client.http.models import Filter
 from beanie import PydanticObjectId
-from app.models.database.connectors.folder import BaseConnector
+from app.models.database.connectors.connector import Connector
 from app.models.schema.agent import SearchContext
 from app.core.store.vectorizer import VectorStore
 
 
-
 logger = get_logger(__name__)
+
+
 class AgentCRUD:
     # def __init__(self, vector_store: VectorStore):
     #     self.vector_store = vector_store
 
     @staticmethod
-    async def get_connector(connector_id: str, user_id: str) -> BaseConnector:
+    async def get_connector(connector_id: str, user_id: str) -> Connector:
         """Get all connectors for a user"""
-        return await BaseConnector.find_one(
+        return await Connector.find_one(
             {
                 "_id": PydanticObjectId(connector_id),
                 "user_id": str(user_id),

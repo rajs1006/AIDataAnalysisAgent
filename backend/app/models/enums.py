@@ -18,3 +18,31 @@ class InviteStatusEnum(str, Enum):
 class UserTypeEnum(str, Enum):
     BUSINESS = "business"
     INDIVIDUAL = "individual"
+
+
+class ConnectorTypeEnum(str, Enum):
+    LOCAL_FOLDER = "local_folder"
+    ONEDRIVE = "onedrive"
+    GOOGLE_DRIVE = "google_drive"
+    S3 = "s3"
+    IMAGE = "image"
+
+
+class ConnectorStatusEnum(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    ERROR = "error"
+
+
+class ExtensionEnum(str, Enum):
+    PDF = "pdf"
+    DOC = "doc"
+    DOCX = "docx"
+    TXT = "txt"
+
+
+class FileStatusEnum(str, Enum):
+    ACTIVE = "active"
+    DELETED = "deleted"
+    PROCESSING = "processing"
+    ERROR = "error"

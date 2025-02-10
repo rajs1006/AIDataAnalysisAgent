@@ -10,15 +10,16 @@ from app.models.schema.connectors.onedrive import (
     OneDriveFileMetadata,
     OAuthCallbackRequest,
 )
-from app.models.schema.base.connector import FileStatus
+from app.models.schema.base.connector import FileStatusEnum
 from app.models.database.users import User
 from .client import OneDriveClient
 from app.core.security.oauth import OneDriveOAuth
 from app.services.agent.rag.service import RagService
 
 
-
 logger = get_logger(__name__)
+
+
 class OneDriveService:
 
     def __init__(self, crud: OneDriveCRUD, rag_service: RagService):
@@ -49,7 +50,9 @@ class OneDriveService:
             }
 
         except Exception as e:
-            logger.error("OAuth callback handling failed: {str(e)}", )
+            logger.error(
+                "OAuth callback handling failed: {str(e)}",
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to handle OAuth callback: {str(e)}",
@@ -78,7 +81,9 @@ class OneDriveService:
             return connector
 
         except Exception as e:
-            logger.error("Failed to create OneDrive connector: {str(e)}", )
+            logger.error(
+                "Failed to create OneDrive connector: {str(e)}",
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to create connector: {str(e)}",
@@ -121,7 +126,9 @@ class OneDriveService:
                 await self.crud.update_sync_status(connector_id, datetime.utcnow())
 
         except Exception as e:
-            logger.error("Folder sync failed: {str(e)}", )
+            logger.error(
+                "Folder sync failed: {str(e)}",
+            )
             await self.crud.update_sync_status(connector_id, datetime.utcnow(), str(e))
             raise
 
@@ -183,7 +190,7 @@ class OneDriveService:
             # Update file metadata
             file_metadata.content = content
             file_metadata.doc_id = doc_id
-            file_metadata.status = FileStatus.ACTIVE
+            file_metadata.status = FileStatusEnum.ACTIVE
             file_metadata.last_indexed = datetime.utcnow()
 
             await self.crud.update_file_metadata(str(connector.id), file_metadata)
@@ -191,8 +198,10 @@ class OneDriveService:
             return {"status": "success", "doc_id": doc_id}
 
         except Exception as e:
-            logger.error("Error processing file: {str(e)}", )
-            file_metadata.status = FileStatus.ERROR
+            logger.error(
+                "Error processing file: {str(e)}",
+            )
+            file_metadata.status = FileStatusEnum.ERROR
             file_metadata.error_message = str(e)
             await self.crud.update_file_metadata(str(connector.id), file_metadata)
             raise
@@ -217,7 +226,9 @@ class OneDriveService:
             connector = await self.crud.get_connector(connector_id, None)
 
             if not connector:
-                logger.error("Connector not found for webhook: {connector_id}", )
+                logger.error(
+                    "Connector not found for webhook: {connector_id}",
+                )
                 return
 
             async with OneDriveClient(connector.config.auth) as client:
@@ -225,7 +236,9 @@ class OneDriveService:
                     await self._handle_change(connector, client, change)
 
         except Exception as e:
-            logger.error("Webhook processing failed: {str(e)}", )
+            logger.error(
+                "Webhook processing failed: {str(e)}",
+            )
             raise
 
     async def _handle_change(
@@ -244,7 +257,9 @@ class OneDriveService:
                 await self._process_file(connector, client, file_metadata)
 
         except Exception as e:
-            logger.error("Change handling failed: {str(e)}", )
+            logger.error(
+                "Change handling failed: {str(e)}",
+            )
             raise
 
     async def _handle_deletion(self, connector, change: Dict[str, Any]):
@@ -263,5 +278,7 @@ class OneDriveService:
             await self.crud.delete_file_metadata(str(connector.id), change["id"])
 
         except Exception as e:
-            logger.error("Deletion handling failed: {str(e)}", )
+            logger.error(
+                "Deletion handling failed: {str(e)}",
+            )
             raise

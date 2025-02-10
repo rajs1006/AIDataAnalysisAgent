@@ -9,7 +9,7 @@ import {
 } from "@/lib/types/files";
 import { Connector, ConnectorType } from "@/lib/types/connectors";
 
-export function useConnectorFiles(interval = 5000) {
+export function useConnectorFiles(interval = 5000000) {
   const [connectors, setConnectors] = useState<Connector[]>([]);
   const [fileHierarchy, setFileHierarchy] = useState<{
     [connectorId: string]: FileHierarchyResponse;

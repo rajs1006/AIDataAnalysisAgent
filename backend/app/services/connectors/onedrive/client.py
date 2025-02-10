@@ -12,7 +12,7 @@ from app.models.schema.connectors.onedrive import (
     OneDriveAuth,
     OneDriveFileMetadata,
 )
-from app.models.schema.base.connector import FileStatus
+from app.models.schema.base.connector import FileStatusEnum
 from app.core.security.oauth import OneDriveOAuth
 from app.core.files.processor import DocumentProcessor
 
@@ -229,5 +229,5 @@ class OneDriveClient:
             ),
             content_hash=item.get("file", {}).get("hashes", {}).get("sha1Hash", ""),
             web_url=item["webUrl"],
-            status=FileStatus.PROCESSING,
+            status=FileStatusEnum.PROCESSING,
         )

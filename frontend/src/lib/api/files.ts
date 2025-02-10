@@ -72,7 +72,7 @@ class FileService {
 
   async getFileBlob(fileNode: FileNode): Promise<Blob> {
     const response = await fetch(
-      `${API_URL}/connectors/files/${fileNode.connector_id}/blob/${fileNode.id}`,
+      `${API_URL}/connectors/files/blob/${fileNode.id}`,
       {
         headers: {
           "Content-Type": "application/json",
@@ -94,7 +94,7 @@ class FileService {
     metadata?: Record<string, any>;
   }> {
     const response = await fetch(
-      `${API_URL}/connectors/files/${fileNode.connector_id}/content/${fileNode.id}`,
+      `${API_URL}/connectors/files/content/${fileNode.id}`,
       {
         headers: {
           "Content-Type": "application/json",

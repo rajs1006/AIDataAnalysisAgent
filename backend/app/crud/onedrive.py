@@ -8,13 +8,14 @@ from app.models.schema.connectors.onedrive import (
     OneDriveCreate,
     OneDriveFileMetadata,
 )
-from app.models.schema.base.connector import FileStatus
-from app.models.schema.base.connector import ConnectorType
-from app.models.schema.base.connector import ConnectorStatus
-
+from app.models.schema.base.connector import FileStatusEnum
+from app.models.schema.base.connector import ConnectorTypeEnum
+from app.models.schema.base.connector import ConnectorStatusEnum
 
 
 logger = get_logger(__name__)
+
+
 class OneDriveCRUD:
     @staticmethod
     async def get_user_connectors(user_id: str) -> List[OneDriveConnector]:
@@ -31,8 +32,8 @@ class OneDriveCRUD:
         existing = await OneDriveConnector.find_one(
             {
                 "user_id": str(user_id),
-                "connector_type": ConnectorType.ONEDRIVE,
-                "status": ConnectorStatus.ACTIVE,
+                "connector_type": ConnectorTypeEnum.ONEDRIVE,
+                "status": ConnectorStatusEnum.ACTIVE,
                 "enabled": True,
             }
         )
@@ -131,7 +132,9 @@ class OneDriveCRUD:
             return connector, file_metadata
 
         except Exception as e:
-            logger.error("Error updating file metadata: {str(e)}", )
+            logger.error(
+                "Error updating file metadata: {str(e)}",
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to update file metadata: {str(e)}",
@@ -152,7 +155,7 @@ class OneDriveCRUD:
             # Update file status to deleted
             for file in connector.files:
                 if file.file_id == file_id:
-                    file.status = FileStatus.DELETED
+                    file.status = FileStatusEnum.DELETED
                     break
 
             connector.updated_at = datetime.utcnow()
@@ -160,7 +163,9 @@ class OneDriveCRUD:
             return connector
 
         except Exception as e:
-            logger.error("Error deleting file metadata: {str(e)}", )
+            logger.error(
+                "Error deleting file metadata: {str(e)}",
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete file metadata: {str(e)}",

@@ -267,8 +267,6 @@ class CollaboratorService:
         remove_document_user_ids = []
         document_access_response = []
         for invite_request in invite_requests:
-            print("===========invite request==============")
-            print(invite_request)
             # Create collaborator record
             collaborator = (
                 await self.collaborator_crud.update_document_access_to_collaborator(
@@ -289,15 +287,15 @@ class CollaboratorService:
                     else:
                         # User is invitee, so collaborator is the inviter
                         user = await User.get(collaborator.inviter_id)
-                    print("authrole==============")
+
                     print(auth_role)
                     if auth_role != DocumentAccessEnum.NONE:
                         # Send invitation email
-                        # await self.email_service.send_collaboration_invite(
-                        #     to_email=user.email,
-                        #     document_name=invite_request.document_id,
-                        #     auth_role=invite_request.auth_role,
-                        # )
+                        await self.email_service.send_collaboration_invite(
+                            to_email=user.email,
+                            document_name=invite_request.document_id,
+                            auth_role=invite_request.auth_role,
+                        )
                         add_document_user_ids.append(str(user.id))
                         document_access_response.append(
                             DocumentAccessResponse(
@@ -332,9 +330,7 @@ class CollaboratorService:
         self, document_id: str, user_id: str
     ) -> List[CollaboratorResponse]:
         available_collaborators = (
-            await self.collaborator_crud.get_document_collaborators(
-                document_id, user_id
-            )
+            await self.collaborator_crud.get_document_collaborators(user_id)
         )
 
         document_collaborators = []

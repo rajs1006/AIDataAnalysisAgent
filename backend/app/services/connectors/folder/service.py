@@ -2,13 +2,17 @@ import tempfile
 from pathlib import Path
 import os
 from datetime import datetime
+from app.models.database.connectors.connector import Connector, FileDocument
+from app.models.enums import ConnectorTypeEnum, ConnectorStatusEnum
 from fastapi import HTTPException, status
 from haystack.dataclasses import Document
 
 from app.services.agent.rag.service import RagService
 from app.crud.folder import FolderConnectorCRUD
+from app.crud.connector import ConnectorCRUD
+from app.crud.file import FileCRUD
 from app.models.schema.connectors.folder import FileEvent
-from app.models.schema.base.connector import FileStatus
+from app.models.schema.base.connector import FileStatusEnum
 from app.models.schema.connectors.folder import FolderCreate, FileMetadata
 from app.models.database.users import User
 from app.utils.tools import get_content_hash
@@ -21,20 +25,23 @@ logger = get_logger(__name__)
 
 class FolderConnectorService:
 
-    def __init__(self, crud: FolderConnectorCRUD, rag_service: RagService):
+    def __init__(
+        self, crud: ConnectorCRUD, file_crud: FileCRUD, rag_service: RagService
+    ):
         self.rag_service = rag_service
         self.crud = crud
-
-    async def list_connectors(self, user_id: str):
-        return await self.crud.get_user_connectors(user_id)
+        self.file_crud = file_crud
 
     async def create_connector(self, connector_data: FolderCreate, current_user: User):
+        processed_files = []
         try:
             # Create connector in database
-            now = int(datetime.utcnow().timestamp() * 1000)
-            connector = await self.crud.create_connector(connector_data, current_user)
+            now = datetime.utcnow()
+            connector = await self.crud.create_connector(
+                Connector.from_request_data(connector_data, str(current_user.id)),
+                current_user,
+            )
 
-            processed_files = []
             for file in connector_data.files:
                 try:
                     extension = Path(file.filename).suffix
@@ -192,17 +199,6 @@ class FolderConnectorService:
             doc_id = f"{connector.id}_{event.metadata.content_hash}"
             event.metadata.file_id = doc_id
             if event.content:
-                # Create document metadata
-                # doc_metadata = {
-                #     "user_id": str(connector.user_id),
-                #     "connector_id": str(connector.id),
-                #     # "file_path": event.metadata.file_path,
-                #     # "parent_doc_id": doc_id,
-                #     # "file_type": event.metadata.extension,
-                #     # "file_name": event.metadata.filename,
-                #     "content_hash": event.metadata.content_hash,
-                #     **event.metadata.dict(),
-                # }
 
                 # Add document using RAG service
                 await self.rag_service.add_documents(
@@ -222,11 +218,13 @@ class FolderConnectorService:
 
                 # Update metadata for tracking
                 event.metadata.doc_id = doc_id
-                event.metadata.status = FileStatus.ACTIVE
+                event.metadata.status = FileStatusEnum.ACTIVE
                 event.metadata.last_indexed = datetime.utcnow()
 
                 # Update connector metadata
-                await self.crud.update_file_metadata(str(connector.id), event.metadata)
+                await self.file_crud.create_file_metadata(
+                    str(connector.id), FileDocument.from_embedded_data(event.metadata)
+                )
 
                 return {"status": "success", "doc_id": doc_id}
 
@@ -235,9 +233,9 @@ class FolderConnectorService:
                 "Error processing file update",
                 extra={"file_metadata": event.metadata.dict(), "error_details": str(e)},
             )
-            event.metadata.status = FileStatus.ERROR
+            event.metadata.status = FileStatusEnum.ERROR
             event.metadata.error_message = str(e)
-            await self.crud.update_file_metadata(str(connector.id), event.metadata)
+            await self.file_crud.create_file_metadata(str(connector.id), event.metadata)
             raise
 
     async def _handle_file_deletion(self, connector, event: FileEvent):

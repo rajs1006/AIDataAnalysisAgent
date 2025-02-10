@@ -6,8 +6,10 @@ from datetime import datetime
 from beanie import PydanticObjectId
 from fastapi import HTTPException, status
 
-from app.models.database.connectors.connector import Connectors
-from app.models.schema.base.connector import ConnectorUpdate, FileStatus
+from app.models.database.connectors.connector import Connector, FileDocument
+from app.models.database.users import User
+from app.models.enums import ConnectorStatusEnum, ConnectorTypeEnum, FileStatusEnum
+from app.models.schema.base.connector import ConnectorUpdate
 from app.core.files.blob_storage import BlobStorage
 from app.core.exceptions.connector_exceptions import FileNotFoundException
 from app.models.schema.base.hierarchy import FileContentResponse
@@ -16,11 +18,45 @@ logger = get_logger(__name__)
 
 
 class ConnectorCRUD:
+
+    @staticmethod
+    async def create_connector(connector: Connector, user: User) -> Connector:
+        """Create a new folder connector"""
+
+        # existing_for_user = await Connector.find_one(
+        #     {
+        #         "user_id": str(user.id),
+        #         "connector_type": ConnectorTypeEnum.LOCAL_FOLDER,
+        #         "status": ConnectorStatusEnum.ACTIVE,
+        #         "enabled": True,
+        #     }
+        # )
+        # if existing_for_user:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_400_BAD_REQUEST,
+        #         detail="User can only have one active folder connector at a time",
+        #     )
+
+        existing = await Connector.find_one(
+            {
+                "user_id": str(user.id),
+                "name": connector.name,
+                "connector_type": ConnectorTypeEnum.LOCAL_FOLDER,
+                "status": ConnectorStatusEnum.ACTIVE,
+                "enabled": True,
+            }
+        )
+        if existing:
+            return existing
+
+        await connector.insert()
+        return connector
+
     @staticmethod
     async def get_user_connectors(user_id: str):
         """Get all active connectors for a user"""
         try:
-            connectors = await Connectors.find(
+            connectors = await Connector.find(
                 {"user_id": str(user_id), "enabled": True}
             ).to_list()
 
@@ -33,7 +69,7 @@ class ConnectorCRUD:
     async def get_connector(connector_id: str, user_id: str):
         """Get all active connectors for a user"""
         try:
-            return await Connectors.find_one(
+            return await Connector.find_one(
                 {
                     "_id": PydanticObjectId(connector_id),
                     "user_id": str(user_id),
@@ -47,10 +83,10 @@ class ConnectorCRUD:
     @staticmethod
     async def update_connector_status(
         user_id: str, connector: ConnectorUpdate
-    ) -> Connectors:
+    ) -> Connector:
         """Update a connector's status"""
         try:
-            existing_connector = await Connectors.find_one(
+            existing_connector = await Connector.find_one(
                 {
                     "_id": PydanticObjectId(connector.id),
                     "user_id": str(user_id),
@@ -79,7 +115,7 @@ class ConnectorCRUD:
             raise
 
     @staticmethod
-    async def get_user_active_connectors(user_id: str) -> List[Connectors]:
+    async def get_user_active_connectors(user_id: str) -> List[Connector]:
         """
         Retrieve file hierarchy for a specific connector.
 
@@ -90,14 +126,21 @@ class ConnectorCRUD:
             List of connectors
         """
         try:
-            connectors = await Connectors.find(
-                {"user_id": str(user_id), "enabled": True, "status": FileStatus.ACTIVE}
+            connectors = await Connector.find(
+                Connector.user_id == str(user_id),
+                Connector.enabled == True,
+                Connector.status == ConnectorStatusEnum.ACTIVE,
             ).to_list()
 
             if not connectors:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
                 )
+
+            for connector in connectors:
+                files = await FileDocument.find().to_list()
+                connector.files = files
+
             return connectors
 
         except Exception as e:
@@ -106,101 +149,103 @@ class ConnectorCRUD:
             )
             raise
 
-    @staticmethod
-    async def get_file_blob(connector_id: str, file_id: str, user_id: str):
-        """
-        Retrieve file blob by file ID.
+    # @staticmethod
+    # async def get_file_blob(connector_id: str, file_id: str, user_id: str):
+    #     """
+    #     Retrieve file blob by file ID.
 
-        Args:
-            connector_id (str): ID of the connector
-            file_id (str): ID of the file
-            user_id (str): ID of the user
+    #     Args:
+    #         connector_id (str): ID of the connector
+    #         file_id (str): ID of the file
+    #         user_id (str): ID of the user
 
-        Returns:
-            BlobData: File blob data
+    #     Returns:
+    #         BlobData: File blob data
 
-        Raises:
-            FileNotFoundException: If file not found
-        """
-        try:
-            connector = await Connectors.find_one(
-                {
-                    "_id": PydanticObjectId(connector_id),
-                    "user_id": str(user_id),
-                    "enabled": True,
-                }
-            )
+    #     Raises:
+    #         FileNotFoundException: If file not found
+    #     """
+    #     try:
+    #         connector = await Connector.find_one(
+    #             {
+    #                 "_id": PydanticObjectId(connector_id),
+    #                 "user_id": str(user_id),
+    #                 "enabled": True,
+    #             }
+    #         )
 
-            if not connector:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
-                )
+    #         if not connector:
+    #             raise HTTPException(
+    #                 status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
+    #             )
 
-            # Find file with matching doc_id
-            file_metadata = next(
-                (file for file in connector.files if file.doc_id == file_id), None
-            )
+    #         # Find file with matching doc_id
+    #         file_metadata = next(
+    #             (file for file in connector.files if file.doc_id == file_id), None
+    #         )
 
-            if not file_metadata:
-                raise FileNotFoundException(file_id)
+    #         if not file_metadata:
+    #             raise FileNotFoundException(file_id)
 
-            # Retrieve blob from storage using GCS path if available
-            if file_metadata.blob_gcs_path:
-                # Create a temporary BlobData object with GCS information
-                return await BlobStorage.retrieve_blob(file_metadata.blob_gcs_path)
+    #         # Retrieve blob from storage using GCS path if available
+    #         if file_metadata.blob_gcs_path:
+    #             # Create a temporary BlobData object with GCS information
+    #             return await BlobStorage.retrieve_blob(file_metadata.blob_gcs_path)
 
-            raise FileNotFoundException(file_id)
+    #         raise FileNotFoundException(file_id)
 
-        except Exception as e:
-            logger.error(
-                f"Error retrieving file blob: {str(e)}",
-            )
-            raise
+    #     except Exception as e:
+    #         logger.error(
+    #             f"Error retrieving file blob: {str(e)}",
+    #         )
+    #         raise
 
-    @staticmethod
-    async def get_file_content(connector_id: str, file_id: str, user_id: str):
-        """
-        Retrieve file blob by file ID.
+    # @staticmethod
+    # async def get_file_content(connector_id: str, file_id: str, user_id: str):
+    #     """
+    #     Retrieve file blob by file ID.
 
-        Args:
-            connector_id (str): ID of the connector
-            file_id (str): ID of the file
-            user_id (str): ID of the user
+    #     Args:
+    #         connector_id (str): ID of the connector
+    #         file_id (str): ID of the file
+    #         user_id (str): ID of the user
 
-        Returns:
-            BlobData: File blob data
+    #     Returns:
+    #         BlobData: File blob data
 
-        Raises:
-            FileNotFoundException: If file not found
-        """
-        try:
-            connector = await Connectors.find_one(
-                {
-                    "_id": PydanticObjectId(connector_id),
-                    "user_id": str(user_id),
-                    "enabled": True,
-                }
-            )
+    #     Raises:
+    #         FileNotFoundException: If file not found
+    #     """
+    #     try:
+    #         if connector_id:
+    #             connector = await Connector.find_one(
+    #                 {
+    #                     "_id": PydanticObjectId(connector_id),
+    #                     "user_id": str(user_id),
+    #                     "enabled": True,
+    #                 }
+    #             )
 
-            if not connector:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
-                )
+    #             if not connector:
+    #                 raise HTTPException(
+    #                     status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
+    #                 )
 
-            # Find file with matching doc_id
-            file_metadata = next(
-                (file for file in connector.files if file.doc_id == file_id), None
-            )
+    #             # Find file with matching doc_id
+    #             file_metadata = next(
+    #                 (file for file in connector.files if file.doc_id == file_id), None
+    #             )
 
-            if not file_metadata:
-                raise FileNotFoundException(file_id)
+    #             if not file_metadata:
+    #                 raise FileNotFoundException(file_id)
+    #         else:
 
-            return FileContentResponse(
-                text=file_metadata.summary["summary"],
-                metadata={"file_path": file_metadata.file_path},
-            )
-        except Exception as e:
-            logger.error(
-                f"Error retrieving file blob: {str(e)}",
-            )
-            raise
+    #         return FileContentResponse(
+    #             text=file_metadata.summary["summary"],
+    #             metadata={"file_path": file_metadata.file_path},
+    #         )
+    #     except Exception as e:
+    #         logger.error(
+    #             f"Error retrieving file blob: {str(e)}",
+    #         )
+    #         raise
