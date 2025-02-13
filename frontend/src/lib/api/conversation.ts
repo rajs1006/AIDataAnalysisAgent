@@ -3,6 +3,7 @@ import { handleApiError } from "@/lib/utils/axios-interceptor";
 import { authService } from "@/lib/api/auth";
 
 export interface Message {
+  status: string;
   id: string;
   role: "user" | "assistant";
   content: string;

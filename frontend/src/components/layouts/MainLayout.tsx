@@ -289,7 +289,7 @@ export const MainLayout: React.FC = () => {
         {/* Sidebar */}
         {!sidebarCollapsed && (<div
           className={`${
-            sidebarCollapsed ? "w-14" : "w-auto"
+            sidebarCollapsed ? "w-14" : "w-80"
           } transition-all duration-200`}
         >
           <Sidebar 

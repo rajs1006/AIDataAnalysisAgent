@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Rnd } from "react-rnd";
 import {
-  X,
   Send,
   Search,
   Filter,
   History,
   MessageSquare,
-  ArrowLeftRight,
   Maximize2,
   Minimize2,
   Plus,
@@ -27,16 +25,51 @@ import {
 import { renderMarkdown } from "@/lib/utils/markdown";
 import { conversationService } from "@/lib/api/conversation";
 import { chatService } from "@/lib/api/chat";
-import type { Conversation } from "@/lib/api/conversation";
-import type { ChatState } from "@/lib/types/chat";
+
+// Define interfaces for type safety
+interface Message {
+  id: string;
+  content: string;
+  role: "user" | "assistant";
+  created_at: string;
+  status?: "sending" | "sent" | "error";
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+  messages?: Message[];
+}
+
+interface ChatState {
+  mode: "panel";
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  isMinimized: boolean;
+}
 
 type ConversationFilter = "today" | "week" | "month";
 
-const UnifiedChatInterface = () => {
+const UnifiedChatInterface: React.FC = () => {
+  const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      );
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, []);
+  // Local state for managing conversations and UI.
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] =
     useState<Conversation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState("");
@@ -61,113 +94,144 @@ const UnifiedChatInterface = () => {
     },
   });
 
+  // Auto scroll when messages change
+  useEffect(() => {
+    if (currentConversation?.messages) {
+      scrollToBottom();
+    }
+  }, [currentConversation?.messages, scrollToBottom]);
+
+  // Load conversations on mount and set up periodic refresh
   useEffect(() => {
     fetchConversations();
+
+    // Set up periodic refresh every 30 seconds
+    const refreshInterval = setInterval(fetchConversations, 30000);
+
+    return () => clearInterval(refreshInterval);
   }, []);
 
   const fetchConversations = async () => {
     try {
-      setIsLoading(true);
       const fetchedConversations = await conversationService.list();
       setConversations(fetchedConversations);
+      setError(null);
     } catch (err) {
       setError("Failed to load conversations");
+      console.error("Error fetching conversations:", err);
+    }
+  };
+
+  const handleSelectConversation = async (conversation: Conversation) => {
+    try {
+      setIsLoading(true);
+      // Fetch fresh conversation data to ensure we have latest messages
+      const freshConversation = await conversationService.getById(
+        conversation.id
+      );
+      setCurrentConversation(freshConversation);
+      setError(null);
+    } catch (err) {
+      setError("Failed to load conversation");
+      console.error("Error loading conversation:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSelectConversation = (conversation: Conversation) => {
-    setCurrentConversation(conversation);
+  const handleNewChat = () => {
+    setCurrentConversation(null);
+    setInputMessage("");
+    setError(null);
   };
 
-  const handleCreateNewChat = async (initialMessage?: string) => {
-    try {
-      if (
-        currentConversation &&
-        (!currentConversation.messages ||
-          currentConversation.messages.length === 0)
-      ) {
-        return currentConversation;
-      }
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isSending) return;
 
-      const title = initialMessage
-        ? initialMessage.length > 50
-          ? initialMessage.slice(0, 50) + "..."
-          : initialMessage
-        : "New Conversation";
-
-      const newConversation = await conversationService.create({ title });
-
-      if (initialMessage) {
-        await sendMessage(newConversation.id, initialMessage);
-      }
-
-      fetchConversations();
-      setCurrentConversation(newConversation);
-      return newConversation;
-    } catch (err) {
-      setError("Failed to create new chat");
-      return null;
-    }
-  };
-
-  const sendMessage = async (
-    conversationId?: string,
-    messageToSend?: string
-  ) => {
-    const message = messageToSend || inputMessage;
-    if (!message.trim()) return;
-
-    let chatId = conversationId || currentConversation?.id;
-
-    if (!chatId) {
-      const newConversation = await handleCreateNewChat(message);
-      chatId = newConversation?.id;
-    }
-
-    if (!chatId) return;
+    const messageContent = inputMessage.trim();
+    setInputMessage(""); // Clear input immediately
+    setIsSending(true);
 
     try {
-      setCurrentConversation((prev) =>
-        prev
-          ? {
-              ...prev,
-              messages: [
-                ...(prev.messages || []),
-                {
-                  id: "loading",
-                  role: "user",
-                  content: message,
-                  created_at: new Date().toISOString(),
-                  status: "sending",
-                },
-              ],
-            }
-          : null
-      );
+      if (!currentConversation) {
+        // Create new conversation
+        const title = messageContent.split("\n")[0].slice(0, 50);
+        const conversation = await conversationService.create({ title });
 
-      await chatService.sendMessage(message, null, chatId);
-      const updatedConversation = await conversationService.getById(chatId);
-      setCurrentConversation(updatedConversation);
-      setInputMessage("");
+        // Create temporary conversation with pending message
+        const tempConversation = {
+          ...conversation,
+          messages: [
+            {
+              id: "temp-" + Date.now(),
+              content: messageContent,
+              role: "user",
+              created_at: new Date().toISOString(),
+              status: "sending",
+            },
+          ],
+        };
+        setCurrentConversation(tempConversation);
+
+        // Send message
+        await chatService.sendMessage(messageContent, null, conversation.id);
+
+        // Fetch updated conversation with both messages
+        const updatedConversation = await conversationService.getById(
+          conversation.id
+        );
+        setCurrentConversation(updatedConversation);
+
+        // Refresh conversation list
+        fetchConversations();
+      } else {
+        // Add temporary user message to the conversation
+        const tempMessage = {
+          id: "temp-" + Date.now(),
+          content: messageContent,
+          role: "user" as const,
+          created_at: new Date().toISOString(),
+          status: "sending",
+        };
+
+        setCurrentConversation((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            messages: [...(prev.messages || []), tempMessage],
+          };
+        });
+
+        // Send message
+        await chatService.sendMessage(
+          messageContent,
+          null,
+          currentConversation.id
+        );
+
+        // Fetch updated conversation with AI response
+        const updatedConversation = await conversationService.getById(
+          currentConversation.id
+        );
+        setCurrentConversation(updatedConversation);
+      }
+
+      setError(null);
     } catch (err) {
+      console.error("Failed to send message:", err);
       setError("Failed to send message");
-      setCurrentConversation((prev) =>
-        prev
-          ? {
-              ...prev,
-              messages: (prev.messages || []).filter((m) => m.id !== "loading"),
-            }
-          : null
-      );
+
+      // Restore the message to input if sending failed
+      setInputMessage(messageContent);
+    } finally {
+      setIsSending(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage();
     }
   };
 
@@ -183,21 +247,17 @@ const UnifiedChatInterface = () => {
       const newState = { ...prev, isMaximized: !prev.isMaximized };
 
       if (prev.isMaximized) {
-        // Restore previous size and position
         setChatState((state) => ({
           ...state,
           size: prev.previousSize,
           position: prev.previousPosition,
         }));
       } else {
-        // Store current size and position before maximizing
         setWindowState((state) => ({
           ...state,
           previousSize: chatState.size,
           previousPosition: chatState.position,
         }));
-
-        // Set to maximum size with small padding
         setChatState((state) => ({
           ...state,
           size: {
@@ -207,7 +267,6 @@ const UnifiedChatInterface = () => {
           position: { x: 20, y: 20 },
         }));
       }
-
       return newState;
     });
   }, [chatState]);
@@ -217,53 +276,25 @@ const UnifiedChatInterface = () => {
       const newState = { ...prev, isMinimized: !prev.isMinimized };
 
       if (!prev.isMinimized) {
-        // Store current state before minimizing
         setWindowState((state) => ({
           ...state,
           previousSize: chatState.size,
           previousPosition: chatState.position,
         }));
-
-        // Set minimized position
         setChatState((state) => ({
           ...state,
           position: { x: window.innerWidth - 300, y: window.innerHeight - 100 },
         }));
       } else {
-        // Restore previous state
         setChatState((state) => ({
           ...state,
           size: prev.previousSize,
           position: prev.previousPosition,
         }));
       }
-
       return newState;
     });
   }, [chatState]);
-
-  const handleClose = useCallback(() => {
-    setChatState((prev) => ({
-      ...prev,
-      isMinimized: true,
-      position: { x: window.innerWidth - 300, y: window.innerHeight - 100 },
-    }));
-  }, []);
-
-  const filteredConversations = conversations.filter((conversation) => {
-    const matchesSearch =
-      conversation.title.toLowerCase().includes(filter.toLowerCase()) ||
-      conversation.messages.some((msg) =>
-        msg.content.toLowerCase().includes(filter.toLowerCase())
-      );
-
-    const matchesPeriod =
-      selectedPeriod === "today" ||
-      new Date(conversation.created_at) >
-        new Date(Date.now() - getPeriodMilliseconds(selectedPeriod));
-
-    return matchesSearch && matchesPeriod;
-  });
 
   const getPeriodMilliseconds = (period: ConversationFilter): number => {
     switch (period) {
@@ -275,6 +306,23 @@ const UnifiedChatInterface = () => {
         return 30 * 24 * 60 * 60 * 1000;
     }
   };
+
+  // Filter conversations for the history panel
+  const filteredConversations = conversations.filter((conversation) => {
+    const matchesSearch =
+      conversation.title.toLowerCase().includes(filter.toLowerCase()) ||
+      (conversation.messages &&
+        conversation.messages.some((msg) =>
+          msg.content.toLowerCase().includes(filter.toLowerCase())
+        ));
+
+    const matchesPeriod =
+      selectedPeriod === "today" ||
+      new Date(conversation.created_at) >
+        new Date(Date.now() - getPeriodMilliseconds(selectedPeriod));
+
+    return matchesSearch && matchesPeriod;
+  });
 
   return (
     <Rnd
@@ -309,9 +357,9 @@ const UnifiedChatInterface = () => {
           windowState.isMinimized ? "h-[60px]" : "h-full"
         )}
       >
+        {/* Sidebar with conversation history */}
         {!windowState.isMinimized && (
           <div className="w-72 border-r border-gray-800 flex flex-col">
-            {/* History Header */}
             <div className="p-4 border-b border-gray-800 bg-gray-900/90 backdrop-blur-sm">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -373,22 +421,20 @@ const UnifiedChatInterface = () => {
               </div>
             </div>
 
-            {/* Chat List */}
+            {/* Conversation List */}
             <ScrollArea className="flex-1">
               <div className="p-2 space-y-1">
-                {isLoading ? (
-                  <div className="flex justify-center items-center h-32">
-                    <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
-                  </div>
-                ) : error ? (
-                  <div className="p-4 m-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <p className="text-sm text-red-400">{error}</p>
-                  </div>
-                ) : filteredConversations.length === 0 ? (
+                {conversations.length === 0 ? (
                   <div className="p-8 text-center text-gray-400">
                     <MessageSquare className="w-8 h-8 mb-3 mx-auto text-gray-500" />
                     <p>No conversations yet</p>
-                    <p className="text-sm mt-1">Start a new chat to begin</p>
+                    <p className="text-sm mt-1">
+                      Press the + button to start a new chat
+                    </p>
+                  </div>
+                ) : filteredConversations.length === 0 ? (
+                  <div className="p-4 text-center text-gray-400">
+                    <p>No matching conversations found</p>
                   </div>
                 ) : (
                   filteredConversations.map((chat) => (
@@ -409,12 +455,16 @@ const UnifiedChatInterface = () => {
                             {chat.title}
                           </h4>
                           {chat.messages && chat.messages.length > 0 && (
-                            <p className="text-sm text-gray-400 mt-1 line-clamp-2">
-                              {chat.messages[chat.messages.length - 1].content}
+                            <p className="text-xs text-gray-400 mt-1 truncate">
+                              {chat.messages[chat.messages.length - 1].content
+                                .split(" ")
+                                .slice(0, 5)
+                                .join(" ")}
+                              ...
                             </p>
                           )}
-                          <time className="text-xs text-gray-500 mt-2 block">
-                            {new Date(chat.created_at).toLocaleDateString()}
+                          <time className="text-xs text-gray-500 mt-1 block">
+                            {new Date(chat.created_at).toLocaleString()}
                           </time>
                         </div>
                       </div>
@@ -428,27 +478,33 @@ const UnifiedChatInterface = () => {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col">
-          {/* Chat Header */}
           <div className="chat-handle h-14 px-4 border-b border-gray-800 bg-gray-900/90 backdrop-blur-sm flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-blue-400" />
               <h3 className="font-medium text-gray-200">
-                {windowState.isMinimized
-                  ? "Chat"
-                  : currentConversation
-                  ? currentConversation.title
-                  : "New Chat"}
+                {currentConversation ? currentConversation.title : "New Chat"}
               </h3>
             </div>
-
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 hover:bg-gray-800 rounded-lg text-gray-400"
-                onClick={() => handleCreateNewChat()}
+                onClick={handleNewChat}
               >
                 <Plus className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-gray-800 rounded-lg text-gray-400"
+                onClick={handleMinimize}
+              >
+                {windowState.isMinimized ? (
+                  <Maximize2 className="w-4 h-4" />
+                ) : (
+                  <Minimize2 className="w-4 h-4" />
+                )}
               </Button>
               {/* <Button
                 variant="ghost"
@@ -462,107 +518,101 @@ const UnifiedChatInterface = () => {
                   <Maximize2 className="w-4 h-4" />
                 )}
               </Button> */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 hover:bg-gray-800 rounded-lg text-gray-400"
-                onClick={handleMinimize}
-              >
-                {windowState.isMinimized ? (
-                  <Maximize2 className="w-4 h-4" />
-                ) : (
-                  <Minimize2 className="w-4 h-4" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 hover:bg-gray-800 rounded-lg text-gray-400"
-                onClick={handleClose}
-              >
-                <X className="w-4 h-4" />
-              </Button>
             </div>
           </div>
 
           {!windowState.isMinimized && (
             <>
-              {/* Messages Area */}
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
                 <div className="space-y-4">
                   {!currentConversation ? (
                     <div className="h-full flex flex-col items-center justify-center text-gray-400">
                       <MessageSquare className="w-12 h-12 mb-4 text-gray-500" />
-                      <p className="text-lg font-medium">Start a New Chat</p>
-                      <p className="text-sm mt-2">
-                        Begin a conversation or select from history
+                      <p className="text-lg font-medium">
+                        Start a new chat or select a conversation
                       </p>
                     </div>
+                  ) : isLoading ? (
+                    <div className="flex justify-center items-center h-32">
+                      <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+                    </div>
                   ) : (
-                    currentConversation.messages &&
-                    currentConversation.messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={cn(
-                          "flex",
-                          message.role === "user"
-                            ? "justify-end"
-                            : "justify-start"
-                        )}
-                      >
+                    // Render messages sorted by creation time
+                    [...(currentConversation.messages || [])]
+                      .sort(
+                        (a, b) =>
+                          new Date(a.created_at).getTime() -
+                          new Date(b.created_at).getTime()
+                      )
+                      .map((message) => (
                         <div
+                          key={message.id}
                           className={cn(
-                            "max-w-[80%] rounded-lg p-3",
+                            "flex",
                             message.role === "user"
-                              ? "bg-blue-500/20 text-blue-100"
-                              : "bg-gray-800 text-gray-100"
+                              ? "justify-end"
+                              : "justify-start"
                           )}
                         >
-                          <div className="flex items-center justify-between gap-4 mb-1">
-                            <span className="text-xs font-medium">
-                              {message.role === "user" ? "You" : "AI Assistant"}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 rounded-full hover:bg-gray-700"
-                                onClick={() => {
-                                  copyMessage(message.content);
-                                  setCopiedMessageId(message.id);
-                                  setTimeout(
-                                    () => setCopiedMessageId(null),
-                                    2000
-                                  );
-                                }}
-                              >
-                                {copiedMessageId === message.id ? (
-                                  <Check className="h-3 w-3" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </Button>
-                              <time className="text-xs text-gray-400">
-                                {new Date(
-                                  message.created_at
-                                ).toLocaleTimeString()}
-                              </time>
-                            </div>
-                          </div>
                           <div
-                            className="prose prose-invert prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{
-                              __html: renderMarkdown(message.content),
-                            }}
-                          />
+                            className={cn(
+                              "max-w-[80%] rounded-lg p-3",
+                              message.role === "user"
+                                ? "bg-blue-500/20 text-blue-100"
+                                : "bg-gray-800 text-gray-100"
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-4 mb-1">
+                              <span className="text-xs font-medium">
+                                {message.role === "user"
+                                  ? "You"
+                                  : "AI Assistant"}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 rounded-full hover:bg-gray-700"
+                                  onClick={() => {
+                                    copyMessage(message.content);
+                                    setCopiedMessageId(message.id);
+                                    setTimeout(
+                                      () => setCopiedMessageId(null),
+                                      2000
+                                    );
+                                  }}
+                                >
+                                  {copiedMessageId === message.id ? (
+                                    <Check className="h-3 w-3" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </Button>
+                                <div className="flex items-center gap-1">
+                                  {message.status === "sending" && (
+                                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                                  )}
+                                  <time className="text-xs text-gray-400">
+                                    {new Date(
+                                      message.created_at
+                                    ).toLocaleTimeString()}
+                                  </time>
+                                </div>
+                              </div>
+                            </div>
+                            <div
+                              className="prose prose-invert prose-sm max-w-none"
+                              dangerouslySetInnerHTML={{
+                                __html: renderMarkdown(message.content),
+                              }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      ))
                   )}
                 </div>
               </ScrollArea>
 
-              {/* Input Area */}
               <div className="p-4 border-t border-gray-800 bg-gray-900/90 backdrop-blur-sm">
                 <div className="relative">
                   <textarea
@@ -573,42 +623,33 @@ const UnifiedChatInterface = () => {
                     placeholder={
                       currentConversation
                         ? "Type your message..."
-                        : "Start a new conversation..."
+                        : "Type a message to start a new chat"
                     }
-                    disabled={isLoading}
+                    disabled={isSending}
                   />
                   <div className="absolute right-2 bottom-2 flex items-center gap-1">
                     <Button
                       size="icon"
                       className={cn(
                         "h-8 w-8 rounded-lg transition-colors",
-                        inputMessage.trim() && !isLoading
+                        inputMessage.trim() && !isSending
                           ? "bg-blue-500 hover:bg-blue-600 text-white"
                           : "bg-gray-700 text-gray-400 cursor-not-allowed"
                       )}
-                      onClick={() =>
-                        currentConversation
-                          ? sendMessage()
-                          : handleCreateNewChat(inputMessage)
-                      }
-                      disabled={!inputMessage.trim() || isLoading}
+                      onClick={handleSendMessage}
+                      disabled={!inputMessage.trim() || isSending}
                     >
-                      {isLoading ? (
+                      {isSending ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Send className="w-4 h-4" />
                       )}
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 hover:bg-gray-800 rounded-lg text-gray-400"
-                      onClick={() => handleCreateNewChat()}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
                   </div>
                 </div>
+                {error && (
+                  <div className="mt-2 text-sm text-red-400">{error}</div>
+                )}
               </div>
             </>
           )}

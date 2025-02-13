@@ -161,7 +161,7 @@ export function Sidebar({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Search Bar */}
-        <div className="p-4">
+        {/* <div className="p-4">
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
             <input
@@ -179,7 +179,7 @@ export function Sidebar({
               )}
             />
           </div>
-        </div>
+        </div> */}
 
         {/* Content Area */}
         <ScrollArea className="flex-1">
