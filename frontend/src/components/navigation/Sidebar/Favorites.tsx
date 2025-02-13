@@ -1,15 +1,20 @@
-// src/components/navigation/Sidebar/Favorites.tsx
 "use client";
 
 import { useState } from "react";
 import { Star, FileText, FileSpreadsheet, Presentation, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FileNode } from "@/lib/types/files";
+import { ConnectorType } from "@/lib/types/connectors";
 
 interface FavoriteItem {
   id: string;
   name: string;
   type: "document" | "spreadsheet" | "presentation";
   path: string;
+}
+
+interface FavoritesProps {
+  onFileSelect: (file: FileNode, fileContent?: any) => void;
 }
 
 function getFileIcon(type: FavoriteItem["type"]) {
@@ -23,7 +28,7 @@ function getFileIcon(type: FavoriteItem["type"]) {
   }
 }
 
-export function Favorites() {
+export function Favorites({ onFileSelect }: FavoritesProps) {
   // Example favorites data - in real app, this would come from props or a store
   const [favorites, setFavorites] = useState<FavoriteItem[]>([
     {
@@ -50,6 +55,20 @@ export function Favorites() {
     setFavorites((current) => current.filter((item) => item.id !== id));
   };
 
+  const handleFileSelect = (item: FavoriteItem) => {
+    const fileNode: FileNode = {
+      id: item.id,
+      name: item.name,
+      path: item.path,
+      type: item.type,
+      connector_type: ConnectorType.LOCAL_FOLDER,
+      connector_id: '',
+      children: {},
+      extension: item.name.split('.').pop(),
+    };
+    onFileSelect(fileNode);
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between px-2">
@@ -62,6 +81,7 @@ export function Favorites() {
         {favorites.map((item) => (
           <div
             key={item.id}
+            onClick={() => handleFileSelect(item)}
             className={cn(
               "group flex items-center gap-2 rounded-md px-2 py-1",
               "cursor-pointer hover:bg-[#A7C4AA]/10"

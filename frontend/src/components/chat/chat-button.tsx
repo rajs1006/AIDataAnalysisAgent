@@ -1,45 +1,30 @@
-import { motion } from "framer-motion";
-import { Button } from "../ui/button";
+"use client";
 
-interface ChatButtonProps {
-  onClick: () => void;
+import React from 'react';
+import { MessageSquare } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '@/lib/store/store';
+
+export function ChatButton() {
+  const dispatch = useDispatch();
+  const isChatInterfaceVisible = useSelector((state: RootState) => state.rightSidebar.isChatInterfaceVisible);
+
+  const toggleChatInterface = () => {
+    dispatch({ 
+      type: 'TOGGLE_CHAT_INTERFACE' 
+    });
+  };
+
+  return (
+    <button 
+      onClick={toggleChatInterface}
+      className={`p-2 rounded-lg transition-colors ${
+        isChatInterfaceVisible 
+          ? 'bg-blue-500/20 text-blue-500' 
+          : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+      }`}
+    >
+      <MessageSquare className="w-5 h-5" />
+    </button>
+  );
 }
-
-const BaseChatButton: React.FC<ChatButtonProps> = ({ onClick }) => {
-  return (
-    <Button
-      onClick={onClick}
-      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-      Open Chat
-    </Button>
-  );
-};
-
-// Enhanced version with animation
-export const EnhancedChatButton: React.FC<ChatButtonProps> = (props) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      transition={{ duration: 0.2 }}
-    >
-      <BaseChatButton {...props} />
-    </motion.div>
-  );
-};

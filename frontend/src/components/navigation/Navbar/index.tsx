@@ -8,6 +8,7 @@ import { SaveStatus } from "./SaveStatus";
 import { Notifications } from "./Notifications";
 import { QuickActions } from "./QuickActions";
 import { UserMenu } from "@/components/shared/user-menu";
+import { CollaborateSettings } from "@/components/shared/collaborate-settings";
 
 export function Navbar() {
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "error">("saved");
@@ -29,16 +30,14 @@ export function Navbar() {
   }, []);
 
   return (
-    <nav className="flex h-14 items-center border-b border-[#2C5530]/20 bg-white px-4">
+    <nav className="flex h-14 items-center border-b border-gray-700 bg-gray-900 px-4">
       <Logo />
       <div className="flex items-center ml-8 w-[400px]">
         <NavigationLinks />
       </div>
 
       <div className="flex items-center gap-4 ml-auto">
-        {/* <SaveStatus status={saveStatus} lastSaved={lastSaved} /> */}
-        {/* <Notifications /> */}
-        {/* <QuickActions /> */}
+        <CollaborateSettings />
         <UserMenu />
       </div>
     </nav>

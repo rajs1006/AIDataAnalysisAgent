@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, User, Shield, Users, Mail, CheckCircle, Edit, DollarSign } from 'lucide-react';
+import { X, User, Shield, Mail, CheckCircle, Edit, DollarSign } from 'lucide-react';
 import { BillingMetrics } from './billing-metrics';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/lib/store/auth';
 import { useToast } from '@/components/ui/use-toast';
 import { User as UserType } from '@/lib/types/auth';
-import { CollaborateSettings } from './collaborate-settings';
 
 export function ProfileSettingsPopup({ 
   isOpen, 
@@ -78,46 +77,35 @@ export function ProfileSettingsPopup({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      style={{ backdropFilter: "blur(5px)" }}
+      className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+      style={{ backdropFilter: "blur(8px)" }}
     >
       <div
-        className="bg-white w-[60%] h-[80%] rounded-2xl shadow-2xl flex overflow-hidden"
+        className="bg-gray-900 w-[60%] h-[80%] rounded-2xl shadow-2xl flex overflow-hidden"
         style={{
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
-          backdropFilter: "blur(10px)",
+          backgroundColor: "rgba(17, 24, 39, 0.95)", 
+          backdropFilter: "blur(15px)",
         }}
       >
         {/* Left Navigation */}
-        <div className="w-1/4 border-r border-dark-green-200 p-4 bg-dark-green-50 space-y-2">
+        <div className="w-1/4 border-r border-gray-700 p-4 bg-gray-800 space-y-2">
           <button
             onClick={() => setActiveTab("profile")}
             className={`w-full flex items-center space-x-2 p-3 rounded-lg transition-all duration-200 ${
               activeTab === "profile"
-                ? "bg-dark-green-200 text-dark-green-900 shadow-md"
-                : "text-dark-green-800 hover:bg-dark-green-100"
+                ? "bg-gray-700 text-white shadow-md"
+                : "text-gray-300 hover:bg-gray-700 hover:text-white"
             }`}
           >
             <User className="w-5 h-5" />
             <span>Profile</span>
           </button>
           <button
-            onClick={() => setActiveTab("collaboration")}
-            className={`w-full flex items-center space-x-2 p-3 rounded-lg transition-all duration-200 ${
-              activeTab === "collaboration"
-                ? "bg-dark-green-200 text-dark-green-900 shadow-md"
-                : "text-dark-green-800 hover:bg-dark-green-100"
-            }`}
-          >
-            <Users className="w-5 h-5" />
-            <span>Collaboration</span>
-          </button>
-          <button
             onClick={() => setActiveTab("security")}
             className={`w-full flex items-center space-x-2 p-3 rounded-lg transition-all duration-200 ${
               activeTab === "security"
-                ? "bg-dark-green-200 text-dark-green-900 shadow-md"
-                : "text-dark-green-800 hover:bg-dark-green-100"
+                ? "bg-gray-700 text-white shadow-md"
+                : "text-gray-300 hover:bg-gray-700 hover:text-white"
             }`}
           >
             <Shield className="w-5 h-5" />
@@ -127,8 +115,8 @@ export function ProfileSettingsPopup({
             onClick={() => setActiveTab("billing")}
             className={`w-full flex items-center space-x-2 p-3 rounded-lg transition-all duration-200 ${
               activeTab === "billing"
-                ? "bg-dark-green-200 text-dark-green-900 shadow-md"
-                : "text-dark-green-800 hover:bg-dark-green-100"
+                ? "bg-gray-700 text-white shadow-md"
+                : "text-gray-300 hover:bg-gray-700 hover:text-white"
             }`}
           >
             <DollarSign className="w-5 h-5" />
@@ -137,11 +125,11 @@ export function ProfileSettingsPopup({
         </div>
 
         {/* Main Content */}
-        <div className="w-3/4 p-8 relative overflow-y-auto">
+        <div className="w-3/4 p-8 relative overflow-y-auto bg-gray-900 text-gray-100">
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-dark-green-800 hover:text-dark-green-900 bg-dark-green-100 p-2 rounded-full transition-all duration-200 hover:bg-dark-green-200"
+            className="absolute top-4 right-4 text-gray-300 hover:text-white bg-gray-700 p-2 rounded-full transition-all duration-200 hover:bg-gray-600"
           >
             <X className="h-6 w-6" />
           </button>
@@ -149,16 +137,16 @@ export function ProfileSettingsPopup({
           {/* Profile Tab */}
           {activeTab === "profile" && (
             <div className="space-y-6">
-              <div className="flex items-center space-x-6 border-b border-dark-green-200 pb-6">
-                <div className="w-24 h-24 rounded-full bg-dark-green-100 flex items-center justify-center">
-                  <User className="w-12 h-12 text-dark-green-700" />
+              <div className="flex items-center space-x-6 border-b border-gray-700 pb-6">
+                <div className="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center">
+                  <User className="w-12 h-12 text-gray-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-dark-green-900 flex items-center space-x-2">
+                  <h2 className="text-2xl font-bold text-white flex items-center space-x-2">
                     <span>{user.full_name}</span>
-                    <Edit className="w-5 h-5 text-dark-green-600 cursor-pointer hover:text-dark-green-800" />
+                    <Edit className="w-5 h-5 text-gray-400 cursor-pointer hover:text-gray-200" />
                   </h2>
-                  <p className="text-dark-green-600 flex items-center space-x-2">
+                  <p className="text-gray-400 flex items-center space-x-2">
                     <Mail className="w-4 h-4" />
                     <span>{user.email}</span>
                   </p>
@@ -166,20 +154,20 @@ export function ProfileSettingsPopup({
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-dark-green-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-dark-green-900 mb-2">
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-white mb-2">
                     Account Type
                   </h3>
                   <Badge
                     variant="secondary"
-                    className="bg-dark-green-500 text-white"
+                    className="bg-blue-600 text-white"
                   >
                     {user.userType || "User"}
                   </Badge>
                 </div>
 
-                <div className="bg-dark-green-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-dark-green-900 mb-2">
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-white mb-2">
                     Email Status
                   </h3>
                   <Badge
@@ -195,7 +183,7 @@ export function ProfileSettingsPopup({
                     <Button
                       variant="link"
                       onClick={handleResendVerification}
-                      className="text-dark-green-700 hover:text-dark-green-900 mt-2"
+                      className="text-blue-400 hover:text-blue-300 mt-2"
                     >
                       Resend Verification
                     </Button>
@@ -205,20 +193,10 @@ export function ProfileSettingsPopup({
             </div>
           )}
 
-          {/* Collaboration Tab */}
-          {activeTab === "collaboration" && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-dark-green-900 border-b border-dark-green-200 pb-4">
-                Collaboration
-              </h2>
-              <CollaborateSettings />
-            </div>
-          )}
-
           {/* Security Tab */}
           {activeTab === "security" && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-dark-green-900 border-b border-dark-green-200 pb-4">
+              <h2 className="text-2xl font-bold text-white border-b border-gray-700 pb-4">
                 Security Settings
               </h2>
               <div className="space-y-4">
@@ -227,18 +205,18 @@ export function ProfileSettingsPopup({
                   placeholder="New Password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="border-dark-green-300 focus:border-dark-green-500 bg-dark-green-100"
+                  className="border-gray-700 focus:border-blue-500 bg-gray-800 text-white"
                 />
                 <Input
                   type="password"
                   placeholder="Confirm New Password"
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  className="border-dark-green-300 focus:border-dark-green-500  bg-dark-green-100"
+                  className="border-gray-700 focus:border-blue-500 bg-gray-800 text-white"
                 />
                 <Button
                   onClick={handleResetPassword}
-                  className="bg-dark-green-600 hover:bg-dark-green-700 text-white w-full"
+                  className="bg-blue-600 hover:bg-blue-700 text-white w-full"
                 >
                   Reset Password
                 </Button>
@@ -248,7 +226,7 @@ export function ProfileSettingsPopup({
 
           {activeTab === "billing" && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-dark-green-900 border-b border-dark-green-200 pb-4">
+              <h2 className="text-2xl font-bold text-white border-b border-gray-700 pb-4">
                 Billing & Usage
               </h2>
               <BillingMetrics />

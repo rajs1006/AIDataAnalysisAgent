@@ -6,6 +6,7 @@ import chatReducer from "./chat";
 import onedriveReducer from "./onedrive";
 import localFolderReducer from "./localfolder";
 import billingReducer from "./billing.slice";
+import rightSidebarReducer from "./right-sidebar";
 
 export const store = configureStore({
   reducer: {
@@ -15,6 +16,7 @@ export const store = configureStore({
     onedrive: onedriveReducer,
     localFolder: localFolderReducer,
     billing: billingReducer,
+    rightSidebar: rightSidebarReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

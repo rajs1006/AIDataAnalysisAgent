@@ -1,107 +1,102 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { ChatState, Chat, ChatMessage } from "../types/chat";
-import { chatService } from "../api/chat";
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import { Chat, ChatMessage } from '../types/chat';
+
+interface ChatState {
+  conversations: Chat[];
+  currentChatId: string | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+const generateDummyMessages = (count: number): ChatMessage[] => {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `msg-${i}`,
+    content: `Sample message ${i + 1}`,
+    role: i % 2 === 0 ? 'user' : 'assistant',
+    created_at: new Date().toISOString(),
+  }));
+};
 
 const initialState: ChatState = {
-  chats: [],
+  conversations: [
+    {
+      id: 'chat-1',
+      title: 'Document Analysis',
+      created_at: new Date().toISOString(),
+      messages: generateDummyMessages(5),
+    },
+    {
+      id: 'chat-2',
+      title: 'Project Discussion',
+      created_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+      messages: generateDummyMessages(3),
+    }
+  ],
   currentChatId: null,
   isLoading: false,
   error: null,
 };
 
+// Async thunks for API interactions
+export const loadConversations = createAsyncThunk(
+  'chat/loadConversations',
+  async (_, { rejectWithValue }) => {
+    try {
+      // TODO: Replace with actual API call
+      return initialState.conversations;
+    } catch (error) {
+      return rejectWithValue('Failed to load conversations');
+    }
+  }
+);
+
+export const deleteChat = createAsyncThunk(
+  'chat/deleteChat',
+  async (chatId: string, { rejectWithValue, getState }) => {
+    try {
+      // TODO: Replace with actual API call
+      const state = getState() as { chat: ChatState };
+      return state.chat.conversations.filter(chat => chat.id !== chatId);
+    } catch (error) {
+      return rejectWithValue('Failed to delete chat');
+    }
+  }
+);
+
 const chatSlice = createSlice({
-  name: "chat",
+  name: 'chat',
   initialState,
   reducers: {
     setCurrentChat: (state, action: PayloadAction<string | null>) => {
       state.currentChatId = action.payload;
     },
-    setChats: (state, action: PayloadAction<Chat[]>) => {
-      state.chats = action.payload;
-    },
-    addChat: (state, action: PayloadAction<Chat>) => {
-      state.chats.unshift(action.payload);
-      state.currentChatId = action.payload.id;
-    },
-    updateChat: (state, action: PayloadAction<Chat>) => {
-      const index = state.chats.findIndex(
-        (chat) => chat.id === action.payload.id
-      );
-      if (index !== -1) {
-        state.chats[index] = action.payload;
-      }
-    },
-    deleteChat: (state, action: PayloadAction<string>) => {
-      state.chats = state.chats.filter((chat) => chat.id !== action.payload);
-      if (state.currentChatId === action.payload) {
-        state.currentChatId = state.chats[0]?.id || null;
-      }
-    },
-  startMessageProcessing: (state) => {
-    state.isLoading = true;
-  },
-  endMessageProcessing: (state) => {
-    state.isLoading = false;
-  },
-  addMessage: (
-    state,
-    action: PayloadAction<{ chatId: string; message: ChatMessage; isTemporary?: boolean }>
-  ) => {
-    const chat = state.chats.find((c) => c.id === action.payload.chatId);
-    if (chat) {
-      if (action.payload.isTemporary) {
-        // For optimistic updates, add a temporary flag
-        const tempMessage: ChatMessage = {
-          ...action.payload.message,
-          temporary: true
-        };
-        chat.messages.push(tempMessage);
-      } else {
-        // For confirmed messages from the API
-        chat.messages = (chat.messages as ChatMessage[]).filter(msg => !msg.temporary);
+    addMessage: (state, action: PayloadAction<{chatId: string, message: ChatMessage}>) => {
+      const chat = state.conversations.find(c => c.id === action.payload.chatId);
+      if (chat) {
         chat.messages.push(action.payload.message);
       }
-    }
+    },
   },
-    updateMessage: (
-      state,
-      action: PayloadAction<{
-        chatId: string;
-        messageId: string;
-        updates: Partial<ChatMessage>;
-      }>
-    ) => {
-      const chat = state.chats.find((c) => c.id === action.payload.chatId);
-      if (chat) {
-        const message = chat.messages.find(
-          (m) => m.id === action.payload.messageId
-        );
-        if (message) {
-          Object.assign(message, action.payload.updates);
-        }
-      }
-    },
-    setLoading: (state, action: PayloadAction<boolean>) => {
-      state.isLoading = action.payload;
-    },
-    setError: (state, action: PayloadAction<string | null>) => {
-      state.error = action.payload;
-    },
+  extraReducers: (builder) => {
+    builder
+      .addCase(loadConversations.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(loadConversations.fulfilled, (state, action) => {
+        state.conversations = action.payload;
+        state.isLoading = false;
+      })
+      .addCase(loadConversations.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(deleteChat.fulfilled, (state, action) => {
+        state.conversations = action.payload;
+        state.currentChatId = null;
+      });
   },
 });
 
-export const {
-  setCurrentChat,
-  setChats,
-  addChat,
-  updateChat,
-  deleteChat,
-  addMessage,
-  updateMessage,
-  setLoading,
-  setError,
-  startMessageProcessing,
-  endMessageProcessing,
-} = chatSlice.actions;
-
+export const { setCurrentChat, addMessage } = chatSlice.actions;
 export default chatSlice.reducer;

@@ -1,51 +1,53 @@
-import { Message, Conversation } from "../api/conversation";
+import { ReactNode } from 'react';
 
-export interface ChatState {
-  chats: Conversation[];
-  currentChatId: string | null;
-  isLoading: boolean;
-  error: string | null;
-}
-
-export interface SendMessagePayload {
+export interface ChatMessage {
+  id: string;
   content: string;
-  image?: File;
+  role: 'user' | 'assistant';
+  created_at: string | Date;
+  type?: 'user' | 'ai';
+  documentContext?: {
+    docId: string;
+    docName: string;
+    snippet?: string;
+  };
 }
 
-export interface CreateChatPayload {
+export interface Chat {
+  id: string;
   title: string;
-}
-
-export interface UpdateChatTitlePayload {
-  chatId: string;
-  title: string;
-}
-
-export interface ChatMessage extends Message {
-  pending?: boolean;
-  temporary?: boolean;
-}
-
-export interface Chat extends Conversation {
+  created_at: string | Date;
   messages: ChatMessage[];
 }
 
-export interface ImageData {
-  content: string;
-  mime_type: string;
-  filename: string;
+export interface ChatHistoryEntry extends Chat {
+  preview?: string;
+  date?: Date | string;
+  tags?: string[];
+  documentContext?: {
+    name: string;
+    type: string;
+  };
+  isPinned?: boolean;
 }
 
-export interface QueryRequest {
-  query: string;
-  model: string;
-  temperature: number;
-  max_tokens: number;
-  conversation_id?: string;
-  image_data?: ImageData | null;
+export interface ChatState {
+  mode: 'bubble' | 'panel' | 'modal';
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  isMinimized: boolean;
 }
 
-export interface QueryResponse {
-  answer: string;
-  conversation_id: string;
+export interface Connector {
+  id: string;
+  name: string;
+  icon: ReactNode;
+  description: string;
+  color: string;
+}
+
+export interface DocumentInsight {
+  keyTopics: string[];
+  summary: string;
+  actionItems: string[];
 }

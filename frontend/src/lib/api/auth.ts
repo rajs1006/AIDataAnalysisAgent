@@ -148,7 +148,9 @@ export const authService = {
     }
   },
 
-  async inviteCollaborator(email: string): Promise<CollaboratorInvite> {
+  async inviteCollaborator(
+    email: string,
+  ): Promise<CollaboratorInvite> {
     console.log("invited email ", email);
     const response = await axios.post(
       `${API_URL}/collaborators/invite`,

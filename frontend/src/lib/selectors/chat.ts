@@ -2,7 +2,7 @@ import { RootState } from "../store/store";
 import { createSelector } from "@reduxjs/toolkit";
 import { Chat } from "../types/chat";
 
-export const selectChats = (state: RootState) => state.chat.chats;
+export const selectChats = (state: RootState) => state.chat.conversations;
 export const selectCurrentChatId = (state: RootState) =>
   state.chat.currentChatId;
 export const selectIsLoading = (state: RootState) => state.chat.isLoading;
@@ -15,7 +15,7 @@ export const selectCurrentChat = createSelector(
 );
 
 export const selectChatsSortedByDate = createSelector([selectChats], (chats) =>
-  [...chats].sort(
+  chats.slice().sort(
     (a: Chat, b: Chat) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )

@@ -1,5 +1,5 @@
-// src/components/navigation/RightSidebar/ChatHistory.tsx
 "use client";
+
 
 import { useState, useEffect, useCallback, type JSX } from "react";
 import { renderMarkdown } from "@/lib/utils/markdown";

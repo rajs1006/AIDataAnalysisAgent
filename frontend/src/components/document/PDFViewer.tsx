@@ -4,17 +4,16 @@ import React, { useState, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   ChevronRight,
-  FileText,
-  Info,
+  Loader2,
   ZoomIn,
   ZoomOut,
   Maximize2,
+  AlertCircle,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
@@ -64,182 +63,141 @@ export function PDFViewer({ blob, parsedContent }: PDFViewerProps) {
     setWidth(originalWidth);
   };
 
-  if (!pdfUrl)
+  if (!pdfUrl) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-pulse text-lg font-medium">Loading PDF...</div>
+      <div className="flex items-center justify-center h-full bg-gray-950 text-gray-300">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="text-lg">Loading PDF...</span>
+        </div>
       </div>
     );
+  }
 
   if (loadError) {
     return (
-      <Card className="flex items-center justify-center h-full p-8 bg-red-50">
-        <div className="text-center space-y-4">
-          <h2 className="text-2xl font-bold text-red-600">PDF Loading Error</h2>
-          <p className="text-red-500">{loadError}</p>
-          <p className="text-sm text-gray-600">
-            Please try uploading the PDF again or check the file integrity.
-          </p>
-        </div>
-      </Card>
+      <div className="flex items-center justify-center h-full bg-gray-950">
+        <Card className="bg-gray-900 border-gray-800 text-gray-100 p-8 max-w-md">
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="p-3 bg-red-500/10 rounded-full">
+                <AlertCircle className="w-8 h-8 text-red-500" />
+              </div>
+            </div>
+            <h2 className="text-xl font-semibold text-red-400">
+              PDF Loading Error
+            </h2>
+            <p className="text-gray-400">{loadError}</p>
+            <p className="text-sm text-gray-500">
+              Please try uploading the PDF again or check the file integrity.
+            </p>
+          </div>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <Tabs defaultValue="pdf" className="w-full h-full flex flex-col">
-      {/* <TabsList className="grid w-full grid-cols-3 p-1 bg-gray-100 rounded-lg">
-        <TabsTrigger value="pdf" className="flex items-center gap-2">
-          <FileText className="w-4 h-4" />
-          PDF View
-        </TabsTrigger>
-        {parsedContent && (
-          <TabsTrigger value="text" className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Text Content
-          </TabsTrigger>
-        )}
-        {parsedContent?.metadata && (
-          <TabsTrigger value="metadata" className="flex items-center gap-2">
-            <Info className="w-4 h-4" />
-            Metadata
-          </TabsTrigger>
-        )}
-      </TabsList> */}
-
-      <TabsContent
-        value="pdf"
-        className="flex-grow relative bg-gray-50 rounded-lg mt-4"
-      >
-        <div className="absolute top-4 right-4 flex gap-2 bg-white px-3 py-2 rounded-full shadow-md z-10">
+    <div className="w-full h-full flex flex-col bg-gray-950">
+      <ScrollArea className="flex-1 relative">
+        {/* Zoom Controls */}
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex gap-1 bg-gray-900/80 backdrop-blur-sm border border-gray-800/50 rounded-lg p-1 shadow-lg z-10">
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             onClick={zoomOut}
-            className="hover:bg-gray-100"
+            className="h-8 w-8 hover:bg-gray-800 rounded text-gray-300 hover:text-gray-100"
             title="Zoom Out"
           >
             <ZoomOut className="h-4 w-4" />
           </Button>
+          <div className="h-8 px-3 flex items-center text-sm text-gray-300 border-l border-r border-gray-800">
+            {Math.round(scale * 100)}%
+          </div>
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             onClick={zoomIn}
-            className="hover:bg-gray-100"
+            className="h-8 w-8 hover:bg-gray-800 rounded text-gray-300 hover:text-gray-100"
             title="Zoom In"
           >
             <ZoomIn className="h-4 w-4" />
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             onClick={fitToWidth}
-            className="hover:bg-gray-100"
+            className="h-8 w-8 hover:bg-gray-800 rounded text-gray-300 hover:text-gray-100"
             title="Fit to Width"
           >
             <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
 
-        <ScrollArea className="w-full h-full p-4">
-          <div className="flex flex-col items-center pdf-container">
-            <Document
-              file={pdfUrl}
-              onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-              onLoadError={(error: Error) =>
-                setLoadError(
-                  `Failed to load PDF: ${error.message || "Unknown error"}`
-                )
-              }
-              className="flex flex-col items-center"
-            >
-              <div className="shadow-lg rounded-lg overflow-hidden">
-                <Page
-                  pageNumber={pageNumber}
-                  renderTextLayer={true}
-                  renderAnnotationLayer={true}
-                  className="bg-white"
-                  scale={scale}
-                  onLoadSuccess={onPageLoadSuccess}
-                />
-              </div>
-            </Document>
-          </div>
-        </ScrollArea>
+        <div className="flex flex-col items-center pdf-container p-8">
+          <Document
+            file={pdfUrl}
+            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+            onLoadError={(error: Error) =>
+              setLoadError(
+                `Failed to load PDF: ${error.message || "Unknown error"}`
+              )
+            }
+            className="flex flex-col items-center"
+          >
+            <div className="shadow-xl">
+              <Page
+                pageNumber={pageNumber}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+                scale={scale}
+                onLoadSuccess={onPageLoadSuccess}
+                className="bg-white"
+              />
+            </div>
+          </Document>
+        </div>
+      </ScrollArea>
 
-        {numPages && (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-4 bg-white px-4 py-2 rounded-full shadow-md">
+      {/* Page Navigation */}
+      {numPages && (
+        <div className="flex justify-center py-4 border-t border-gray-800 bg-gray-900/30 backdrop-blur-sm">
+          <div className="flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border border-gray-800/50 rounded-lg p-1 shadow-lg">
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
               disabled={pageNumber <= 1}
-              className="hover:bg-gray-100"
+              className="h-8 w-8 hover:bg-gray-800 rounded text-gray-300 hover:text-gray-100 disabled:opacity-50"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium">
+            <div className="h-8 px-3 flex items-center text-sm text-gray-300 border-l border-r border-gray-800">
               Page {pageNumber} of {numPages}
-            </span>
+            </div>
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
               disabled={pageNumber >= numPages}
-              className="hover:bg-gray-100"
+              className="h-8 w-8 hover:bg-gray-800 rounded text-gray-300 hover:text-gray-100 disabled:opacity-50"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-        )}
-      </TabsContent>
-
-      {parsedContent && (
-        <TabsContent value="text" className="flex-grow mt-4">
-          <ScrollArea className="w-full h-full">
-            <div className="max-w-4xl mx-auto p-8 bg-white">
-              <div className="prose prose-slate lg:prose-lg">
-                {parsedContent.text.map((pageText, index) => (
-                  <div key={index} className="mb-8">
-                    <div
-                      className="text-gray-800 leading-7"
-                      style={{
-                        fontFamily:
-                          "ui-serif, Georgia, Cambria, Times New Roman, Times, serif",
-                        fontSize: "1.125rem",
-                        lineHeight: "1.8",
-                      }}
-                    >
-                      {pageText.split("\n").map(
-                        (paragraph, pIndex) =>
-                          paragraph.trim() && (
-                            <p key={pIndex} className="mb-6">
-                              {paragraph}
-                            </p>
-                          )
-                      )}
-                    </div>
-                    <div className="text-gray-400 text-sm mt-4 border-t pt-2">
-                      Page {index + 1}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </ScrollArea>
-        </TabsContent>
+        </div>
       )}
-
-      {parsedContent?.metadata && (
-        <TabsContent value="metadata" className="flex-grow mt-4">
-          <ScrollArea className="w-full h-full">
-            <Card className="m-6">
-              <pre className="p-4 bg-gray-50 rounded-lg overflow-auto text-sm">
-                {JSON.stringify(parsedContent.metadata, null, 2)}
-              </pre>
-            </Card>
-          </ScrollArea>
-        </TabsContent>
-      )}
-    </Tabs>
+    </div>
   );
 }
+
+// Add these styles to your CSS
+const styles = `
+.react-pdf__Page__textContent {
+  border: none !important;
+}
+
+.react-pdf__Page__annotations {
+  border: none !important;
+}
+`;

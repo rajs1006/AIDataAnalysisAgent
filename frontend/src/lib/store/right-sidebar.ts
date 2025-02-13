@@ -1,61 +1,61 @@
-import React, { createContext, useContext, useReducer, ReactNode, FC } from 'react';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface RightSidebarState {
   isExpanded: boolean;
   activeTab: string;
+  isChatInterfaceVisible: boolean;
+  isConnectorDialogOpen: boolean;
+  isDocumentSummaryVisible: boolean;
 }
-
-export type RightSidebarAction = 
-  | { type: 'TOGGLE_SIDEBAR_EXPANSION' }
-  | { type: 'SET_ACTIVE_TAB', payload: string };
 
 const initialState: RightSidebarState = {
   isExpanded: false,
-  activeTab: 'insights'
+  activeTab: 'insights',
+  isChatInterfaceVisible: false,
+  isConnectorDialogOpen: false,
+  isDocumentSummaryVisible: true
 };
 
-function rightSidebarReducer(state: RightSidebarState, action: RightSidebarAction): RightSidebarState {
-  switch (action.type) {
-    case 'TOGGLE_SIDEBAR_EXPANSION':
-      return { ...state, isExpanded: !state.isExpanded };
-    case 'SET_ACTIVE_TAB':
-      return { ...state, activeTab: action.payload };
-    default:
-      return state;
+const rightSidebarSlice = createSlice({
+  name: 'rightSidebar',
+  initialState,
+  reducers: {
+    toggleSidebarExpansion: (state) => {
+      state.isExpanded = !state.isExpanded;
+    },
+    setActiveTab: (state, action: PayloadAction<string>) => {
+      state.activeTab = action.payload;
+    },
+    toggleChatInterface: (state) => {
+      state.isChatInterfaceVisible = !state.isChatInterfaceVisible;
+    },
+    setChatInterfaceVisibility: (state, action: PayloadAction<boolean>) => {
+      state.isChatInterfaceVisible = action.payload;
+    },
+    toggleConnectorDialog: (state) => {
+      state.isConnectorDialogOpen = !state.isConnectorDialogOpen;
+    },
+    setConnectorDialogVisibility: (state, action: PayloadAction<boolean>) => {
+      state.isConnectorDialogOpen = action.payload;
+    },
+    toggleDocumentSummary: (state) => {
+      state.isDocumentSummaryVisible = !state.isDocumentSummaryVisible;
+    },
+    setDocumentSummaryVisibility: (state, action: PayloadAction<boolean>) => {
+      state.isDocumentSummaryVisible = action.payload;
+    }
   }
-}
+});
 
-const RightSidebarContext = createContext<{
-  state: RightSidebarState;
-  dispatch: React.Dispatch<RightSidebarAction>;
-} | null>(null);
+export const { 
+  toggleSidebarExpansion, 
+  setActiveTab, 
+  toggleChatInterface, 
+  setChatInterfaceVisibility,
+  toggleConnectorDialog,
+  setConnectorDialogVisibility,
+  toggleDocumentSummary,
+  setDocumentSummaryVisibility
+} = rightSidebarSlice.actions;
 
-// export function RightSidebarProvider({ children }: { children: ReactNode }) {
-//   const [state, dispatch] = useReducer(rightSidebarReducer, initialState);
-
-//   return (
-//     <RightSidebarContext.Provider value={{ state, dispatch }}>
-//       {children}
-//     </RightSidebarContext.Provider>
-//   );
-// }
-
-export const RightSidebarProvider: FC<{ children: ReactNode }> = ({
-  children,
-}) => {
-  const [state, dispatch] = useReducer(rightSidebarReducer, initialState);
-
-  return React.createElement(
-    RightSidebarContext.Provider,
-    { value: { state, dispatch } },
-    children
-  );
-};
-
-export function useRightSidebar() {
-  const context = useContext(RightSidebarContext);
-  if (context === null) {
-    throw new Error('useRightSidebar must be used within a RightSidebarProvider');
-  }
-  return context;
-}
+export default rightSidebarSlice.reducer;

@@ -17,6 +17,7 @@ export interface User {
   userType: user_type;
   isEmailVerified: boolean;
   avatar?: string;
+  hasConnectedSources?: boolean;
 }
 
 export interface RegistrationPayload {

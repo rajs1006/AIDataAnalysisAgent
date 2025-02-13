@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,15 +13,26 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatDistance } from "date-fns";
+import {
+  Users,
+  Mail,
+  Clock,
+  Check,
+  X,
+  AlertCircle,
+  UserPlus,
+  MoreHorizontal,
+  Search,
+} from "lucide-react";
 
 export function CollaborateSettings() {
   const [email, setEmail] = useState("");
   const [collaborators, setCollaborators] = useState<CollaboratorInvite[]>([]);
   const [selectedCollaborator, setSelectedCollaborator] =
     useState<CollaboratorInvite | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
-  // Fetch current collaborators when component mounts
   useEffect(() => {
     const fetchCollaborators = async () => {
       try {
@@ -43,7 +52,6 @@ export function CollaborateSettings() {
 
   const handleInviteCollaborator = async () => {
     try {
-      // Validate email
       if (!email || !/\S+@\S+\.\S+/.test(email)) {
         toast({
           title: "Invalid Email",
@@ -54,11 +62,7 @@ export function CollaborateSettings() {
       }
 
       const invite = await authService.inviteCollaborator(email);
-
-      // Update local state
       setCollaborators([...collaborators, invite]);
-
-      // Clear input
       setEmail("");
 
       toast({
@@ -79,11 +83,7 @@ export function CollaborateSettings() {
   const handleRemoveCollaborator = async (collaboratorId: string) => {
     try {
       await authService.removeCollaborator(collaboratorId);
-
-      // Update local state
       setCollaborators(collaborators.filter((c) => c.id !== collaboratorId));
-
-      // Close the dialog if it's open
       setSelectedCollaborator(null);
 
       toast({
@@ -101,142 +101,162 @@ export function CollaborateSettings() {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-dark-green-50 p-4 rounded-lg shadow-sm">
-        <div className="flex space-x-3 items-center">
-          <Input
-            type="email"
-            placeholder="Enter collaborator email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="flex-grow border-dark-green-300 focus:border-dark-green-500 bg-white"
-          />
-          <Button
-            onClick={handleInviteCollaborator}
-            className="bg-dark-green-600 hover:bg-dark-green-700 transition-colors duration-200"
-          >
-            Invite
-          </Button>
-        </div>
-      </div>
+  const filteredCollaborators = collaborators.filter((collaborator) =>
+    collaborator.collaborator_email
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
 
-      <div>
-        <h3 className="text-lg font-semibold mb-4 text-dark-green-900">
-          Current Collaborators
-        </h3>
-        {collaborators.length === 0 ? (
-          <div className="bg-dark-green-50 p-4 rounded-lg text-center text-dark-green-600">
-            No collaborators yet. Invite someone to collaborate!
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {collaborators.map((collaborator) => (
-              <div
-                key={collaborator.id}
-                className="bg-white border border-dark-green-200 rounded-lg p-3 hover:shadow-sm transition-all duration-200 group"
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "accepted":
+        return <Check className="w-4 h-4 text-green-400" />;
+      case "pending":
+        return <Clock className="w-4 h-4 text-yellow-400" />;
+      default:
+        return <AlertCircle className="w-4 h-4 text-red-400" />;
+    }
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="p-2 hover:bg-gray-800 rounded-lg text-gray-400"
+        >
+          <Users className="w-5 h-5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[600px] bg-gray-900 border-gray-800 text-gray-100">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-lg font-medium">
+            <Users className="w-5 h-5 text-blue-400" />
+            Manage Collaborators
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6 mt-4">
+          {/* Invite Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Mail className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                <Input
+                  type="email"
+                  placeholder="Enter collaborator email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 py-2 bg-gray-800 border border-gray-700 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 rounded-lg text-sm text-gray-100"
+                />
+              </div>
+              <Button
+                onClick={handleInviteCollaborator}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
               >
-                <Dialog
-                  open={selectedCollaborator?.id === collaborator.id}
-                  onOpenChange={(open) =>
-                    setSelectedCollaborator(open ? collaborator : null)
-                  }
-                >
-                  <DialogTrigger asChild>
-                    <div
-                      className="flex items-center justify-between cursor-pointer"
-                      onClick={() => setSelectedCollaborator(collaborator)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <span className="font-medium text-dark-green-900">
-                          {collaborator.collaborator_email}
-                        </span>
-                        <Badge
-                          variant={
-                            collaborator.status === "accepted"
-                              ? "default"
-                              : collaborator.status === "pending"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                          className="group-hover:scale-105 transition-transform"
-                        >
-                          {collaborator.status}
-                        </Badge>
-                      </div>
-                      <span className="text-dark-green-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                        View Details
-                      </span>
-                    </div>
-                  </DialogTrigger>
-                  <DialogContent className="bg-white rounded-xl shadow-2xl">
-                    <DialogHeader>
-                      <DialogTitle className="text-2xl font-bold text-dark-green-900">
-                        Collaborator Details
-                      </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-5 bg-dark-green-50 p-4 rounded-lg">
-                      <div className="grid grid-cols-2 gap-3">
+                <UserPlus className="w-4 h-4" />
+                Invite
+              </Button>
+            </div>
+          </div>
+
+          {/* Search and List Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-gray-300">
+                Current Collaborators
+              </h3>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search collaborators..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 py-2 bg-gray-800 border border-gray-700 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 rounded-lg text-sm text-gray-100"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+              {filteredCollaborators.length === 0 ? (
+                <div className="p-4 bg-gray-800/50 border border-gray-800 rounded-lg text-center text-sm text-gray-400">
+                  No collaborators found
+                </div>
+              ) : (
+                filteredCollaborators.map((collaborator) => (
+                  <div
+                    key={collaborator.id}
+                    className="group p-3 bg-gray-800/50 border border-gray-800 hover:border-gray-700 rounded-lg transition-all duration-200"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center">
+                          {collaborator.collaborator_email
+                            .charAt(0)
+                            .toUpperCase()}
+                        </div>
                         <div>
-                          <p className="text-sm text-dark-green-600 mb-1">
-                            Email
-                          </p>
-                          <p className="font-semibold text-dark-green-900">
+                          <div className="font-medium text-sm text-gray-200">
                             {collaborator.collaborator_email}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-dark-green-600 mb-1">
-                            Status
-                          </p>
-                          <Badge
-                            variant={
-                              collaborator.status === "accepted"
-                                ? "default"
-                                : collaborator.status === "pending"
-                                ? "secondary"
-                                : "destructive"
-                            }
-                            className="text-sm"
-                          >
-                            {collaborator.status}
-                          </Badge>
-                        </div>
-                        <div>
-                          <p className="text-sm text-dark-green-600 mb-1">
-                            Invited
-                          </p>
-                          <p className="text-dark-green-900">
-                            {collaborator.invited_at
-                              ? formatDistance(
-                                  new Date(collaborator.invited_at),
-                                  new Date(),
-                                  { addSuffix: true }
-                                )
-                              : "Unknown"}
-                          </p>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {getStatusIcon(collaborator.status)}
+                            <span className="text-xs text-gray-400 capitalize">
+                              {collaborator.status}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex justify-end">
+                      <div className="flex items-center gap-2">
                         <Button
-                          variant="destructive"
                           onClick={() =>
-                            collaborator.id &&
                             handleRemoveCollaborator(collaborator.id)
                           }
-                          className="bg-red-500 hover:bg-red-600 text-white"
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-700 rounded-lg transition-all"
                         >
-                          Remove Collaborator
+                          <X className="w-4 h-4 text-gray-400" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-700 rounded-lg transition-all"
+                        >
+                          <MoreHorizontal className="w-4 h-4 text-gray-400" />
                         </Button>
                       </div>
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            ))}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
+
+// Add these styles to your CSS
+const styles = `
+.collaborator-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.collaborator-list::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.5);
+  border-radius: 4px;
+}
+
+.collaborator-list::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.5);
+  border-radius: 4px;
+}
+
+.collaborator-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.5);
+}
+`;

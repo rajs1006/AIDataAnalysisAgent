@@ -18,6 +18,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  isFirstLogin: boolean;
   collaborators: CollaboratorInvite[];
   loading: boolean;
   error: string | null;
@@ -51,6 +52,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      isFirstLogin: false,
       collaborators: [],
       loading: false,
       error: null,
@@ -77,14 +79,21 @@ export const useAuthStore = create<AuthState>()(
       login: async (payload) => {
         try {
           const { user, token } = await authService.login(payload);
+          const isFirstLogin = !user.hasConnectedSources; // Assuming the API returns this flag
           set({
             user,
             token,
             isAuthenticated: true,
+            isFirstLogin,
           });
         } catch (error) {
           console.error("Login failed", error);
-          set({ user: null, token: null, isAuthenticated: false });
+          set({ 
+            user: null, 
+            token: null, 
+            isAuthenticated: false,
+            isFirstLogin: false 
+          });
           throw error;
         }
       },
@@ -150,11 +159,7 @@ export const useAuthStore = create<AuthState>()(
           const currentUser = get().user;
           if (!currentUser) throw new Error("User not authenticated");
 
-          const invite = await authService.inviteCollaborator(
-            currentUser.id,
-            email,
-            documentId
-          );
+          const invite = await authService.inviteCollaborator(email);
           set((state) => ({
             collaborators: [...state.collaborators, invite],
           }));
@@ -169,9 +174,7 @@ export const useAuthStore = create<AuthState>()(
           const currentUser = get().user;
           if (!currentUser) throw new Error("User not authenticated");
 
-          const collaborators = await authService.getCollaborators(
-            currentUser.id
-          );
+          const collaborators = await authService.getCollaborators();
           set({ collaborators });
         } catch (error) {
           console.error("Fetch collaborators failed", error);
