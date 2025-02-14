@@ -545,16 +545,18 @@ export function ConnectorGrid() {
         {/* Form Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 text-gray-100 border border-gray-700/50 rounded-3xl">
-            <DialogHeader className="space-y-3 pb-6">
+            <DialogHeader className="space-y-3 pb-1">
               <DialogTitle className="text-2xl font-semibold text-gray-100">
-                Connect{" "}
+                {" "}
                 {selectedConnector
                   ?.split("_")
                   .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
                   .join(" ")}
               </DialogTitle>
               <DialogDescription className="text-gray-400">
-                Configure your connection settings below
+                <em>
+                  <b>Upload or Select files</b>
+                </em>
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleConnectorSubmit} className="space-y-6">

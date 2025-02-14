@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DocumentViewerProps } from "@/lib/types/document";
 import { DocumentShareDialog } from "./DocumentShareDialog";
 import { cn } from "@/lib/utils";
+import { DocumentSummary } from "./DocumentSummary";
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   documents,
@@ -65,13 +66,13 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   };
 
   return (
-    <div className={cn("h-full relative bg-gray-950", className)}>
-      <div className="relative w-full h-full">
+    <div className={cn("h-full relative bg-gray-950", className)} style={{ isolation: "isolate" }}>
+      <div className="relative w-full h-full" style={{ zIndex: 1 }}>
         {/* Document Content */}
         <FileContentRenderer blob={blob} fileNode={fileNode} />
 
         {/* Floating Action Buttons */}
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 left-4 z-20">
           <div className="flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border border-gray-800/50 rounded-lg p-1 shadow-lg">
             <Button
               variant="ghost"
@@ -114,6 +115,16 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           onOpenChange={setIsShareDialogOpen}
         />
       </div>
+      
+      {/* Document Summary */}
+      {/* <DocumentSummary 
+        documentInsights={{
+          keyTopics: activeDocument.keyTopics,
+          summary: activeDocument.summary,
+          actionItems: activeDocument.actionItems,
+          metadata: activeDocument.metadata
+        }}
+      /> */}
     </div>
   );
 };

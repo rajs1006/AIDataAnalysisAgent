@@ -96,10 +96,10 @@ export function PDFViewer({ blob, parsedContent }: PDFViewerProps) {
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-gray-950">
-      <ScrollArea className="flex-1 relative">
+    <div className="w-full h-full flex flex-col bg-gray-950" style={{ zIndex: 1 }}>
+      <ScrollArea className="flex-1 relative" style={{ zIndex: 1 }}>
         {/* Zoom Controls */}
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex gap-1 bg-gray-900/80 backdrop-blur-sm border border-gray-800/50 rounded-lg p-1 shadow-lg z-10">
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex gap-1 bg-gray-900/80 backdrop-blur-sm border border-gray-800/50 rounded-lg p-1 shadow-lg z-20">
           <Button
             variant="ghost"
             size="icon"

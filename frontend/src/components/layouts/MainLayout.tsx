@@ -20,7 +20,10 @@ import {
   Minimize2,
   FolderIcon,
 } from "lucide-react";
-
+import { BreadcrumbNav } from "@/components/document/BreadcrumbNav";
+import { WelcomeProvider } from "@/components/layouts/WelcomeContext";
+import WelcomeHeader  from "@/components/layouts/HeaderWelcome";
+import WelcomePanel  from "@/components/layouts/WelcomePanel";
 // Component imports
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { Logo } from "@/components/navigation/Navbar/Logo";
@@ -92,8 +95,9 @@ interface PanelsState {
     lastSnappedWidth?: number;
   };
   right: {
-    width: "auto";
+    width: number; // Change from "auto" to number
     minWidth: number;
+    isVisible: boolean; // Add this to track visibility
   };
 }
 
@@ -142,20 +146,21 @@ const MainLayout: React.FC = () => {
 
   const [panels, setPanels] = useState<PanelsState>({
     left: {
-      width: 320,
+      width: 350,
       minWidth: 240,
-      maxWidth: 400,
+      maxWidth: 800,
       isResizing: false,
     },
     middle: {
-      width: 1400,
+      width: window.innerWidth - 300, // Full remaining width initially
       minWidth: 400,
-      maxWidth: 1300,
+      maxWidth: 1250,
       isResizing: false,
     },
     right: {
-      width: "auto",
-      minWidth: 200,
+      width: 800,
+      minWidth: 300,
+      isVisible: false, // Initially hidden
     },
   });
 
@@ -203,6 +208,23 @@ const MainLayout: React.FC = () => {
       };
 
       const documentInsights = extractDocumentInsights(parsedContent);
+
+      // Update panels to show document viewer
+      setPanels((prev) => ({
+        ...prev,
+        middle: {
+          ...prev.middle,
+          width: Math.max(
+            prev.middle.minWidth,
+            window.innerWidth - prev.left.width - 800
+          ), // Adjust for document viewer
+        },
+        right: {
+          ...prev.right,
+          isVisible: true,
+          width: 800,
+        },
+      }));
 
       setSelectedDocument({
         file,
@@ -451,88 +473,91 @@ const MainLayout: React.FC = () => {
     : { connector: "Local", path: "Select a document" };
 
   return (
-    <div className="w-full h-screen bg-gray-900 flex flex-col text-gray-100">
-      {/* Header */}
-      <header className="h-14 bg-gray-800 flex items-center px-4 shadow-md">
-        <div
-          className={cn(
-            "flex items-center justify-center",
-            sidebarCollapsed ? "w-14" : "w-64",
-            "transition-all duration-300"
-          )}
-        >
-          <button
-            onClick={() =>
-              dispatch({ type: "rightSidebar/toggleSidebarExpansion" })
-            }
-            className="p-2 hover:bg-gray-700 rounded"
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight className="w-5 h-5" />
-            ) : (
-              <ChevronLeft className="w-5 h-5" />
+    <WelcomeProvider>
+      <div className="w-full h-screen bg-gray-900 flex flex-col text-gray-100">
+        {/* Header */}
+        <header className="h-14 bg-gray-800 flex items-center px-4 shadow-md border-b-2 border-cyan-800">
+          <div
+            className={cn(
+              "flex items-center",
+              sidebarCollapsed ? "w-14" : "w-64",
+              "transition-all duration-300"
             )}
-          </button>
-          {!sidebarCollapsed && (
-            <div className="ml-2">
-              <Logo />
-            </div>
-          )}
-        </div>
-        <div className="flex-1 px-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          >
+            <button
+              onClick={() =>
+                dispatch({ type: "rightSidebar/toggleSidebarExpansion" })
+              }
+              className="p-1 hover:bg-gray-700 rounded"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-5 h-5" />
+              ) : (
+                <ChevronLeft className="w-5 h-5" />
+              )}
+            </button>
+            {!sidebarCollapsed && (
+              <div className="ml-2">
+                <Logo />
+              </div>
+            )}
+          </div>
+          <div className="flex-1 px-4">
+            <div className="relative">
+              <WelcomeHeader />
+              {/* <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             <input
               className="w-full h-9 pl-10 pr-4 rounded bg-gray-800 border border-gray-700 focus:outline-none focus:border-gray-600 text-sm"
               placeholder="Search or type / for commands..."
-            />
+            /> */}
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => dispatch(toggleConnectorDialog())}
-            className="p-2 hover:bg-gray-700 rounded"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
-          <button
+
+          <div className="flex items-center gap-3">
+            {/* <button
+              onClick={() => dispatch(toggleConnectorDialog())}
+              className="p-2 hover:bg-gray-700 rounded"
+            >
+              <Plus className="w-5 h-5" />
+            </button> */}
+            {/* <button
             onClick={() => dispatch(toggleChatInterface())}
             className={`p-2 hover:bg-gray-700 rounded ${
               isChatInterfaceVisible ? "text-blue-400" : "text-gray-400"
             }`}
           >
             <MessageSquare className="w-5 h-5" />
-          </button>
-          <button
+          </button> */}
+            {/* <button
             onClick={() => dispatch(toggleDocumentSummary())}
             className="p-2 hover:bg-gray-700 rounded"
           >
             <FileText className="w-5 h-5" />
-          </button>
-          <CollaborateSettings />
-          <button
-            onClick={() => setIsProfileSettingsOpen(true)}
-            className="p-2 hover:bg-gray-700 rounded"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-          <UserMenu />
-        </div>
-      </header>
+          </button> */}
+            <CollaborateSettings />
+            <button
+              onClick={() => setIsProfileSettingsOpen(true)}
+              className="p-2 hover:bg-gray-700 rounded"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            <UserMenu />
+          </div>
+        </header>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Panel */}
-        {!sidebarCollapsed && (
-          <div
-            className="panel relative flex-shrink-0 h-full bg-gray-800 border-r border-gray-700"
-            style={{
-              width: `${panels.left.width}px`,
-              minWidth: `${panels.left.minWidth}px`,
-              maxWidth: `${panels.left.maxWidth}px`,
-            }}
-          >
-            {/* <div className="flex items-center justify-between h-10 px-4 bg-gray-700">
+        {/* Main Content Area */}
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Left Panel */}
+          {!sidebarCollapsed && (
+            <div
+              className="panel relative flex-shrink-0 h-full bg-gray-800 border-r border-gray-700"
+              style={{
+                width: `${panels.left.width}px`,
+                minWidth: `${panels.left.minWidth}px`,
+                maxWidth: `${panels.left.maxWidth}px`,
+              }}
+            >
+              {/* <div className="flex items-center justify-between h-10 px-4 bg-gray-700">
               <span className="text-sm font-semibold text-gray-100">Files</span>
               <button
                 onClick={toggleMaximize("left")}
@@ -545,29 +570,29 @@ const MainLayout: React.FC = () => {
                 )}
               </button>
             </div> */}
-            <div className="h-full pt-0 overflow-hidden">
-              <Sidebar onFileSelect={handleFileSelect} className="h-full" />
+              <div className="h-full pt-0 overflow-hidden">
+                <Sidebar onFileSelect={handleFileSelect} className="h-full" />
+              </div>
+              <div
+                className="absolute right-0 top-0 w-4 h-full cursor-col-resize group"
+                onMouseDown={startResizing("left")}
+                onDoubleClick={handleDoubleClick("left")}
+              >
+                <div className="absolute inset-y-0 right-0 w-0.5 bg-gray-700 group-hover:bg-blue-400" />
+              </div>
             </div>
-            <div
-              className="absolute right-0 top-0 w-4 h-full cursor-col-resize group"
-              onMouseDown={startResizing("left")}
-              onDoubleClick={handleDoubleClick("left")}
-            >
-              <div className="absolute inset-y-0 right-0 w-0.5 bg-gray-700 group-hover:bg-blue-400" />
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Middle Panel */}
-        <div
-          className="panel relative flex-shrink-0 h-full bg-gray-800 border-r border-gray-700"
-          style={{
-            width: `${panels.middle.width}px`,
-            minWidth: `${panels.middle.minWidth}px`,
-            maxWidth: `${panels.middle.maxWidth}px`,
-          }}
-        >
-          {/* <div className="flex items-center justify-between h-10 px-4 bg-gradient-to-r from-gray-700 to-gray-800 shadow-inner">
+          {/* Middle Panel */}
+          <div
+            className="panel relative flex-shrink-0 h-full bg-gray-800 border-r border-gray-700 transition-all duration-300 ease-in-out"
+            style={{
+              width: `${panels.middle.width}px`,
+              minWidth: `${panels.middle.minWidth}px`,
+              maxWidth: `${panels.middle.maxWidth}px`,
+            }}
+          >
+            {/* <div className="flex items-center justify-between h-10 px-4 bg-gradient-to-r from-gray-700 to-gray-800 shadow-inner">
             <span className="text-sm font-bold text-gray-50 tracking-wide">
               Chat
             </span>
@@ -582,64 +607,87 @@ const MainLayout: React.FC = () => {
               )}
             </button>
           </div> */}
-          <div className="h-full pt-0 overflow-hidden">
-            <UnifiedChatInterface />
-          </div>
-          <div
-            className="absolute right-0 top-0 w-4 h-full cursor-col-resize group"
-            onMouseDown={startResizing("middle")}
-            onDoubleClick={handleDoubleClick("middle")}
-          >
-            <div className="absolute inset-y-0 right-0 w-0.5 bg-gray-700 group-hover:bg-blue-400" />
-          </div>
-        </div>
-
-        {/* Right Panel */}
-        <div
-          style={{ minWidth: `${panels.right.minWidth}px` }}
-          className="flex-1 h-full bg-gray-800 overflow-hidden"
-        >
-          <div className="h-10 px-4 flex items-center justify-between text-sm text-gray-300 border-b border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900">
-            <div className="flex items-center gap-2">
-              <FolderIcon className="w-4 h-4" />
-              <span>{pathHierarchy.connector}</span>
-              <ChevronRight className="w-4 h-4" />
-              <span className="text-gray-100">{pathHierarchy.path}</span>
-            </div>
-          </div>
-          {selectedDocument.file && selectedDocument.content ? (
-            <DocumentViewer
-              documents={[selectedDocument.content]}
-              activeDocumentId={selectedDocument.file.id}
-              onDocumentClose={() =>
-                setSelectedDocument({ file: null, content: null })
-              }
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="text-center space-y-4">
-                <FileText className="w-12 h-12 text-gray-500 mx-auto" />
-                <p className="text-gray-500">Select a document to view</p>
+            <div className="h-full pt-0 overflow-hidden flex flex-col">
+              <WelcomePanel />
+              <div className="flex-1 overflow-hidden">
+                <UnifiedChatInterface />
               </div>
             </div>
-          )}
-        </div>
-      </div>
+            <div
+              className="absolute right-0 top-0 w-4 h-full cursor-col-resize group"
+              onMouseDown={startResizing("middle")}
+              onDoubleClick={handleDoubleClick("middle")}
+            >
+              <div className="absolute inset-y-0 right-0 w-0.5 bg-gray-700 group-hover:bg-blue-400" />
+            </div>
+          </div>
 
-      {isConnectorDialogOpen && (
-        <ConnectorDialog
-          open={isConnectorDialogOpen}
-          onOpenChange={(open) => dispatch(setConnectorDialogVisibility(open))}
+          {/* Right Panel */}
+          <div
+            className={`panel relative h-full bg-gray-800 transition-all duration-300 ease-in-out ${
+              panels.right.isVisible ? "opacity-100 flex-1" : "opacity-0 w-0"
+            }`}
+          >
+            {panels.right.isVisible &&
+            selectedDocument.file &&
+            selectedDocument.content ? (
+              <>
+                {/* <div className="h-10 px-2 flex items-center justify-between text-sm text-gray-300 border-b border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900"> */}
+                {/* <div className="h-14 px-4 bg- flex items-center justify-between text-sm text-gray-400 border-b border-gray-800">
+                  <div className="flex items-center gap-2">
+                    <FolderIcon className="w-4 h-4" />
+                    <span>{pathHierarchy.connector}</span>
+                    <ChevronRight className="w-4 h-4" />
+                    <span className="text-white">{pathHierarchy.path}</span>
+                  </div> */}
+                {/* <button className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors">
+              <Share2 className="w-4 h-4" />
+            </button> */}
+                <BreadcrumbNav fileNode={selectedDocument.file}></BreadcrumbNav>
+                {/* </div> */}
+                {/* </div> */}
+                <DocumentViewer
+                  documents={[selectedDocument.content]}
+                  activeDocumentId={selectedDocument.file.id}
+                  onDocumentClose={() => {
+                    setSelectedDocument({ file: null, content: null });
+                    setPanels((prev) => ({
+                      ...prev,
+                      middle: {
+                        ...prev.middle,
+                        width: window.innerWidth - prev.left.width,
+                      },
+                      right: {
+                        ...prev.right,
+                        isVisible: false,
+                      },
+                    }));
+                  }}
+                />
+              </>
+            ) : null}
+          </div>
+        </div>
+
+        {isConnectorDialogOpen && (
+          <ConnectorDialog
+            open={isConnectorDialogOpen}
+            onOpenChange={(open) =>
+              dispatch(setConnectorDialogVisibility(open))
+            }
+          />
+        )}
+        {selectedDocument && (
+          <DocumentSummary
+            documentInsights={selectedDocument.documentInsights}
+          />
+        )}
+        <ProfileSettingsPopup
+          isOpen={isProfileSettingsOpen}
+          onClose={() => setIsProfileSettingsOpen(false)}
         />
-      )}
-      {isDocumentSummaryVisible && selectedDocument && (
-        <DocumentSummary documentInsights={selectedDocument.documentInsights} />
-      )}
-      <ProfileSettingsPopup
-        isOpen={isProfileSettingsOpen}
-        onClose={() => setIsProfileSettingsOpen(false)}
-      />
-    </div>
+      </div>
+    </WelcomeProvider>
   );
 };
 

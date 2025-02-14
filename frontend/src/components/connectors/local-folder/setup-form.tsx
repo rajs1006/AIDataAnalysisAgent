@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, File, X } from "lucide-react";
+import { Upload, FileText, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,18 +23,54 @@ export const LocalFolderForm = ({
 }: LocalFolderFormProps) => {
   const [name, setName] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
 
-  // Get platform info
   const platformInfo = {
     os: window.navigator.platform,
     arch: window.navigator.userAgent.includes("x64") ? "x64" : "x86",
   };
 
+  const validateAndAddFiles = (newFiles: File[]) => {
+    const pdfFiles = newFiles.filter((file) => file.type === "application/pdf");
+
+    if (pdfFiles.length !== newFiles.length) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload PDF files only",
+        variant: "destructive",
+      });
+    }
+
+    setFiles((prevFiles) => [...prevFiles, ...pdfFiles]);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFiles(Array.from(e.target.files));
+      const selectedFiles = Array.from(e.target.files);
+      validateAndAddFiles(selectedFiles);
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    validateAndAddFiles(droppedFiles);
   };
 
   const handleRemoveFile = (fileToRemove: File) => {
@@ -44,7 +80,7 @@ export const LocalFolderForm = ({
   const handleSubmit = async () => {
     if (!name.trim()) {
       toast({
-        title: "Error",
+        title: "Required Field Missing",
         description: "Please enter a connector name",
         variant: "destructive",
       });
@@ -53,8 +89,8 @@ export const LocalFolderForm = ({
 
     if (files.length === 0) {
       toast({
-        title: "Error",
-        description: "Please select at least one file",
+        title: "Files Required",
+        description: "Please select at least one PDF file",
         variant: "destructive",
       });
       return false;
@@ -70,26 +106,41 @@ export const LocalFolderForm = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 p-6 bg-gray-900 rounded-lg">
       <div className="space-y-2">
-        <Label htmlFor="connector-name">Connector Name</Label>
+        <Label
+          htmlFor="connector-name"
+          className="text-gray-200 text-sm font-medium"
+        >
+          Connector Name
+        </Label>
         <Input
           id="connector-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="My Local Folder"
+          placeholder="Enter connector name"
           required
           disabled={isSubmitting}
-          className="bg-[#F5F5F0] border-[#2C5530] text-[#2C5530] focus:ring-[#2C5530]"
+          className="bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
 
-      <div className="space-y-2">
-        <Label>Select Files</Label>
-        <div className="border-2 border-dashed border-[#2C5530] rounded-lg p-6 text-center">
+      <div className="space-y-4">
+        <Label className="text-gray-200 text-sm font-medium">Upload PDFs</Label>
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-lg p-8 transition-colors ${
+            isDragging
+              ? "border-blue-500 bg-gray-800/50"
+              : "border-gray-700 hover:border-blue-500"
+          }`}
+        >
           <input
             type="file"
             multiple
+            accept=".pdf"
             onChange={handleFileSelect}
             className="hidden"
             id="file-upload"
@@ -97,38 +148,42 @@ export const LocalFolderForm = ({
           />
           <label
             htmlFor="file-upload"
-            className="cursor-pointer flex flex-col items-center gap-2"
+            className="cursor-pointer flex flex-col items-center gap-3"
           >
-            <Upload className="w-8 h-8 text-[#2C5530]" />
-            <span className="text-sm text-[#2C5530]">
-              Click to select files or drag and drop
-            </span>
+            <div className="p-4 bg-gray-800 rounded-full">
+              <Upload className="w-8 h-8 text-blue-500" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-gray-200">
+                Click to upload PDFs
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                or drag and drop PDF files here
+              </p>
+            </div>
           </label>
         </div>
 
         {files.length > 0 && (
-          <div className="space-y-2">
-            <Label>Selected Files ({files.length})</Label>
+          <div className="space-y-3">
+            <Label className="text-gray-200 text-sm font-medium">
+              Selected PDFs ({files.length})
+            </Label>
             <div className="space-y-2">
               {files.map((file, index) => (
                 <div
                   key={index}
-                  className="flex items-center bg-[#F5F5F0] border border-[#2C5530]/20 rounded"
+                  className="flex items-center bg-gray-800 border border-gray-700 rounded-lg p-2"
                 >
                   <div className="flex-shrink-0 p-2">
-                    <File className="w-4 h-4 text-[#2C5530]" />
+                    <FileText className="w-5 h-5 text-blue-500" />
                   </div>
 
-                  <div className="flex-1 min-w-0 w-64">
-                    <div className="overflow-x-auto overflow-y-hidden scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                      <div className="truncate whitespace-nowrap text-[#2C5530]">
-                        {file.name}
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate text-gray-200">{file.name}</div>
+                    <div className="text-xs text-gray-400">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
                     </div>
-                  </div>
-
-                    <div className="flex-shrink-0 px-2 text-xs text-[#2C5530]/70">
-                    ({(file.size / 1024).toFixed(1)} KB)
                   </div>
 
                   <Button
@@ -137,7 +192,7 @@ export const LocalFolderForm = ({
                     size="sm"
                     onClick={() => handleRemoveFile(file)}
                     disabled={isSubmitting}
-                    className="flex-shrink-0 h-8 w-8 p-0 text-[#2C5530]"
+                    className="flex-shrink-0 h-8 w-8 p-0 text-gray-400 hover:text-gray-200 hover:bg-gray-700"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -162,10 +217,10 @@ export const LocalFolderForm = ({
       <Button
         onClick={handleSubmit}
         type="submit"
-        className="w-full bg-[#2C5530] text-[#F5F5F0] hover:bg-[#2C5530]/90"
+        className="w-full bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-colors"
         disabled={isSubmitting}
       >
-        Create Connector
+        {isSubmitting ? "Creating..." : "Create Connector"}
       </Button>
     </div>
   );
