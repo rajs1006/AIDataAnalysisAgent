@@ -6,6 +6,10 @@ export interface RightSidebarState {
   isChatInterfaceVisible: boolean;
   isConnectorDialogOpen: boolean;
   isDocumentSummaryVisible: boolean;
+  isPinned: boolean;
+  sidebarWidth: number;
+  mainContentWidth: number;
+  chatInterfaceWidth: number;
 }
 
 const initialState: RightSidebarState = {
@@ -13,7 +17,11 @@ const initialState: RightSidebarState = {
   activeTab: 'insights',
   isChatInterfaceVisible: false,
   isConnectorDialogOpen: false,
-  isDocumentSummaryVisible: true
+  isDocumentSummaryVisible: true,
+  isPinned: true,
+  sidebarWidth: 20, // percentage
+  mainContentWidth: 50, // percentage
+  chatInterfaceWidth: 30, // percentage
 };
 
 const rightSidebarSlice = createSlice({
@@ -43,7 +51,29 @@ const rightSidebarSlice = createSlice({
     },
     setDocumentSummaryVisibility: (state, action: PayloadAction<boolean>) => {
       state.isDocumentSummaryVisible = action.payload;
-    }
+    },
+    toggleChatInterfacePinning: (state) => {
+      state.isPinned = !state.isPinned;
+    },
+    updatePanelWidths: (state, action: PayloadAction<{
+      sidebarWidth?: number;
+      mainContentWidth?: number;
+      chatInterfaceWidth?: number;
+    }>) => {
+      const { sidebarWidth, mainContentWidth, chatInterfaceWidth } = action.payload;
+      
+      if (sidebarWidth !== undefined) {
+        state.sidebarWidth = Math.min(Math.max(sidebarWidth, 10), 30);
+      }
+      
+      if (mainContentWidth !== undefined) {
+        state.mainContentWidth = Math.min(Math.max(mainContentWidth, 30), 60);
+      }
+      
+      if (chatInterfaceWidth !== undefined) {
+        state.chatInterfaceWidth = Math.min(Math.max(chatInterfaceWidth, 30), 60);
+      }
+    },
   }
 });
 
@@ -55,7 +85,9 @@ export const {
   toggleConnectorDialog,
   setConnectorDialogVisibility,
   toggleDocumentSummary,
-  setDocumentSummaryVisibility
+  setDocumentSummaryVisibility,
+  toggleChatInterfacePinning,
+  updatePanelWidths
 } = rightSidebarSlice.actions;
 
 export default rightSidebarSlice.reducer;

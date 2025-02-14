@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { MainLayout } from "../layouts/MainLayout";
+import MainLayout  from "@/components/layouts/MainLayout";
 import { DocumentViewer } from "@/components/document/DocumentViewer";
 import { DocumentEditor } from "@/components/document/DocumentEditor";
 import { DocumentToolbar } from "@/components/document/DocumentToolbar";

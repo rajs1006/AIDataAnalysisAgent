@@ -1,14 +1,12 @@
+// Modified DocumentViewer.tsx
 import React, { useState } from "react";
 import { FileContentRenderer } from "./FileContentRenderer";
 import { FileNode } from "@/lib/types/files";
-import {
-  Share2,
-  Download,
-  X,
-} from "lucide-react";
+import { Share2, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocumentViewerProps } from "@/lib/types/document";
 import { DocumentShareDialog } from "./DocumentShareDialog";
+import { cn } from "@/lib/utils";
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   documents,
@@ -16,6 +14,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   onDocumentChange,
   onDocumentClose,
   onDocumentSave,
+  className,
 }) => {
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
@@ -23,14 +22,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     ? documents.find((doc: { id: string }) => doc.id === activeDocumentId)
     : documents[0];
 
-  const rawContent =
-    activeDocument?.parsedContent?.text ||
-    activeDocument?.content?.text ||
-    activeDocument?.content;
-
   if (!activeDocument) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-400">
+      <div
+        className={cn(
+          "flex items-center justify-center h-full text-gray-400",
+          className
+        )}
+      >
         No document selected
       </div>
     );
@@ -66,13 +65,13 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   };
 
   return (
-    <div className="h-full relative bg-gray-950">
+    <div className={cn("h-full relative bg-gray-950", className)}>
       <div className="relative w-full h-full">
         {/* Document Content */}
         <FileContentRenderer blob={blob} fileNode={fileNode} />
 
         {/* Floating Action Buttons */}
-        <div className="absolute top-10 left-3 z-10">
+        <div className="absolute top-4 left-4 z-10">
           <div className="flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border border-gray-800/50 rounded-lg p-1 shadow-lg">
             <Button
               variant="ghost"
@@ -109,23 +108,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
         </div>
 
         {/* Share Dialog */}
-        <DocumentShareDialog 
-          documentId={activeDocument.id} 
-          isOpen={isShareDialogOpen} 
-          onOpenChange={setIsShareDialogOpen} 
+        <DocumentShareDialog
+          documentId={activeDocument.id}
+          isOpen={isShareDialogOpen}
+          onOpenChange={setIsShareDialogOpen}
         />
       </div>
     </div>
   );
 };
-
-// Add these styles to your CSS
-const styles = `
-.pdf-content {
-  background-color: rgb(17, 24, 39) !important;
-}
-
-.pdf-content canvas {
-  background-color: white;
-}
-`;
