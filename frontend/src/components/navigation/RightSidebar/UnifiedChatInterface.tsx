@@ -432,11 +432,38 @@ const UnifiedChatInterface: React.FC = () => {
             <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
               <div className="space-y-4">
                 {!currentConversation ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                    <MessageSquare className="w-12 h-12 mb-4 text-gray-500" />
-                    <p className="text-lg font-medium">
-                      Start a new chat or select a conversation
+                  <div className="h-full flex flex-col items-center justify-center px-6 max-w-2xl mx-auto text-center">
+                    <MessageSquare className="w-16 h-16 mb-6 text-blue-500" />
+                    <h2 className="text-xl font-semibold text-gray-100 mb-3">
+                      Click the + icon above or select a conversation to begin
+                    </h2>
+                    <p className="text-gray-400 text-base leading-relaxed mb-6">
+                      Transform your data into actionable insights using natural
+                      language. Ask questions, generate reports, draft emails,
+                      and create strategic plans with our secure AI assistant
+                      that keeps your data private while delivering personalized
+                      analysis and recommendations.
                     </p>
+                    <div className="grid grid-cols-2 gap-4 w-full max-w-lg">
+                      <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                        <h3 className="font-medium text-gray-200 mb-2">
+                          Private & Secure
+                        </h3>
+                        <p className="text-sm text-gray-400">
+                          Your data stays protected while getting AI-powered
+                          insights
+                        </p>
+                      </div>
+                      <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                        <h3 className="font-medium text-gray-200 mb-2">
+                          Custom Analysis
+                        </h3>
+                        <p className="text-sm text-gray-400">
+                          Tailored insights and recommendations based on your
+                          data
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 ) : isLoading ? (
                   <div className="flex justify-center items-center h-32">
@@ -517,7 +544,7 @@ const UnifiedChatInterface: React.FC = () => {
               </div>
             </ScrollArea>
 
-            <div className="p-4 border-t border-gray-800 bg-gray-900/90 backdrop-blur-sm">
+            <div className="p-6 border-t border-gray-800 bg-gray-900/90 backdrop-blur-sm">
               <div className="relative">
                 <textarea
                   value={inputMessage}
@@ -527,7 +554,7 @@ const UnifiedChatInterface: React.FC = () => {
                   placeholder={
                     currentConversation
                       ? "Type your message..."
-                      : "Type a message to start a new chat"
+                      : "Type a message to talk to your data..."
                   }
                   disabled={isSending}
                 />
