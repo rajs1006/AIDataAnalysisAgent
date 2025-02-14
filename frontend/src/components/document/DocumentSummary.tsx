@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { PanelRightClose, PanelLeftClose, CheckCircle } from "lucide-react";
+import { PanelRightClose, PanelLeftClose, CheckCircle, FileText, Brain, ListTodo } from "lucide-react";
 
 interface DocumentSummaryProps {
   documentInsights?: {
@@ -41,7 +41,7 @@ export const DocumentSummary: React.FC<DocumentSummaryProps> = ({
 
       {isExpanded && (
         <div className="p-4 h-full overflow-y-auto">
-          <h3 className="text-lg font-semibold mb-6 text-white border-b border-indigo-500/30 pb-2">
+          <h3 className="text-lg font-semibold mb-6 text-center text-white border-b border-indigo-500/30 pb-2">
             Document Insights
           </h3>
 
@@ -49,14 +49,27 @@ export const DocumentSummary: React.FC<DocumentSummaryProps> = ({
             {!documentInsights.summary &&
             !documentInsights.keyTopics?.length ? (
               <div className="text-center text-gray-400 py-8 bg-slate-800/50 rounded-lg border border-slate-700">
-                <div className="space-y-3">
-                  <p className="text-gray-200">
-                    Select a document to see AI-powered insights
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Get instant summaries, key topics, and actionable takeaways
-                    from your documents
-                  </p>
+                <div className="space-y-6 text-center">
+                  <div className="flex justify-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                      <FileText className="w-5 h-5 text-indigo-400" />
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                      <Brain className="w-5 h-5 text-indigo-400" />
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                      <ListTodo className="w-5 h-5 text-indigo-400" />
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-gray-200">
+                      Select a document to see AI-powered insights
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Get instant summaries, key topics, and actionable
+                      takeaways from your documents
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : (
