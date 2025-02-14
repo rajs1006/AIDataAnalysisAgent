@@ -390,8 +390,18 @@ export function FileTree({ isCollapsed, onFileSelect }: FileTreeProps) {
     <div className="space-y-1">
       {!rootNodes || rootNodes.length === 0 ? (
         <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700/50 text-gray-400 text-sm flex flex-col items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-yellow-500" />
-          <span>No files found</span>
+          {/* <AlertTriangle className="h-5 w-5 text-yellow-500" />
+          <span>No files found</span> */}
+          <Database className="h-5 w-5 text-blue-500" />
+          <div className="text-center space-y-2">
+            <p className="text-gray-200">
+              Connect to your data sources to view files
+            </p>
+            <p className="text-sm text-gray-400">
+              Invite team members through the collaborate menu to share and work
+              together on your files
+            </p>
+          </div>
         </div>
       ) : (
         rootNodes.map((node) => (

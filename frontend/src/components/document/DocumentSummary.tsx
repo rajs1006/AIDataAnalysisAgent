@@ -49,10 +49,15 @@ export const DocumentSummary: React.FC<DocumentSummaryProps> = ({
             {!documentInsights.summary &&
             !documentInsights.keyTopics?.length ? (
               <div className="text-center text-gray-400 py-8 bg-slate-800/50 rounded-lg border border-slate-700">
-                <p>
-                  Select a document to load summary, key insights and action
-                  items.
-                </p>
+                <div className="space-y-3">
+                  <p className="text-gray-200">
+                    Select a document to see AI-powered insights
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Get instant summaries, key topics, and actionable takeaways
+                    from your documents
+                  </p>
+                </div>
               </div>
             ) : (
               <>

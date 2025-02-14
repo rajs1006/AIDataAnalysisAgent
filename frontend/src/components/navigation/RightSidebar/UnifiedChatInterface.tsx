@@ -277,7 +277,7 @@ const UnifiedChatInterface: React.FC = () => {
                 className={cn(
                   "w-4 h-4 transition-colors",
                   windowState.isSidebarCollapsed
-                    ? "text-gray-600 group-hover:text-gray-400"
+                    ? "text-purple-600 group-hover:text-purple-800"
                     : "text-blue-400 group-hover:text-blue-500"
                 )}
               />
