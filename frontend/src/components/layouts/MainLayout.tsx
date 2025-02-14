@@ -8,7 +8,6 @@ import {
   setConnectorDialogVisibility,
 } from "@/lib/store/right-sidebar";
 import debounce from "lodash/debounce";
-
 import {
   ChevronRight,
   ChevronLeft,
@@ -38,10 +37,9 @@ import { fileService } from "@/lib/api/files";
 import type { JSONContent } from "@tiptap/react";
 import { Dispatch } from "@reduxjs/toolkit";
 
+// Utility function remains unchanged
 const extractDocumentInsights = (parsedContent: any) => {
   console.log("Parsed Content:", parsedContent);
-
-  // Default insights if no content is found
   if (!parsedContent || !parsedContent.text) {
     return {
       summary: "No summary available",
@@ -50,17 +48,12 @@ const extractDocumentInsights = (parsedContent: any) => {
       metadata: {},
     };
   }
-
-  // Determine the type of text content
   let contentText = "";
   if (typeof parsedContent.text === "string") {
     contentText = parsedContent.text;
   } else if (typeof parsedContent.text === "object") {
-    // If it's an object, try to stringify or extract text
     contentText = JSON.stringify(parsedContent.text);
   }
-
-  // Fallback if no text is found
   if (!contentText) {
     return {
       summary: "Unable to extract document content",
@@ -69,256 +62,48 @@ const extractDocumentInsights = (parsedContent: any) => {
       metadata: parsedContent.metadata || {},
     };
   }
-
-  // Use the entire parsed text as summary
   const summary = contentText;
-
-  // Basic key topics extraction (first few words)
   const words = contentText.split(/\s+/);
   const keyTopics = words
     .slice(0, 3)
     .map((word: string) => word.replace(/[^a-zA-Z]/g, ""))
     .filter((word: string) => word.length > 2);
-
   return {
     summary,
     keyTopics,
-    actionItems: [], // No action items by default
+    actionItems: [],
     metadata: parsedContent.metadata || {},
   };
 };
 
-// LeftPanel.tsx
-
-interface LeftPanelProps {
-  panels: PanelsState;
-  maximizedPanel: "left" | "middle" | null;
-  onFileSelect: (file: FileNode) => void;
-  onStartResizing: (
-    panelKey: "left" | "middle"
-  ) => (e: React.MouseEvent) => void;
-  onDoubleClick: (panelKey: "left" | "middle") => () => void;
-  onToggleMaximize: (panelKey: "left" | "middle") => () => void;
-}
-
-export const LeftPanel: React.FC<LeftPanelProps> = ({
-  panels,
-  maximizedPanel,
-  onFileSelect,
-  onStartResizing,
-  onDoubleClick,
-  onToggleMaximize,
-}) => {
-  return (
-    <div
-      className="panel relative flex-shrink-0 h-full bg-gray-900 border-r border-gray-800 overflow-hidden"
-      style={{
-        width: `${panels.left.width}px`,
-        minWidth: `${panels.left.minWidth}px`,
-        maxWidth: `${panels.left.maxWidth}px`,
-        transition: panels.left.isResizing ? "none" : "width 0.3s ease-out",
-      }}
-    >
-      {/* Panel Header */}
-      <div className="absolute top-0 left-0 right-0 h-10 flex items-center justify-between px-4 bg-gray-900/50 backdrop-blur-sm border-b border-gray-800/50 z-20">
-        <span className="text-sm font-medium text-gray-400">Files</span>
-        <button
-          onClick={onToggleMaximize("left")}
-          className="p-1.5 rounded-md hover:bg-gray-800 text-gray-400"
-        >
-          {maximizedPanel === "left" ? (
-            <Minimize2 className="w-4 h-4" />
-          ) : (
-            <Maximize2 className="w-4 h-4" />
-          )}
-        </button>
-      </div>
-
-      {/* Panel Content */}
-      <div className="w-full h-full pt-10 overflow-hidden">
-        <Sidebar onFileSelect={onFileSelect} className="h-full" />
-      </div>
-
-      {/* Resize Handle */}
-      <div
-        className="absolute right-0 top-0 w-4 h-full cursor-col-resize group z-10"
-        onMouseDown={onStartResizing("left")}
-        onDoubleClick={onDoubleClick("left")}
-      >
-        <div className="absolute inset-y-0 right-0 w-0.5 bg-gray-800 group-hover:bg-blue-400/40 transition-colors" />
-        <div className="absolute inset-y-0 right-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="w-0.5 h-8 rounded-full bg-blue-400/40" />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// MiddlePanel.tsx
-
-interface MiddlePanelProps {
-  panels: PanelsState;
-  maximizedPanel: "left" | "middle" | null;
-  onStartResizing: (
-    panelKey: "left" | "middle"
-  ) => (e: React.MouseEvent) => void;
-  onDoubleClick: (panelKey: "left" | "middle") => () => void;
-  onToggleMaximize: (panelKey: "left" | "middle") => () => void;
-}
-
-export const MiddlePanel: React.FC<MiddlePanelProps> = ({
-  panels,
-  maximizedPanel,
-  onStartResizing,
-  onDoubleClick,
-  onToggleMaximize,
-}) => {
-  return (
-    <div
-      className="panel relative flex-shrink-0 h-full bg-gray-900 border-r border-gray-800 overflow-hidden"
-      style={{
-        width: `${panels.middle.width}px`,
-        minWidth: `${panels.middle.minWidth}px`,
-        maxWidth: `${panels.middle.maxWidth}px`,
-        transition: panels.middle.isResizing ? "none" : "width 0.3s ease-out",
-      }}
-    >
-      {/* Panel Header */}
-      <div className="absolute top-0 left-0 right-0 h-10 flex items-center justify-between px-4 bg-gray-900/50 backdrop-blur-sm border-b border-gray-800/50 z-20">
-        <span className="text-sm font-medium text-gray-400">Chat</span>
-        <button
-          onClick={onToggleMaximize("middle")}
-          className="p-1.5 rounded-md hover:bg-gray-800 text-gray-400"
-        >
-          {maximizedPanel === "middle" ? (
-            <Minimize2 className="w-4 h-4" />
-          ) : (
-            <Maximize2 className="w-4 h-4" />
-          )}
-        </button>
-      </div>
-
-      {/* Panel Content */}
-      <div className="w-full h-full pt-10 overflow-hidden">
-        <UnifiedChatInterface />
-      </div>
-
-      {/* Resize Handle */}
-      <div
-        className="absolute right-0 top-0 w-4 h-full cursor-col-resize group z-10"
-        onMouseDown={onStartResizing("middle")}
-        onDoubleClick={onDoubleClick("middle")}
-      >
-        <div className="absolute inset-y-0 right-0 w-0.5 bg-gray-800 group-hover:bg-blue-400/40 transition-colors" />
-        <div className="absolute inset-y-0 right-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="w-0.5 h-8 rounded-full bg-blue-400/40" />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// RightPanel.tsx
-
-interface RightPanelProps {
-  panels: PanelsState;
-  selectedDocument: DocumentState;
-  onDocumentClose: () => void;
-}
-
-export const RightPanel: React.FC<RightPanelProps> = ({
-  panels,
-  selectedDocument,
-  onDocumentClose,
-}) => {
-  return (
-    <div
-      style={{ minWidth: `${panels.right.minWidth}px` }}
-      className="flex-1 h-full bg-gray-900 overflow-hidden"
-    >
-      {selectedDocument.file && selectedDocument.content ? (
-        <DocumentViewer
-          documents={[selectedDocument.content]}
-          activeDocumentId={selectedDocument.file.id}
-          onDocumentClose={onDocumentClose}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <FileText className="w-12 h-12 text-gray-500 mx-auto" />
-            <p className="text-gray-500">Select a document to view</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Dialogs.tsx
-interface DialogsProps {
-  isConnectorDialogOpen: boolean;
-  isDocumentSummaryVisible: boolean;
-  isProfileSettingsOpen: boolean;
-  selectedDocument: DocumentState;
-  onProfileSettingsClose: () => void;
-  dispatch: Dispatch;
-}
-
-export const Dialogs: React.FC<DialogsProps> = ({
-  isConnectorDialogOpen,
-  isDocumentSummaryVisible,
-  isProfileSettingsOpen,
-  selectedDocument,
-  onProfileSettingsClose,
-  dispatch,
-}) => {
-  return (
-    <>
-      {isConnectorDialogOpen && (
-        <ConnectorDialog
-          open={isConnectorDialogOpen}
-          onOpenChange={(open) => dispatch(setConnectorDialogVisibility(open))}
-        />
-      )}
-
-      {isDocumentSummaryVisible && selectedDocument && (
-        <DocumentSummary documentInsights={selectedDocument.documentInsights} />
-      )}
-
-      <ProfileSettingsPopup
-        isOpen={isProfileSettingsOpen}
-        onClose={onProfileSettingsClose}
-      />
-    </>
-  );
-};
-
-// types.ts
-export interface PanelConfig {
-  width: number;
-  minWidth: number;
-  maxWidth: number;
-  isResizing: boolean;
-  isSnapping?: boolean;
-  lastSnappedWidth?: number;
-}
-
-export interface PanelsState {
-  left: PanelConfig;
-  middle: PanelConfig;
+interface PanelsState {
+  left: {
+    width: number;
+    minWidth: number;
+    maxWidth: number;
+    isResizing: boolean;
+    lastSnappedWidth?: number;
+  };
+  middle: {
+    width: number;
+    minWidth: number;
+    maxWidth: number;
+    isResizing: boolean;
+    lastSnappedWidth?: number;
+  };
   right: {
     width: "auto";
     minWidth: number;
   };
 }
 
-export interface DocumentInsights {
+interface DocumentInsights {
   summary?: string;
   keywords?: string[];
   sentiment?: string;
 }
 
-export interface DocumentContent {
+interface DocumentContent {
   id: string;
   title: string;
   fileNode?: FileNode;
@@ -328,7 +113,7 @@ export interface DocumentContent {
   mime_type: string;
 }
 
-export interface DocumentState {
+interface DocumentState {
   file: FileNode | null;
   content: DocumentContent | null;
   documentInsights?: DocumentInsights;
@@ -338,8 +123,7 @@ const DEFAULT_SNAP_POINTS = {
   left: [240, 280, 320, 360, 400],
   middle: [400, 500, 600, 700, 800],
 } as const;
-
-const SNAP_THRESHOLD = 20; // pixels
+const SNAP_THRESHOLD = 20;
 
 const MainLayout: React.FC = () => {
   const dispatch = useDispatch();
@@ -356,7 +140,6 @@ const MainLayout: React.FC = () => {
   const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Panel state management
   const [panels, setPanels] = useState<PanelsState>({
     left: {
       width: 320,
@@ -365,9 +148,9 @@ const MainLayout: React.FC = () => {
       isResizing: false,
     },
     middle: {
-      width: 1200,
+      width: 1400,
       minWidth: 400,
-      maxWidth: 920,
+      maxWidth: 1300,
       isResizing: false,
     },
     right: {
@@ -390,7 +173,6 @@ const MainLayout: React.FC = () => {
     []
   );
 
-  // Debounced panel updates for better performance
   const debouncedPanelUpdate = useCallback(
     debounce((newPanels: PanelsState) => {
       setPanels(newPanels);
@@ -420,7 +202,6 @@ const MainLayout: React.FC = () => {
         ],
       };
 
-      // Extract document insights
       const documentInsights = extractDocumentInsights(parsedContent);
 
       setSelectedDocument({
@@ -442,12 +223,11 @@ const MainLayout: React.FC = () => {
     }
   }, []);
 
-  // Enhanced resize handler with snap functionality
-  // Utility functions for resize handling
+  // Simplified resize functions (logic remains largely unchanged)
   const createResizeGuide = (panel: HTMLElement): HTMLDivElement => {
     const resizeGuide = document.createElement("div");
     resizeGuide.className =
-      "absolute top-0 bottom-0 w-0.5 bg-blue-400/50 z-50 pointer-events-none transition-transform duration-75";
+      "absolute top-0 bottom-0 w-0.5 bg-blue-500 z-50 pointer-events-none";
     panel.appendChild(resizeGuide);
     return resizeGuide;
   };
@@ -460,7 +240,7 @@ const MainLayout: React.FC = () => {
     return DEFAULT_SNAP_POINTS[panelKey].map((point) => {
       const guide = document.createElement("div");
       guide.className =
-        "absolute top-0 bottom-0 w-0.5 bg-blue-300/30 z-50 pointer-events-none opacity-0 transition-opacity duration-200";
+        "absolute top-0 bottom-0 w-0.5 bg-blue-400 z-50 pointer-events-none opacity-0";
       guide.style.left = `${point - panelRect.left}px`;
       panel.appendChild(guide);
       return guide;
@@ -478,8 +258,8 @@ const MainLayout: React.FC = () => {
   ): void => {
     guides.forEach((guide, i) => {
       const snapPoint = snapPoints[i];
-      const isNear = Math.abs(currentWidth - snapPoint) < SNAP_THRESHOLD;
-      guide.style.opacity = isNear ? "1" : "0";
+      guide.style.opacity =
+        Math.abs(currentWidth - snapPoint) < SNAP_THRESHOLD ? "1" : "0";
     });
   };
 
@@ -506,12 +286,10 @@ const MainLayout: React.FC = () => {
         currentPanels.left.minWidth,
         Math.min(currentPanels.left.maxWidth, startWidths.left + delta)
       );
-
       const nearestSnap = findNearestSnapPoint(newLeftWidth, snapPoints);
       if (Math.abs(nearestSnap - newLeftWidth) < SNAP_THRESHOLD) {
         newLeftWidth = nearestSnap;
       }
-
       const remainingWidth = availableWidth - newLeftWidth;
       if (remainingWidth >= currentPanels.middle.minWidth) {
         newPanels.left = {
@@ -521,7 +299,6 @@ const MainLayout: React.FC = () => {
           lastSnappedWidth:
             newLeftWidth === nearestSnap ? newLeftWidth : undefined,
         };
-
         newPanels.middle = {
           ...currentPanels.middle,
           width: Math.min(currentPanels.middle.maxWidth, remainingWidth),
@@ -537,12 +314,10 @@ const MainLayout: React.FC = () => {
           startWidths.middle + delta
         )
       );
-
       const nearestSnap = findNearestSnapPoint(newMiddleWidth, snapPoints);
       if (Math.abs(nearestSnap - newMiddleWidth) < SNAP_THRESHOLD) {
         newMiddleWidth = nearestSnap;
       }
-
       newPanels.middle = {
         ...currentPanels.middle,
         width: newMiddleWidth,
@@ -551,7 +326,6 @@ const MainLayout: React.FC = () => {
           newMiddleWidth === nearestSnap ? newMiddleWidth : undefined,
       };
     }
-
     return newPanels;
   };
 
@@ -563,10 +337,8 @@ const MainLayout: React.FC = () => {
         left: panels.left.width,
         middle: panels.middle.width,
       };
-
       const panel = e.currentTarget.closest(".panel") as HTMLElement;
       if (!panel) return;
-
       const panelRect = panel.getBoundingClientRect();
       const resizeGuide = createResizeGuide(panel);
       const snapGuides = createSnapGuides(panel, panelKey, panelRect);
@@ -575,7 +347,6 @@ const MainLayout: React.FC = () => {
         moveEvent.preventDefault();
         const delta = moveEvent.clientX - startX;
         updateResizeGuide(resizeGuide, moveEvent.clientX - panelRect.left);
-
         const newPanels = calculateNewPanelWidths(
           panelKey,
           delta,
@@ -583,13 +354,12 @@ const MainLayout: React.FC = () => {
           panels,
           DEFAULT_SNAP_POINTS[panelKey]
         );
-
         showSnapGuides(
           snapGuides,
           newPanels[panelKey].width,
           DEFAULT_SNAP_POINTS[panelKey]
         );
-        debouncedPanelUpdate(newPanels);
+        setPanels(newPanels);
       };
 
       const handleMouseUp = () => {
@@ -600,7 +370,6 @@ const MainLayout: React.FC = () => {
             isResizing: false,
           },
         }));
-
         cleanup(resizeGuide, snapGuides);
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
@@ -609,7 +378,7 @@ const MainLayout: React.FC = () => {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [panels, debouncedPanelUpdate]
+    [panels]
   );
 
   const handleDoubleClick = useCallback(
@@ -618,7 +387,7 @@ const MainLayout: React.FC = () => {
         ...prev,
         [panelKey]: {
           ...prev[panelKey],
-          width: DEFAULT_SNAP_POINTS[panelKey][2], // Use middle snap point
+          width: DEFAULT_SNAP_POINTS[panelKey][2],
         },
       }));
     },
@@ -656,7 +425,6 @@ const MainLayout: React.FC = () => {
     [maximizedPanel]
   );
 
-  // Clear error after 5 seconds
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(null), 5000);
@@ -665,18 +433,13 @@ const MainLayout: React.FC = () => {
   }, [error]);
 
   const getPathHierarchy = (path: string) => {
-    // Remove leading and trailing slashes, split the path
     const parts = path.replace(/^\/|\/$/g, "").split("/");
-
-    // If parts is empty or only contains the filename, return default
     if (parts.length <= 1) {
       return {
         connector: "Local",
         path: parts[0] || "Select a document",
       };
     }
-
-    // Return the last two parts: connector (or first folder) and filename
     return {
       connector: parts[0],
       path: parts[parts.length - 1],
@@ -688,73 +451,68 @@ const MainLayout: React.FC = () => {
     : { connector: "Local", path: "Select a document" };
 
   return (
-    <div className="w-full h-screen bg-gray-950 flex flex-col text-gray-100">
+    <div className="w-full h-screen bg-gray-900 flex flex-col text-gray-100">
       {/* Header */}
-      <header className="h-14 bg-gray-900/50 backdrop-blur-xl border-b border-gray-800/50 flex items-center px-4 relative z-50">
+      <header className="h-14 bg-gray-800 flex items-center px-4 shadow-md">
         <div
           className={cn(
             "flex items-center justify-center",
             sidebarCollapsed ? "w-14" : "w-64",
-            "transition-all duration-300 ease-in-out"
+            "transition-all duration-300"
           )}
         >
           <button
             onClick={() =>
               dispatch({ type: "rightSidebar/toggleSidebarExpansion" })
             }
-            className="p-2 hover:bg-gray-800 rounded-lg flex items-center justify-center"
+            className="p-2 hover:bg-gray-700 rounded"
           >
             {sidebarCollapsed ? (
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+              <ChevronRight className="w-5 h-5" />
             ) : (
-              <ChevronLeft className="w-5 h-5 text-gray-400" />
+              <ChevronLeft className="w-5 h-5" />
             )}
           </button>
           {!sidebarCollapsed && (
-            <div className="ml-2 flex-1 overflow-hidden">
+            <div className="ml-2">
               <Logo />
             </div>
           )}
         </div>
-
-        {/* Search Bar */}
-        <div className="flex-1 flex items-center px-4">
-          <div className="max-w-2xl w-full relative group">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+        <div className="flex-1 px-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             <input
-              className="w-full h-9 pl-10 pr-24 rounded-lg bg-gray-900 border border-gray-800 focus:border-gray-700 focus:ring-1 focus:ring-gray-700 text-sm transition-all"
-              placeholder="Search or type / for AI commands..."
+              className="w-full h-9 pl-10 pr-4 rounded bg-gray-800 border border-gray-700 focus:outline-none focus:border-gray-600 text-sm"
+              placeholder="Search or type / for commands..."
             />
           </div>
         </div>
-
-        {/* Header Actions */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => dispatch(toggleConnectorDialog())}
-            className="p-2 hover:bg-gray-800 rounded-lg text-gray-400"
+            className="p-2 hover:bg-gray-700 rounded"
           >
             <Plus className="w-5 h-5" />
           </button>
           <button
             onClick={() => dispatch(toggleChatInterface())}
-            className={cn(
-              "p-2 hover:bg-gray-800 rounded-lg",
+            className={`p-2 hover:bg-gray-700 rounded ${
               isChatInterfaceVisible ? "text-blue-400" : "text-gray-400"
-            )}
+            }`}
           >
             <MessageSquare className="w-5 h-5" />
           </button>
           <button
             onClick={() => dispatch(toggleDocumentSummary())}
-            className="p-2 hover:bg-gray-800 rounded-lg text-gray-400"
+            className="p-2 hover:bg-gray-700 rounded"
           >
             <FileText className="w-5 h-5" />
           </button>
           <CollaborateSettings />
           <button
             onClick={() => setIsProfileSettingsOpen(true)}
-            className="p-2 hover:bg-gray-800 rounded-lg text-gray-400"
+            className="p-2 hover:bg-gray-700 rounded"
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -764,25 +522,21 @@ const MainLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Panel - Sidebar */}
+        {/* Left Panel */}
         {!sidebarCollapsed && (
           <div
-            className="panel relative flex-shrink-0 h-full bg-gray-900 border-r border-gray-800 overflow-hidden"
+            className="panel relative flex-shrink-0 h-full bg-gray-800 border-r border-gray-700"
             style={{
               width: `${panels.left.width}px`,
               minWidth: `${panels.left.minWidth}px`,
               maxWidth: `${panels.left.maxWidth}px`,
-              transition: panels.left.isResizing
-                ? "none"
-                : "width 0.3s ease-out",
             }}
           >
-            {/* Panel Header */}
-            <div className="absolute top-0 left-0 right-0 h-10 flex items-center justify-between px-4 bg-gray-900/50 backdrop-blur-sm border-b border-gray-800/50 z-20">
-              <span className="text-sm font-medium text-gray-400">Files</span>
+            {/* <div className="flex items-center justify-between h-10 px-4 bg-gray-700">
+              <span className="text-sm font-semibold text-gray-100">Files</span>
               <button
                 onClick={toggleMaximize("left")}
-                className="p-1.5 rounded-md hover:bg-gray-800 text-gray-400"
+                className="p-1 hover:bg-gray-600 rounded"
               >
                 {maximizedPanel === "left" ? (
                   <Minimize2 className="w-4 h-4" />
@@ -790,45 +544,36 @@ const MainLayout: React.FC = () => {
                   <Maximize2 className="w-4 h-4" />
                 )}
               </button>
-            </div>
-
-            {/* Panel Content */}
-            <div className="w-full h-full pt-10 overflow-hidden">
+            </div> */}
+            <div className="h-full pt-0 overflow-hidden">
               <Sidebar onFileSelect={handleFileSelect} className="h-full" />
             </div>
-
-            {/* Resize Handle */}
             <div
-              className="absolute right-0 top-0 w-4 h-full cursor-col-resize group z-10"
+              className="absolute right-0 top-0 w-4 h-full cursor-col-resize group"
               onMouseDown={startResizing("left")}
               onDoubleClick={handleDoubleClick("left")}
             >
-              <div className="absolute inset-y-0 right-0 w-0.5 bg-gray-800 group-hover:bg-blue-400/40 transition-colors" />
-              <div className="absolute inset-y-0 right-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="w-0.5 h-8 rounded-full bg-blue-400/40" />
-              </div>
+              <div className="absolute inset-y-0 right-0 w-0.5 bg-gray-700 group-hover:bg-blue-400" />
             </div>
           </div>
         )}
 
-        {/* Middle Panel - Chat Interface */}
+        {/* Middle Panel */}
         <div
-          className="panel relative flex-shrink-0 h-full bg-gray-900 border-r border-gray-800 overflow-hidden"
+          className="panel relative flex-shrink-0 h-full bg-gray-800 border-r border-gray-700"
           style={{
             width: `${panels.middle.width}px`,
             minWidth: `${panels.middle.minWidth}px`,
             maxWidth: `${panels.middle.maxWidth}px`,
-            transition: panels.middle.isResizing
-              ? "none"
-              : "width 0.3s ease-out",
           }}
         >
-          {/* Panel Header */}
-          <div className="absolute top-0 left-0 right-0 h-10 flex items-center justify-between px-4 bg-gray-900/50 backdrop-blur-sm border-b border-gray-800/50 z-20">
-            <span className="text-sm font-medium text-gray-400">Chat</span>
+          {/* <div className="flex items-center justify-between h-10 px-4 bg-gradient-to-r from-gray-700 to-gray-800 shadow-inner">
+            <span className="text-sm font-bold text-gray-50 tracking-wide">
+              Chat
+            </span>
             <button
               onClick={toggleMaximize("middle")}
-              className="p-1.5 rounded-md hover:bg-gray-800 text-gray-400"
+              className="p-1 hover:bg-gray-600 rounded"
             >
               {maximizedPanel === "middle" ? (
                 <Minimize2 className="w-4 h-4" />
@@ -836,42 +581,31 @@ const MainLayout: React.FC = () => {
                 <Maximize2 className="w-4 h-4" />
               )}
             </button>
-          </div>
-
-          {/* Panel Content */}
-          <div className="w-full h-full pt-10 overflow-hidden">
+          </div> */}
+          <div className="h-full pt-0 overflow-hidden">
             <UnifiedChatInterface />
           </div>
-
-          {/* Resize Handle */}
           <div
-            className="absolute right-0 top-0 w-4 h-full cursor-col-resize group z-10"
+            className="absolute right-0 top-0 w-4 h-full cursor-col-resize group"
             onMouseDown={startResizing("middle")}
             onDoubleClick={handleDoubleClick("middle")}
           >
-            <div className="absolute inset-y-0 right-0 w-0.5 bg-gray-800 group-hover:bg-blue-400/40 transition-colors" />
-            <div className="absolute inset-y-0 right-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="w-0.5 h-8 rounded-full bg-blue-400/40" />
-            </div>
+            <div className="absolute inset-y-0 right-0 w-0.5 bg-gray-700 group-hover:bg-blue-400" />
           </div>
         </div>
 
-        {/* Right Panel - Document Viewer */}
+        {/* Right Panel */}
         <div
           style={{ minWidth: `${panels.right.minWidth}px` }}
-          className="flex-1 h-full bg-gray-900 overflow-hidden"
+          className="flex-1 h-full bg-gray-800 overflow-hidden"
         >
-          {/* Breadcrumb and Actions */}
-          <div className="h-10 px-4 flex items-center justify-between text-sm text-gray-400 border-b border-gray-800">
+          <div className="h-10 px-4 flex items-center justify-between text-sm text-gray-300 border-b border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900">
             <div className="flex items-center gap-2">
               <FolderIcon className="w-4 h-4" />
               <span>{pathHierarchy.connector}</span>
               <ChevronRight className="w-4 h-4" />
-              <span className="text-white">{pathHierarchy.path}</span>
+              <span className="text-gray-100">{pathHierarchy.path}</span>
             </div>
-            {/* <button className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors">
-              <Share2 className="w-4 h-4" />
-            </button> */}
           </div>
           {selectedDocument.file && selectedDocument.content ? (
             <DocumentViewer
@@ -892,23 +626,15 @@ const MainLayout: React.FC = () => {
         </div>
       </div>
 
-      {/* Overlay when resizing with snap guides */}
-      {(panels.left.isResizing || panels.middle.isResizing) && (
-        <div className="fixed inset-0 bg-black/20 z-50 cursor-col-resize" />
-      )}
-
-      {/* Dialogs */}
       {isConnectorDialogOpen && (
         <ConnectorDialog
           open={isConnectorDialogOpen}
           onOpenChange={(open) => dispatch(setConnectorDialogVisibility(open))}
         />
       )}
-
       {isDocumentSummaryVisible && selectedDocument && (
         <DocumentSummary documentInsights={selectedDocument.documentInsights} />
       )}
-
       <ProfileSettingsPopup
         isOpen={isProfileSettingsOpen}
         onClose={() => setIsProfileSettingsOpen(false)}

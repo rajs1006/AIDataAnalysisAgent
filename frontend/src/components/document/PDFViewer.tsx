@@ -84,9 +84,7 @@ export function PDFViewer({ blob, parsedContent }: PDFViewerProps) {
                 <AlertCircle className="w-8 h-8 text-red-500" />
               </div>
             </div>
-            <h2 className="text-xl font-semibold text-red-400">
-              PDF Loading Error
-            </h2>
+            <h2 className="text-xl font-semibold text-red-400">PDF Loading Error</h2>
             <p className="text-gray-400">{loadError}</p>
             <p className="text-sm text-gray-500">
               Please try uploading the PDF again or check the file integrity.
@@ -161,7 +159,7 @@ export function PDFViewer({ blob, parsedContent }: PDFViewerProps) {
 
       {/* Page Navigation */}
       {numPages && (
-        <div className="flex justify-center py-4 border-t border-gray-800 bg-gray-900/30 backdrop-blur-sm">
+        <div className="flex justify-center py-8 border-t border-gray-800 bg-gray-900/30 backdrop-blur-sm">
           <div className="flex items-center gap-1 bg-gray-900/80 backdrop-blur-sm border border-gray-800/50 rounded-lg p-1 shadow-lg">
             <Button
               variant="ghost"

@@ -264,7 +264,7 @@ const UnifiedChatInterface: React.FC = () => {
           )}
         >
           <div
-            className="p-4 border-b border-gray-800 bg-gray-900/90 backdrop-blur-sm flex items-center justify-between cursor-pointer group hover:bg-gray-800/50 transition-colors"
+            className="p-3 border-b border-gray-800 bg-gray-900/90 backdrop-blur-sm flex items-center justify-between cursor-pointer group hover:bg-gray-800/50 transition-colors"
             onClick={() =>
               setWindowState((prev) => ({
                 ...prev,
