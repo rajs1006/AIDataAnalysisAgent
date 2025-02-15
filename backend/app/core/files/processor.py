@@ -114,7 +114,7 @@ class DocumentProcessor:
                     file_path=file_path,
                     metadata={"file_type": extension},
                 )
-                metadata["summary"] = processed_result.summary
+                metadata["summary"] = processed_result.__dict__
                 metadata["ai_metadata"] = processed_result.metadata.ai_metadata
             except Exception as agent_error:
                 logger.error(f"Document processor agent failed: {agent_error}")

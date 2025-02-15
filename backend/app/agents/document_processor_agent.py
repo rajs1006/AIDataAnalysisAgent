@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 import json
 import base64
@@ -32,7 +32,10 @@ class ProcessingMetadata(BaseModel):
 class ProcessingResponse(BaseModel):
     """Model for processing response"""
 
-    summary: Dict[str, Any] = Field(..., description="Tiptap formatted content")
+    document_type: str = Field(..., description="type of to the document")
+    keypoints: List[str] = Field(..., description="keypoints related to the document")
+    summary: str = Field(..., description="Brief summary content")
+    actionable_items: List[str] = Field(..., description="Items for taking action")
     metadata: ProcessingMetadata = Field(..., description="Processing metadata")
     error_details: Optional[Dict[str, Any]] = Field(
         None, description="Any processing errors"
@@ -54,6 +57,8 @@ class DocumentProcessorAgent:
 
     def __init__(self):
         self._load_configuration()
+        self.current_file_path = None
+        self.current_file_type = None
 
     def _load_configuration(self) -> None:
         """Load and validate configuration and prompts"""
@@ -126,15 +131,15 @@ class DocumentProcessorAgent:
         retry_error_callback=lambda retry_state: retry_state.outcome.result(),
     )
     async def _make_openai_request(
-        self, file_content: base64, extracted_text: str, file_type: str
-    ) -> Dict[str, Any]:
+        self, file_content: str, extracted_text: str, file_type: str
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Make OpenAI API request with retry logic"""
         try:
             logger.info(f"Making OpenAI API request for {file_type} file")
 
-            # Prepare system and user prompts
             system_prompt = self._prepare_system_prompt(file_type)
             user_prompt = self._prepare_user_prompt(file_type, extracted_text)
+
             response = await self.llm.ainvoke(
                 [
                     SystemMessage(content=system_prompt),
@@ -145,37 +150,32 @@ class DocumentProcessorAgent:
                     ),
                 ]
             )
-            print(response)
-            return json.loads(response.content), response.response_metadata
+            # Parse the content JSON and get metadata
+            content = json.loads(response.content)
+            metadata = response.response_metadata
+
+            return content, metadata
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse OpenAI response: {str(e)}")
             raise APIError("Invalid response format from API")
         except Exception as e:
-            logger.exception(f"OpenAI API request failed: {str(e)} {e}")
-            import traceback
-
-            traceback.print_exc()()
-            # raise APIError(f"API request failed: {str(e)}")
+            logger.error(f"OpenAI API request failed: {str(e)}")
+            raise APIError(f"API request failed: {str(e)}")
 
     async def process_document(
         self, file_path: str, extracted_text: str, metadata: Optional[dict]
     ) -> ProcessingResponse:
-        """
-        Process a document and its extracted text
-
-        Args:
-            file_path: Path to the file
-            extracted_text: Text extracted from the file
-
-        Returns:
-            ProcessingResponse object containing processed content and metadata
-        """
+        """Process a document and its extracted text"""
         try:
             # Convert path to Path object and validate
             path = Path(file_path)
             if not path.exists():
                 raise DocumentProcessingError(f"File not found: {file_path}")
+
+            # Set current file information
+            self.current_file_path = path
+            self.current_file_type = metadata["file_type"]
 
             # Detect file type
             file_type = self._detect_file_type(metadata["file_type"])
@@ -186,28 +186,81 @@ class DocumentProcessorAgent:
                 base64_file = base64.b64encode(file.read()).decode("utf-8")
 
             # Process with OpenAI
-            response_data = await self._make_openai_request(
+            content, response_metadata = await self._make_openai_request(
                 file_content=base64_file,
                 extracted_text=extracted_text,
                 file_type=file_type,
             )
-            logger.info(f"Successfully processed response {response_data}")
 
-            # Prepare metadata
-            metadata = ProcessingMetadata(
-                file_path=path,
-                file_type=file_type,
-                file_size=path.stat().st_size,
-                ai_metadata=response_data[1],
+            # Create the response structure
+            response_data = {"content": content, "response_metadata": response_metadata}
+
+            # Parse the response
+            processing_response = self._create_processing_response(
+                response_data=response_data, file_size=path.stat().st_size
             )
-            logger.info(f"Successfully processed {path}")
 
+            logger.info(f"Successfully processed {path}")
+            return processing_response
+
+        except Exception as e:
+            logger.error(f"Document processing failed: {str(e)}", exc_info=True)
+            raise DocumentProcessingError(f"Failed to process document: {str(e)}")
+
+    def _create_processing_response(
+        self, response_data: Dict[str, Any], file_size: int
+    ) -> ProcessingResponse:
+        """Create ProcessingResponse from OpenAI response"""
+        try:
+            content = response_data["content"]
+
+            # Create metadata
+            metadata = ProcessingMetadata(
+                file_path=self.current_file_path,
+                file_type=self.current_file_type,
+                file_size=file_size,
+                ai_metadata={
+                    "token_usage": response_data["response_metadata"].get(
+                        "token_usage", {}
+                    ),
+                    "model": response_data["response_metadata"].get(
+                        "model_name", "unknown"
+                    ),
+                    "system_fingerprint": response_data["response_metadata"].get(
+                        "system_fingerprint", "unknown"
+                    ),
+                },
+            )
+
+            # Create and return the full response
             return ProcessingResponse(
-                summary=response_data[0],
+                document_type=content["document_type"],
+                keypoints=content["keypoints"],
+                summary=content["summary"],
+                actionable_items=content["actionable_items"],
                 metadata=metadata,
                 error_details=None,
             )
 
         except Exception as e:
-            logger.error(f"Document processing failed: {str(e)}", exc_info=True)
-            raise DocumentProcessingError(f"Failed to process document: {str(e)}")
+            error_details = {
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "response_data": str(response_data),
+            }
+            logger.error(f"Failed to create processing response: {error_details}")
+
+            # Return error response
+            return ProcessingResponse(
+                document_type="error",
+                keypoints=[],
+                summary=f"Failed to create response: {str(e)}",
+                actionable_items=[],
+                metadata=ProcessingMetadata(
+                    file_path=self.current_file_path,
+                    file_type=self.current_file_type,
+                    file_size=file_size,
+                    ai_metadata={"error": str(e)},
+                ),
+                error_details=error_details,
+            )

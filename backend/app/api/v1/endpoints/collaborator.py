@@ -7,10 +7,7 @@ from app.models.database.users import User
 from app.models.schema.collaborator import (
     CollaboratorInviteRequest,
     DocumentAccessCreate,
-    DocumentAccessRemove,
     DocumentAccessResponse,
-    CollaboratorListResponse,
-    CollaboratorUpdateRequest,
 )
 from app.services.collaborator.service import CollaboratorService
 from app.core.exceptions.collaborator_exceptions import (

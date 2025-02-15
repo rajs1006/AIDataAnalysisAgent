@@ -57,7 +57,11 @@ class ConnectorCRUD:
         """Get all active connectors for a user"""
         try:
             connectors = await Connector.find(
-                {"user_id": str(user_id), "enabled": True}
+                {
+                    "user_id": str(user_id),
+                    "enabled": True,
+                    "status": ConnectorStatusEnum.ACTIVE,
+                }
             ).to_list()
 
             return connectors
@@ -137,9 +141,11 @@ class ConnectorCRUD:
                     status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
                 )
 
-            for connector in connectors:
-                files = await FileDocument.find().to_list()
-                connector.files = files
+            print("connectors /////////////////")
+            print(connectors)
+            # for connector in connectors:
+            #     files = await FileDocument.find().to_list()
+            #     connector.files = files
 
             return connectors
 

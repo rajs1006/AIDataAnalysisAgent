@@ -93,9 +93,6 @@ class CollaboratorCRUD:
             existing_access.auth_role = auth_role
             existing_access.invited_at = now
             existing_access.expires_at = now + timedelta(days=360)
-            # existing_access.updated_at = (
-            #     datetime.utcnow()
-            # )  # Track when access was modified
         else:
             # Create and add new document access
             doc_access = DocumentAccess(

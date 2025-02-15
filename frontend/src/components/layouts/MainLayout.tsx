@@ -22,8 +22,8 @@ import {
 } from "lucide-react";
 import { BreadcrumbNav } from "@/components/document/BreadcrumbNav";
 import { WelcomeProvider } from "@/components/layouts/WelcomeContext";
-import WelcomeHeader  from "@/components/layouts/HeaderWelcome";
-import WelcomePanel  from "@/components/layouts/WelcomePanel";
+import WelcomeHeader from "@/components/layouts/HeaderWelcome";
+import WelcomePanel from "@/components/layouts/WelcomePanel";
 // Component imports
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { Logo } from "@/components/navigation/Navbar/Logo";
@@ -51,12 +51,7 @@ const extractDocumentInsights = (parsedContent: any) => {
       metadata: {},
     };
   }
-  let contentText = "";
-  if (typeof parsedContent.text === "string") {
-    contentText = parsedContent.text;
-  } else if (typeof parsedContent.text === "object") {
-    contentText = JSON.stringify(parsedContent.text);
-  }
+  let contentText = parsedContent.text;
   if (!contentText) {
     return {
       summary: "Unable to extract document content",
@@ -65,16 +60,12 @@ const extractDocumentInsights = (parsedContent: any) => {
       metadata: parsedContent.metadata || {},
     };
   }
-  const summary = contentText;
-  const words = contentText.split(/\s+/);
-  const keyTopics = words
-    .slice(0, 3)
-    .map((word: string) => word.replace(/[^a-zA-Z]/g, ""))
-    .filter((word: string) => word.length > 2);
+  const summary = contentText.summary || "No Summary available";
+  const keyTopics = contentText.keypoints || [];
   return {
     summary,
     keyTopics,
-    actionItems: [],
+    actionItems: contentText.actionable_items || [],
     metadata: parsedContent.metadata || {},
   };
 };

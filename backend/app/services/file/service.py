@@ -76,12 +76,14 @@ class FileService:
             collaborators = await self.collaborator_crud.get_document_invitee(
                 user_id=user_id
             )
+
             shared_files = []
             for collaborator in collaborators:
                 for access in collaborator.document_access:
                     shared_files.append(
                         await self.file_crud.get_file_by_path(access.document_id)
                     )
+
             return FileHierarchyBuilder.build_connector_hierarchy(
                 connectors, shared_files
             )
@@ -143,6 +145,6 @@ class FileService:
         fileDocument = await self.file_crud.get_file_by_path(file_id)
 
         return FileContentResponse(
-            text=fileDocument.summary["summary"],
+            text=fileDocument.summary,
             metadata={"file_path": fileDocument.file_path},
         )

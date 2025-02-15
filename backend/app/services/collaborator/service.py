@@ -288,7 +288,6 @@ class CollaboratorService:
                         # User is invitee, so collaborator is the inviter
                         user = await User.get(collaborator.inviter_id)
 
-                    print(auth_role)
                     if auth_role != DocumentAccessEnum.NONE:
                         # Send invitation email
                         await self.email_service.send_collaboration_invite(
@@ -301,6 +300,7 @@ class CollaboratorService:
                             DocumentAccessResponse(
                                 document_id=document_id,
                                 auth_role=auth_role,
+                                collaborator_id=str(collaborator.id),
                                 message="Document is successfully shared !",
                             )
                         )
@@ -311,6 +311,7 @@ class CollaboratorService:
                             DocumentAccessResponse(
                                 document_id=document_id,
                                 auth_role=auth_role,
+                                collaborator_id=str(collaborator.id),
                                 message="Document is successfully removed !",
                             )
                         )

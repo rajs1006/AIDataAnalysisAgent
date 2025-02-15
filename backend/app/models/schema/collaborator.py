@@ -32,16 +32,11 @@ class DocumentAccessRemove(DocumentAccessBase):
 
 class DocumentAccessResponse(BaseModel):
     document_id: str
+    collaborator_id: str = Field(
+        ..., description="ID of the user inviting the collaborator"
+    )
     auth_role: str
     message: str = "Registration completed successfully"
-
-
-class DocumentShareRequest(BaseModel):
-    document_id: str = Field(..., description="Unique identifier of the document")
-    collaborator_email: EmailStr = Field(..., description="Email of the collaborator")
-    auth_role: DocumentAccessEnum = Field(
-        ..., description="Authorization role for the collaborator"
-    )
 
 
 class CollaboratorListResponse(BaseModel):
