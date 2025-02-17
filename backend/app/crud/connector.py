@@ -64,24 +64,40 @@ class ConnectorCRUD:
                 }
             ).to_list()
 
+            logger.info(
+                f"Retrieved {len(connectors)} active connectors for user {user_id}"
+            )
             return connectors
+
         except Exception as e:
-            traceback.print_exception(type(e), e, e.__traceback__)
+            logger.exception(f"Failed to retrieve connectors for user {user_id}")
             raise
 
     @staticmethod
     async def get_connector(connector_id: str, user_id: str):
         """Get all active connectors for a user"""
         try:
-            return await Connector.find_one(
+            connector = await Connector.find_one(
                 {
                     "_id": PydanticObjectId(connector_id),
                     "user_id": str(user_id),
                     "enabled": True,
                 }
             )
+
+            if connector:
+                logger.info(f"Retrieved connector {connector_id} for user {user_id}")
+            else:
+                logger.warning(
+                    f"No connector found with id {connector_id} for user {user_id}"
+                )
+
+            return connector
+
         except Exception as e:
-            traceback.print_exception(type(e), e, e.__traceback__)
+            logger.exception(
+                f"Failed to retrieve connector {connector_id} for user {user_id}"
+            )
             raise
 
     @staticmethod
@@ -99,6 +115,10 @@ class ConnectorCRUD:
             )
 
             if not existing_connector:
+                logger.warning(
+                    f"Connector not found during status update. user_id: {user_id}, "
+                    f"connector_id: {connector.id}"
+                )
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
                 )
@@ -109,25 +129,78 @@ class ConnectorCRUD:
                 setattr(existing_connector, key, value)
 
             # Save the updated connector
-            # Use pre_save hook and save
             await existing_connector.pre_save()
             await existing_connector.save()
 
+            logger.info(
+                f"Successfully updated connector status. user_id: {user_id}, "
+                f"connector_id: {connector.id}"
+            )
             return connector_updated
+
+        except HTTPException:
+            raise
         except Exception as e:
-            traceback.print_exception(type(e), e, e.__traceback__)
+            logger.exception(
+                f"Failed to update connector status. user_id: {user_id}, "
+                f"connector_id: {connector.id}"
+            )
+            raise
+
+    @staticmethod
+    async def remove_file_reference_from_connector(
+        connector_id: str, doc_id: str
+    ) -> bool:
+        """
+        Remove a file reference from a specific connector
+
+        Args:
+            connector_id (str): The ID of the connector
+            doc_id (str): The ID of the file to remove from the connector
+
+        Returns:
+            bool: True if reference removal was successful, False otherwise
+        """
+        try:
+            connector = await Connector.get(PydanticObjectId(connector_id))
+            if not connector:
+                logger.warning(
+                    f"Connector {connector_id} not found for file reference removal"
+                )
+                return False
+
+            original_file_count = len(connector.files)
+            connector.files = [f for f in connector.files if str(f.doc_id) != doc_id]
+            files_removed = original_file_count - len(connector.files)
+
+            await connector.save()
+
+            logger.info(
+                f"Removed {files_removed} file reference(s) from connector {connector_id}. "
+                f"doc_id: {doc_id}"
+            )
+            return connector
+
+        except Exception as e:
+            logger.exception(
+                f"Failed to remove file reference. connector_id: {connector_id}, "
+                f"doc_id: {doc_id}"
+            )
             raise
 
     @staticmethod
     async def get_user_active_connectors(user_id: str) -> List[Connector]:
         """
-        Retrieve file hierarchy for a specific connector.
+        Retrieve active connectors for a user.
 
         Args:
             user_id (str): ID of the user
 
         Returns:
             List of connectors
+
+        Raises:
+            HTTPException: If no connectors found
         """
         try:
             connectors = await Connector.find(
@@ -137,22 +210,21 @@ class ConnectorCRUD:
             ).to_list()
 
             if not connectors:
+                logger.warning(f"No active connectors found for user {user_id}")
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No active connectors found",
                 )
 
-            print("connectors /////////////////")
-            print(connectors)
-            # for connector in connectors:
-            #     files = await FileDocument.find().to_list()
-            #     connector.files = files
-
+            logger.info(
+                f"Retrieved {len(connectors)} active connectors for user {user_id}"
+            )
             return connectors
 
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(
-                "Error retrieving active connector for user {user_id}: {str(e)}",
-            )
+            logger.exception(f"Failed to retrieve active connectors for user {user_id}")
             raise
 
     # @staticmethod

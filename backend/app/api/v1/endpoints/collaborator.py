@@ -114,9 +114,9 @@ async def list_collaborator_invites(
         )
 
 
-@router.delete("/{invite_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{collaborator_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_collaborator_invite(
-    invite_id: str,
+    collaborator_id: str,
     current_user: User = Depends(get_current_user),
     service: CollaboratorService = Depends(get_collaborator_service),
 ):
@@ -125,7 +125,7 @@ async def delete_collaborator_invite(
     """
     try:
         await service.delete_collaborator_invite(
-            invite_id=invite_id, current_user_id=str(current_user.id)
+            collaborator_id=collaborator_id, current_user_id=str(current_user.id)
         )
     except Exception as e:
         raise HTTPException(

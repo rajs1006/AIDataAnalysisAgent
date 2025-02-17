@@ -69,6 +69,7 @@ class CollaboratorResponse(BaseModel):
     status: InviteStatusEnum
     invited_at: datetime
     expires_at: datetime
+    document_id: Optional[str] = None
     auth_role: Optional[str] = None
 
 

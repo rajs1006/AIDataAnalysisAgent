@@ -150,6 +150,9 @@ class DocumentProcessorAgent:
                     ),
                 ]
             )
+            print("===============content==================")
+            print(response.content)
+            print("=============================")
             # Parse the content JSON and get metadata
             content = json.loads(response.content)
             metadata = response.response_metadata
@@ -157,11 +160,11 @@ class DocumentProcessorAgent:
             return content, metadata
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse OpenAI response: {str(e)}")
-            raise APIError("Invalid response format from API")
+            logger.exception(f"Failed to parse OpenAI response: {str(e)}")
+            raise APIError("Invalid response format from API", e)
         except Exception as e:
-            logger.error(f"OpenAI API request failed: {str(e)}")
-            raise APIError(f"API request failed: {str(e)}")
+            logger.exception(f"OpenAI API request failed: {str(e)}")
+            raise APIError(f"API request failed: {str(e)}", e)
 
     async def process_document(
         self, file_path: str, extracted_text: str, metadata: Optional[dict]

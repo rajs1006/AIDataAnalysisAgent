@@ -19,115 +19,235 @@ from app.core.exceptions.collaborator_exceptions import (
 )
 from app.models.enums import DocumentAccessEnum
 from beanie import PydanticObjectId
+from app.core.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class CollaboratorCRUD:
 
     @staticmethod
     async def get_document_collaborators(user_id: str) -> List[Collaborator]:
-        return await Collaborator.find(
-            {
-                "$or": [{"inviter_id": str(user_id)}, {"invitee_id": str(user_id)}],
-                "status": "accepted",
-                "expires_at": {"$gt": datetime.utcnow()},
-            }
-        ).to_list()
+        """
+        Get all active collaborators for a user (both as inviter and invitee)
+
+        Args:
+            user_id (str): User ID to fetch collaborators for
+
+        Returns:
+            List[Collaborator]: List of active collaborators
+
+        Raises:
+            Exception: If database query fails
+        """
+        try:
+            collaborators = await Collaborator.find(
+                {
+                    "$or": [{"inviter_id": str(user_id)}, {"invitee_id": str(user_id)}],
+                    "status": "accepted",
+                    "expires_at": {"$gt": datetime.utcnow()},
+                }
+            ).to_list()
+
+            logger.info(
+                f"Retrieved {len(collaborators)} active collaborators for user {user_id}"
+            )
+            return collaborators
+
+        except Exception as e:
+            logger.exception(f"Failed to retrieve collaborators for user {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve collaborators",
+            )
 
     @staticmethod
     async def get_document_invitee(user_id: str) -> List[Collaborator]:
-        return await Collaborator.find(
-            {
-                "invitee_id": str(user_id),
-                "status": "accepted",
-                "expires_at": {"$gt": datetime.utcnow()},
-            }
-        ).to_list()
+        """
+        Get all active collaborations where user is invitee
+
+        Args:
+            user_id (str): User ID to fetch invitee collaborations for
+
+        Returns:
+            List[Collaborator]: List of active collaborations
+
+        Raises:
+            Exception: If database query fails
+        """
+        try:
+            collaborators = await Collaborator.find(
+                {
+                    "invitee_id": str(user_id),
+                    "status": "accepted",
+                    "expires_at": {"$gt": datetime.utcnow()},
+                }
+            ).to_list()
+
+            logger.info(
+                f"Retrieved {len(collaborators)} active invitee collaborations for user {user_id}"
+            )
+            return collaborators
+
+        except Exception as e:
+            logger.exception(
+                f"Failed to retrieve invitee collaborations for user {user_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve collaborations",
+            )
 
     @staticmethod
     async def update_document_access_to_collaborator(
         collaborator_id: str,
         document_id: str,
         auth_role: DocumentAccessEnum = DocumentAccessEnum.READ,
-    ) -> Collaborator:  # Changed return type to single Collaborator
+    ) -> Collaborator:
         """
         Update or add document access for a collaborator.
 
         Args:
             collaborator_id (str): The ID of the collaborator
             document_id (str): The document ID to grant access to
-            auth_role (DocumentAccessEnum): The access role to grant. Defaults to READ.
+            auth_role (DocumentAccessEnum): The access role to grant
 
         Returns:
             Collaborator: Updated collaborator object
 
         Raises:
-            HTTPException: If collaborator is not found or not in accepted status
+            HTTPException: If collaborator not found or operation fails
         """
-        now = datetime.utcnow()
-        # Fetch collaborator by ID and status
-        collaborator = await Collaborator.find_one(
-            {
-                "_id": PydanticObjectId(collaborator_id),
-                "status": "accepted",
-            }
-        )
+        try:
+            now = datetime.utcnow()
 
-        if not collaborator:
+            # Fetch collaborator by ID and status
+            collaborator = await Collaborator.find_one(
+                {
+                    "_id": PydanticObjectId(collaborator_id),
+                    "status": "accepted",
+                }
+            )
+
+            if not collaborator:
+                logger.warning(
+                    f"Collaborator not found or not accepted. collaborator_id: {collaborator_id}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Collaborator not found or not in accepted status",
+                )
+
+            # Find existing access for this document
+            existing_access = next(
+                (
+                    access
+                    for access in collaborator.document_access
+                    if access.document_id == document_id
+                ),
+                None,
+            )
+
+            if existing_access:
+                logger.info(
+                    f"Updating existing access for collaborator {collaborator_id} "
+                    f"to document {document_id}"
+                )
+                # Update existing access role
+                existing_access.auth_role = auth_role
+                existing_access.invited_at = now
+                existing_access.expires_at = now + timedelta(days=360)
+            else:
+                logger.info(
+                    f"Creating new access for collaborator {collaborator_id} "
+                    f"to document {document_id}"
+                )
+                # Create and add new document access
+                doc_access = DocumentAccess(
+                    document_id=document_id,
+                    auth_role=auth_role,
+                    invited_at=now,
+                    expires_at=now + timedelta(days=360),
+                )
+                collaborator.document_access.append(doc_access)
+
+            # Save the changes
+            await collaborator.save()
+            logger.info(
+                f"Successfully updated document access. collaborator_id: {collaborator_id}, "
+                f"document_id: {document_id}, auth_role: {auth_role}"
+            )
+            return collaborator
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception(
+                f"Failed to update document access. collaborator_id: {collaborator_id}, "
+                f"document_id: {document_id}"
+            )
             raise HTTPException(
-                status_code=404,
-                detail=f"Collaborator with ID {collaborator_id} not found or not in accepted status",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update document access",
             )
-
-        # Find existing access for this document
-        existing_access = next(
-            (
-                access
-                for access in collaborator.document_access
-                if access.document_id == document_id
-            ),
-            None,
-        )
-
-        if existing_access:
-            # Update existing access role
-            existing_access.auth_role = auth_role
-            existing_access.invited_at = now
-            existing_access.expires_at = now + timedelta(days=360)
-        else:
-            # Create and add new document access
-            doc_access = DocumentAccess(
-                document_id=document_id,
-                invited_at=now,
-                expires_at=now + timedelta(days=360),
-            )
-            collaborator.document_access.append(doc_access)
-
-        # Save the changes
-        await collaborator.save()
-
-        return collaborator
 
     @staticmethod
-    async def remove_document_access(collaborator_ids: List[str], document_id: str):
+    async def remove_document_access(inviter_id: str, document_id: str) -> bool:
         """
         Remove document access from specified collaborators
 
         Args:
-            collaborator_ids (List[str]): List of collaborator IDs to update
+            inviter_id (str): Inviter ID to remove access for
             document_id (str): The document ID to remove access from
 
         Returns:
-            int: Number of collaborators updated
-        """
-        result = await Collaborator.update_many(
-            {
-                "_id": {"$in": collaborator_ids},
-                "document_access": {"$elemMatch": {"document_id": document_id}},
-            },
-            {"$pull": {"document_access": {"document_id": document_id}}},
-        )
+            bool: True if operation was successful
 
-        return result
+        Raises:
+            HTTPException: If operation fails
+        """
+        try:
+            # Find collaborators that match the criteria
+            collaborators = await Collaborator.find(
+                {
+                    "inviter_id": inviter_id,
+                    "document_access": {"$elemMatch": {"document_id": document_id}},
+                }
+            ).to_list()
+
+            if not collaborators:
+                logger.info(
+                    f"No collaborators found with document access. "
+                    f"inviter_id: {inviter_id}, document_id: {document_id}"
+                )
+                return True  # Return True since there's nothing to remove
+
+            # Update each collaborator's document access
+            for collaborator in collaborators:
+                # Remove the document access from the array
+                collaborator.document_access = [
+                    access
+                    for access in collaborator.document_access
+                    if access.document_id != document_id
+                ]
+                await collaborator.save()
+
+            logger.info(
+                f"Removed document access for {len(collaborators)} collaborators. "
+                f"inviter_id: {inviter_id}, document_id: {document_id}"
+            )
+
+            return True
+
+        except Exception as e:
+            logger.exception(
+                f"Failed to remove document access. inviter_id: {inviter_id}, "
+                f"document_id: {document_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to remove document access",
+            )
 
     # @staticmethod
     # def update_collaborator_role(

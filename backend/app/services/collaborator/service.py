@@ -4,7 +4,7 @@ from typing import Optional, List
 from app.core.config.config import settings
 from app.core.security.auth import get_password_hash
 from app.models.database.users import User
-from app.models.database.collaborators import Collaborator
+from app.models.database.collaborators import Collaborator, DocumentAccess
 from app.models.schema.collaborator import (
     CollaboratorRegistrationRequest,
     CollaboratorInviteRequest,
@@ -244,20 +244,37 @@ class CollaboratorService:
 
         return collaborator_details
 
-    async def delete_collaborator_invite(self, invite_id: str, current_user_id: str):
+    async def delete_collaborator_invite(
+        self, collaborator_id: str, current_user_id: str
+    ):
         """
-        Delete a collaborator invite
+        Delete a collaborator invite and associated document access records
 
-        :param invite_id: ID of the invite to delete
+        :param collaborator_id: ID of the invite to delete
         :param current_user_id: ID of the user attempting to delete
+        :raises ValueError: If invite not found or user unauthorized
         """
-        invite = await Collaborator.get(invite_id)
+        invite = await Collaborator.get(collaborator_id)
 
         if not invite:
             raise ValueError("Invite not found")
 
         if str(invite.inviter_id) != current_user_id:
             raise ValueError("Unauthorized to delete this invite")
+
+        try:
+            # Delete associated document access records if they exist
+            if invite.document_access:
+                doc_ids = [doc.document_id for doc in invite.document_access]
+                # Delete all document access records for this collaborator
+                await DocumentAccess.find({"document_id": {"$in": doc_ids}}).delete()
+
+            # Delete the collaborator invite
+            await invite.delete()
+        except Exception as e:
+            raise ValueError(
+                f"Failed to delete invite and associated access records: {str(e)}"
+            )
 
     async def update_document_collaborator(
         self, invite_requests: List[DocumentAccessCreate], user_id: str
@@ -346,31 +363,32 @@ class CollaboratorService:
             # Find auth role for this document
             auth_role = DocumentAccessEnum.NONE
             for access in collaborator.document_access:
-                if str(access.document_id) == document_id:
-                    auth_role = access.auth_role
-                    break
-
-            document_collaborators.append(
-                CollaboratorResponse(
-                    id=str(collaborator.id),
-                    inviter_id=str(collaborator.inviter_id),
-                    collaborator_email=user.email,
-                    invitee_id=collaborator.invitee_id,
-                    status=collaborator.status,
-                    invited_at=collaborator.invited_at,
-                    expires_at=collaborator.expires_at,
-                    auth_role=auth_role,
-                )
-            )
+                if (
+                    str(access.document_id) == document_id
+                    and access.auth_role != DocumentAccessEnum.NONE
+                ):
+                    document_collaborators.append(
+                        CollaboratorResponse(
+                            id=str(collaborator.id),
+                            inviter_id=str(collaborator.inviter_id),
+                            collaborator_email=user.email,
+                            invitee_id=collaborator.invitee_id,
+                            status=collaborator.status,
+                            invited_at=collaborator.invited_at,
+                            expires_at=collaborator.expires_at,
+                            document_id=str(document_id),
+                            auth_role=access.auth_role,
+                        )
+                    )
 
         return document_collaborators
 
-    async def remove_document_collaborator(
-        self, remove_request: DocumentAccessRemove, user_id: str
-    ) -> None:
-        return await self.collaborator_crud.remove_document_access(
-            remove_request.collaborator_ids, remove_request.document_id
-        )
+    # async def remove_document_collaborator(
+    #     self, remove_request: DocumentAccessRemove, user_id: str
+    # ) -> None:
+    #     return await self.collaborator_crud.remove_document_access(
+    #         remove_request.collaborator_ids, remove_request.document_id
+    #     )
 
     # def update_collaborator_role(
     #     self, collaborator_id: str, update_request: CollaboratorUpdateRequest

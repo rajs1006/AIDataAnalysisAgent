@@ -170,18 +170,18 @@ class FolderConnectorService:
             {"active": connector.status == "active"} if connector else {"active": False}
         )
 
-    async def update_connector_status(
-        self, connector_id: str, new_status: str, user_id: str
-    ):
-        """Update connector status"""
-        connector = await self.crud.get_connector(connector_id, user_id)
-        if not connector:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
-            )
+    # async def update_connector_status(
+    #     self, connector_id: str, new_status: str, user_id: str
+    # ):
+    #     """Update connector status"""
+    #     connector = await self.crud.get_connector(connector_id, user_id)
+    #     if not connector:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
+    #         )
 
-        await self.crud.update_connector_status(connector_id, new_status)
-        return {"status": new_status}
+    #     await self.crud.update_connector_status(connector_id, new_status)
+    #     return {"status": new_status}
 
     async def _handle_file_update(self, connector, event: FileEvent):
         """Handle file updates using Haystack components"""

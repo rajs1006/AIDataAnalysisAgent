@@ -99,25 +99,25 @@ async def check_connector_status(
         )
 
 
-@router.put("/{connector_id}")
-async def update_connector_status(
-    connector_id: str,
-    status: str,
-    current_user=Depends(get_current_user),
-    folder_service: FolderConnectorService = Depends(get_folder_service),
-):
-    """Update connector status"""
-    try:
-        return await folder_service.update_connector_status(
-            connector_id, status, current_user.id
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(
-            "Error updating connector status: {str(e)}",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update connector status: {str(e)}",
-        )
+# @router.put("/{connector_id}")
+# async def update_connector_status(
+#     connector_id: str,
+#     status: str,
+#     current_user=Depends(get_current_user),
+#     folder_service: FolderConnectorService = Depends(get_folder_service),
+# ):
+#     """Update connector status"""
+#     try:
+#         return await folder_service.update_connector_status(
+#             connector_id, status, current_user.id
+#         )
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(
+#             "Error updating connector status: {str(e)}",
+#         )
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Failed to update connector status: {str(e)}",
+#         )

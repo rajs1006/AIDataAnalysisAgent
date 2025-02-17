@@ -188,7 +188,7 @@ class HaystackRAGPipeline(BasePipeline):
             filters = models.Filter(
                 must=[
                     models.FieldCondition(
-                        key="meta.user_ids",  # Assuming the field is called user_ids
+                        key="meta.user_ids",
                         match=models.MatchAny(any=[input_data.user_id]),
                     ),
                 ]

@@ -64,25 +64,27 @@ def get_rag_service(
     )
 
 
-def get_connector_service(
-    connector_crud: ConnectorCRUD = Depends(get_connector_crud),
-    rag_service: RagService = Depends(get_rag_service),
-) -> ConnectorService:
-    return ConnectorService(
-        crud=connector_crud,
-        rag_service=rag_service,
-    )
-
-
 def get_file_service(
     file_crud: FileCRUD = Depends(get_file_crud),
     connector_crud: ConnectorCRUD = Depends(get_connector_crud),
     collaborator_crud: CollaboratorCRUD = Depends(get_collaborator_crud),
+    rag_service: RagService = Depends(get_rag_service),
 ) -> FileService:
     return FileService(
         file_crud=file_crud,
         connector_crud=connector_crud,
         collaborator_crud=collaborator_crud,
+        rag_service=rag_service
+    )
+
+
+def get_connector_service(
+    connector_crud: ConnectorCRUD = Depends(get_connector_crud),
+    file_service: FileService = Depends(get_file_service),
+) -> ConnectorService:
+    return ConnectorService(
+        crud=connector_crud,
+        file_service=file_service,
     )
 
 

@@ -145,9 +145,7 @@ class RagService:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def delete_documents(
-        self,
-        user_id: str,
-        connector_id: str,
+        self, user_id: str, connector_id: str, doc_id: str
     ) -> Dict[str, Any]:
         """Delete documents with proper user isolation"""
         try:
@@ -155,7 +153,7 @@ class RagService:
 
             # Delete through document store
             await self.document_store.delete_connector_documents(
-                user_id=str(user_id), connector_id=str(connector_id)
+                user_id=str(user_id), connector_id=str(connector_id), doc_id=doc_id
             )
 
         except Exception as e:

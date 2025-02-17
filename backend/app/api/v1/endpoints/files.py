@@ -13,6 +13,7 @@ from app.core.exceptions.connector_exceptions import FileNotFoundException
 from app.core.dependencies.service import get_file_service
 from app.services.connectors.service import ConnectorService
 from app.services.file.service import FileService
+from app.models.schema.files import DeleteDocumentRequest
 
 router = APIRouter()
 
@@ -90,6 +91,33 @@ async def get_file_content(
     """
     try:
         return await file_service.get_file_content(file_id, str(current_user.id))
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        raise
+
+
+@router.delete(
+    "/delete",
+    response_model=FileContentResponse,
+    summary="Retrieve file content",
+    description="Retrieve the text content for a specific file in a connector",
+)
+async def get_file_content(
+    documents: List[DeleteDocumentRequest],
+    file_service: FileService = Depends(get_file_service),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Retrieve the text content for a specific file.
+
+    - **connector_id**: ID of the connector
+    - **file_id**: ID of the file
+    - Returns file text content with metadata
+    """
+    try:
+        return await file_service.delete_files(documents, str(current_user.id))
     except Exception as e:
         import traceback
 

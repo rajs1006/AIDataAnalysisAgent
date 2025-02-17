@@ -74,12 +74,12 @@ class VectorStore(QdrantDocumentStore):
 
                 self._initialized_collections.add(self.collection_name)
                 logger.info(
-                    "Initialized collection: {self.collection_name}",
+                    f"Initialized collection: {self.collection_name}",
                 )
 
             except Exception as e:
                 logger.error(
-                    "Collection initialization failed: {str(e)}",
+                    f"Collection initialization failed: {str(e)}",
                 )
                 raise
 
@@ -99,7 +99,7 @@ class VectorStore(QdrantDocumentStore):
 
         except Exception as e:
             logger.error(
-                "Failed to write documents {documents}: {str(e)}",
+                f"Failed to write documents {documents}: {str(e)}",
             )
             raise
 
@@ -127,7 +127,7 @@ class VectorStore(QdrantDocumentStore):
 
         except Exception as e:
             logger.error(
-                "Query failed for filters {filters}: {str(e)}",
+                f"Query failed for filters {filters}: {str(e)}",
             )
             raise
 
@@ -143,22 +143,28 @@ class VectorStore(QdrantDocumentStore):
 
         except Exception as e:
             logger.error(
-                "Failed to delete documents for user {user_id}: {str(e)}",
+                f"Failed to delete documents for user {user_id}: {str(e)}",
             )
             raise
 
-    async def delete_connector_documents(self, user_id: str, connector_id: str) -> bool:
+    async def delete_connector_documents(
+        self, user_id: str, connector_id: str, doc_id: str
+    ) -> bool:
         """Delete all documents for a specific user"""
         try:
             filters = models.Filter(
                 must=[
                     models.FieldCondition(
-                        key="meta.user_id",
-                        match=models.MatchValue(value=user_id),
+                        key="meta.user_ids",
+                        match=models.MatchAny(any=[user_id]),
                     ),
                     models.FieldCondition(
                         key="meta.connector_id",
                         match=models.MatchValue(value=connector_id),
+                    ),
+                    models.FieldCondition(
+                        key="meta.file_id",
+                        match=models.MatchValue(value=doc_id),
                     ),
                 ]
             )
