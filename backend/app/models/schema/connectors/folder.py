@@ -1,7 +1,7 @@
 # app/models/schema/connectors/folder.py
 
 from enum import Enum
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Union
 from datetime import datetime
 from pydantic import BaseModel, Field
 from app.models.schema.base.connector import (
@@ -20,7 +20,8 @@ class FileEvent(BaseModel):
     connector_id: str
     event_type: str  # created, modified, deleted
     metadata: FileMetadata
-    content: Optional[str] = None
+    content: Optional[Union[str, List[Dict]]] = None
+    parsed_content: Optional[str] = None
     timestamp: datetime
 
 

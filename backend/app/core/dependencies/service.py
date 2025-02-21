@@ -36,7 +36,6 @@ from app.services.agent.service import AgentService
 from app.services.connectors.service import ConnectorService
 from app.services.agent.image.service import ImageService
 from app.services.agent.rag.service import RagService
-from app.agents.haystack_agent.pipeline import HaystackRAGPipeline
 from app.services.billing.service import BillingService
 from app.services.email.smtp import EmailService
 from app.services.collaborator.service import CollaboratorService
@@ -56,11 +55,9 @@ def get_billing_service(
 
 def get_rag_service(
     vector_store: VectorStore = Depends(get_vector_store),
-    rag_pipeline: HaystackRAGPipeline = Depends(get_rag_pipeline),
 ) -> RagService:
     return RagService(
         vector_store=vector_store,
-        pipeline=rag_pipeline,
     )
 
 
@@ -74,7 +71,7 @@ def get_file_service(
         file_crud=file_crud,
         connector_crud=connector_crud,
         collaborator_crud=collaborator_crud,
-        rag_service=rag_service
+        rag_service=rag_service,
     )
 
 

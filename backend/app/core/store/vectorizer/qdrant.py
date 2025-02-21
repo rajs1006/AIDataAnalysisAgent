@@ -18,7 +18,7 @@ from app.models.schema.vector import VectorDocument
 
 
 logger = get_logger(__name__)
-class VectorStore:
+class QdrantCl:
     def __init__(self, qdrant_client: QdrantClient):
         self.client = qdrant_client
         self.vectorizer = TextVectorizer()

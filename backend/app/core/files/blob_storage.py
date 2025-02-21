@@ -119,7 +119,7 @@ class BlobStorage:
             # Create blob data object
             blob_data = BlobData(
                 file_id=file_id,
-                content_type=content_type or cls._guess_content_type(filename),
+                mime_type=content_type or cls._guess_content_type(filename),
                 size=len(blob_content),
                 blob=blob_content,
                 filename=filename,
@@ -175,7 +175,7 @@ class BlobStorage:
             # Create blob data
             blob_data = BlobData(
                 file_id=file_id,
-                content_type=blob.content_type or cls._guess_content_type(file_id),
+                mime_type=blob.content_type or cls._guess_content_type(file_id),
                 size=blob.size,
                 blob=blob_content,
                 filename=file_id,  # Default to file ID if original name lost
@@ -224,7 +224,7 @@ class BlobStorage:
                 )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Blob deletion failed: {e}",
             )
             raise BlobStorageException(f"Failed to delete blob: {e}")

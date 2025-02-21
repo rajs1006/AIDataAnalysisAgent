@@ -1,5 +1,5 @@
 # Existing dependencies
-beanie==1.27.0
+beanie==1.29.0
 chardet==3.0.4
 email-validator==2.1.0
 fastapi==0.109.2
@@ -20,6 +20,7 @@ python-jose[cryptography]==3.3.0
 python-magic==0.4.27
 python-multipart==0.0.9
 pytest==8.0.0
+pypdf==5.3.0
 pytest-asyncio==0.23.5
 qdrant-client==1.10.0
 sentence-transformers==2.5.1
@@ -30,7 +31,7 @@ watchdog==4.0.0
 watchfiles==0.21.0
 
 # OpenAI Integration
-openai==1.55.3
+openai==1.56.1
 langchain==0.3.9
 langchain-openai==0.2.10
 langchain-community==0.3.8
@@ -53,6 +54,6 @@ typing-extensions>=4.5.0
 requests>=2.31.0
 
 # Optional Haystack components for additional features
-haystack-ai==2.8.0  # Beta version with newer features
+haystack-ai==2.10.0  # Beta version with newer features
 qdrant-haystack==7.0.0
 fastembed-haystack==1.4.1

@@ -59,7 +59,7 @@ async def get_file_blob(
         # Return blob as a streaming response
         return Response(
             content=blob_data.blob,
-            media_type=blob_data.content_type,
+            media_type=blob_data.mime_type,
             headers={
                 "Content-Disposition": f"inline; filename={blob_data.filename}",
             },

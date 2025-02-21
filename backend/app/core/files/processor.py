@@ -1,18 +1,41 @@
+"""Main document processor implementation."""
+
 import logging
 from pathlib import Path
-import hashlib
 from dataclasses import dataclass
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, List
 import mimetypes
-import pdfplumber
 import magic
-import re
+import pandas as pd
+import pdfplumber
+
+from langchain_community.document_loaders import (
+    PyPDFLoader,
+    PDFMinerLoader,
+    PDFPlumberLoader,
+    CSVLoader,
+    UnstructuredExcelLoader,
+    TextLoader,
+    Docx2txtLoader,
+    UnstructuredImageLoader,
+    UnstructuredFileLoader,
+)
+from pandas import DataFrame
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from app.core.logging_config import get_logger
 from app.core.files.blob_storage import BlobStorage
 from app.core.files.hierarchy import FileHierarchyBuilder
 from app.models.schema.base.hierarchy import BlobData
 from app.agents.document_processor_agent import DocumentProcessorAgent
+from app.utils.files import (
+    generate_base_metadata,
+    validate_pdf_content,
+    post_process_pdf_content,
+    post_process_content,
+    calculate_quality_score,
+    get_file_type,
+)
 
 logger = get_logger(__name__)
 
@@ -21,9 +44,11 @@ logger = get_logger(__name__)
 class ExtractionResult:
     """Container for extraction results."""
 
-    content: str
+    content: Union[str, List[Dict]]
+    parsed_content: str
     metadata: Dict[str, Any]
     blob_data: Optional[BlobData] = None
+    data_frame: Optional[DataFrame] = None
     error: Optional[str] = None
     quality_score: float = 1.0
 
@@ -32,42 +57,39 @@ class DocumentProcessor:
     """Handles document processing and text extraction."""
 
     def __init__(self):
-        # Initialize mime types
         mimetypes.init()
-        # Configure minimum content quality thresholds
         self.min_content_length = 50
         self.min_quality_score = 0.3
 
-        # Configure PDF processing options
-        self.pdf_fallback_methods = [
-            self._extract_pdf_with_pdfplumber,
-            self._extract_pdf_with_pdfminer,
-            self._extract_pdf_with_pypdf2,
-            self._extract_pdf_with_tika,
-        ]
+        # Define LangChain loaders for each file type
+        self.langchain_loaders = {
+            "pdf": [
+                # (PyPDFLoader, "langchain_pypdf"),
+                (PDFMinerLoader, "langchain_pdfminer"),
+                # (PDFPlumberLoader, "langchain_pdfplumber"),
+            ],
+            "csv": [(CSVLoader, "langchain_csv")],
+            "excel": [(UnstructuredExcelLoader, "langchain_excel")],
+            "text": [(TextLoader, "langchain_text")],
+            "doc": [(Docx2txtLoader, "langchain_docx")],
+            "image": [(UnstructuredImageLoader, "langchain_image")],
+        }
 
         # Initialize document processor agent
         self.document_processor_agent = DocumentProcessorAgent()
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            length_function=len,
+        )
 
     async def process_file(
         self, file_path: str, extension: str, store_blob: bool = True
     ) -> ExtractionResult:
-        """
-        Process a file and extract text with metadata.
-
-        Args:
-            file_path (str): Path to the file
-            store_blob (bool): Whether to store the file blob
-
-        Returns:
-            ExtractionResult: Processed file data
-        """
+        """Process a file and extract text with metadata."""
         try:
-            # Detect file type
             mime_type = magic.from_file(file_path, mime=True)
-
-            # Get basic metadata first
-            metadata = self._generate_base_metadata(file_path)
+            metadata = generate_base_metadata(file_path)
 
             # Store blob if requested
             blob_data = None
@@ -80,34 +102,20 @@ class DocumentProcessor:
                         content_type=mime_type,
                     )
 
-            # Build path segments for hierarchy
             metadata["path_segments"] = FileHierarchyBuilder.get_file_path_segments(
                 metadata.get("file_path", "")
             )
 
             # Extract text based on file type
-            if mime_type == "application/pdf":
-                result = self._extract_pdf(file_path)
-            elif mime_type in [
-                "application/msword",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ]:
-                result = self._extract_doc(file_path)
-            elif mime_type.startswith("text/"):
-                result = self._extract_text(file_path)
-            elif mime_type.startswith("image/"):
-                result = self._extract_image(file_path)
-            else:
-                # Fallback to textract for other formats
-                result = self._extract_fallback(file_path)
+            result = await self._extract_content(file_path, mime_type)
 
             # Merge metadata
             metadata.update(result.metadata)
 
             # Post-process and validate content
-            processed_content = self._post_process_content(result.content)
+            processed_content = post_process_content(result.parsed_content)
 
-            # Use document processor agent to verify and summarize
+            # Use document processor agent
             try:
                 processed_result = await self.document_processor_agent.process_document(
                     extracted_text=processed_content,
@@ -119,90 +127,340 @@ class DocumentProcessor:
             except Exception as agent_error:
                 logger.error(f"Document processor agent failed: {agent_error}")
 
-            quality_score = self._calculate_quality_score(
-                processed_content, result.metadata
-            )
+            quality_score = calculate_quality_score(processed_content, metadata)
 
             return ExtractionResult(
-                content=processed_content,
+                content=result.content,
+                parsed_content=result.parsed_content,
                 metadata=metadata,
                 blob_data=blob_data,
+                data_frame=result.data_frame,
                 quality_score=quality_score,
             )
 
         except Exception as e:
             logger.error(f"Error processing file {file_path}: {str(e)}")
             return ExtractionResult(
-                content="",
+                parsed_content="",
                 metadata=(
                     metadata
                     if "metadata" in locals()
-                    else self._generate_base_metadata(file_path)
+                    else generate_base_metadata(file_path)
                 ),
                 error=str(e),
                 quality_score=0.0,
             )
 
-    def _extract_pdf(self, file_path: str) -> ExtractionResult:
-        """Extract text from PDF using multiple fallback methods."""
+    async def _extract_content(
+        self, file_path: str, mime_type: str
+    ) -> ExtractionResult:
+        """Extract content using LangChain loaders first, then fallback methods."""
+        file_type = get_file_type(mime_type)
+
+        # Try appropriate extraction method based on file type
+        if file_type == "pdf":
+            return await self._extract_pdf(file_path)
+        elif file_type == "csv":
+            return await self._extract_csv(file_path)
+        elif file_type == "excel":
+            return await self._extract_excel(file_path)
+        elif file_type == "doc":
+            return await self._extract_doc(file_path)
+        elif file_type == "text":
+            return await self._extract_text(file_path)
+        elif file_type == "image":
+            return await self._extract_image(file_path)
+        else:
+            return await self._extract_fallback(file_path)
+
+    async def _extract_pdf(self, file_path: str) -> ExtractionResult:
+        """Extract text from PDF using LangChain loaders with fallbacks."""
         errors = []
-        metadata = {}
 
-        # Try each extraction method until one succeeds
-        for extraction_method in self.pdf_fallback_methods:
+        # Try LangChain PDF loaders first
+        for loader_class, method_name in self.langchain_loaders["pdf"]:
             try:
-                result = extraction_method(file_path)
+                loader = loader_class(file_path)
+                docs = loader.load()
+                content = "\n".join(doc.page_content for doc in docs)
 
-                # Validate the extracted content
-                if self._validate_pdf_content(result.content, result.metadata):
-                    # Post-process the content
-                    processed_content = self._post_process_pdf_content(result.content)
+                metadata = {"extraction_method": method_name, "page_count": len(docs)}
 
-                    # Update the result with processed content
-                    result.content = processed_content
-                    result.quality_score = self._calculate_quality_score(
-                        processed_content, result.metadata
+                if validate_pdf_content(content, metadata, self.min_content_length):
+                    processed_content = post_process_pdf_content(content)
+                    return ExtractionResult(
+                        content=content,
+                        parsed_content=processed_content,
+                        metadata=metadata,
+                        quality_score=calculate_quality_score(
+                            processed_content, metadata
+                        ),
                     )
-
-                    # Merge metadata
-                    metadata.update(result.metadata)
-                    return result
-                else:
-                    errors.append(
-                        f"{extraction_method.__name__}: Content validation failed"
-                    )
-                    continue
-
             except Exception as e:
-                errors.append(f"{extraction_method.__name__}: {str(e)}")
-                continue
+                errors.append(f"{method_name}: {str(e)}")
+                # If LangChain fails, try traditional methods
+                try:
+                    return await self._extract_pdf_traditional(file_path, errors)
+                except Exception as e:
+                    errors.append(f"Traditional PDF extraction failed: {str(e)}")
+                    error_msg = "All PDF extraction methods failed:\n" + "\n".join(
+                        errors
+                    )
+                    return ExtractionResult(
+                        content="",
+                        parsed_content="",
+                        metadata=generate_base_metadata(file_path),
+                        error=error_msg,
+                        quality_score=0.0,
+                    )
 
-        # If all methods fail, return error result
-        error_msg = "All PDF extraction methods failed:\n" + "\n".join(errors)
-        return ExtractionResult(
-            content="",
-            metadata=self._generate_base_metadata(file_path),
-            error=error_msg,
-            quality_score=0.0,
-        )
-
-    def _extract_pdf_with_pdfplumber(self, file_path: str) -> ExtractionResult:
-        """Extract text using pdfplumber with enhanced error handling."""
+    async def _extract_csv(self, file_path: str) -> ExtractionResult:
+        """Extract content from CSV using LangChain with pandas fallback."""
         try:
-            extracted_text = []
-            metadata = {}
+            # Try LangChain's CSVLoader first
+            loader = CSVLoader(file_path)
+            docs = loader.load()
+            content = "\n".join(doc.page_content for doc in docs)
 
-            with pdfplumber.open(file_path) as pdf:
-                metadata.update(
-                    {
-                        "page_count": len(pdf.pages),
-                        "pdf_info": pdf.metadata,
-                    }
+            # Get additional metadata with pandas
+            df = pd.read_csv(file_path)
+            metadata = {
+                "extraction_method": "langchain_csv",
+                "row_count": len(df),
+                "column_count": len(df.columns),
+                "columns": list(df.columns),
+            }
+
+            res = ExtractionResult(
+                content=df.to_dict("records"),
+                parsed_content=content,
+                metadata=metadata,
+                data_frame=df,
+                quality_score=calculate_quality_score(content, metadata),
+            )
+
+            return res
+        except Exception as e:
+            # Fallback to pandas
+            logger.error(f"failed to load csv with langchain {str(e)}")
+            try:
+                df = pd.read_csv(file_path)
+                content = df.to_string()
+                metadata = {
+                    "extraction_method": "pandas",
+                    "row_count": len(df),
+                    "column_count": len(df.columns),
+                    "columns": list(df.columns),
+                }
+
+                return ExtractionResult(
+                    content=df.to_dict("records"),
+                    parsed_content=content,
+                    metadata=metadata,
+                    quality_score=calculate_quality_score(content, metadata),
                 )
+            except Exception as e2:
+                raise Exception(f"CSV extraction failed: {str(e)} -> {str(e2)}")
+
+    async def _extract_excel(self, file_path: str) -> ExtractionResult:
+        """Extract content from Excel using LangChain with pandas fallback."""
+        try:
+            # Try LangChain's UnstructuredExcelLoader first
+            loader = UnstructuredExcelLoader(file_path)
+            docs = loader.load()
+            content = "\n".join(doc.page_content for doc in docs)
+
+            # Get additional metadata with pandas
+            excel_file = pd.ExcelFile(file_path)
+            sheets_data = {}
+
+            for sheet_name in excel_file.sheet_names:
+                df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                sheets_data[sheet_name] = {
+                    "row_count": len(df),
+                    "column_count": len(df.columns),
+                    "columns": list(df.columns),
+                }
+
+            metadata = {
+                "extraction_method": "langchain_excel",
+                "sheets": sheets_data,
+                "sheet_names": excel_file.sheet_names,
+            }
+
+            return ExtractionResult(
+                parsed_content=content,
+                metadata=metadata,
+                quality_score=calculate_quality_score(content, metadata),
+            )
+
+        except Exception as e:
+            # Fallback to pandas
+            try:
+                excel_file = pd.ExcelFile(file_path)
+                contents = []
+                sheets_data = {}
+
+                for sheet_name in excel_file.sheet_names:
+                    df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                    contents.append(f"Sheet: {sheet_name}\n{df.to_string()}")
+                    sheets_data[sheet_name] = {
+                        "row_count": len(df),
+                        "column_count": len(df.columns),
+                        "columns": list(df.columns),
+                    }
+
+                content = "\n\n".join(contents)
+                metadata = {
+                    "extraction_method": "pandas",
+                    "sheets": sheets_data,
+                    "sheet_names": excel_file.sheet_names,
+                }
+
+                return ExtractionResult(
+                    parsed_content=content,
+                    metadata=metadata,
+                    quality_score=calculate_quality_score(content, metadata),
+                )
+            except Exception as e2:
+                raise Exception(f"Excel extraction failed: {str(e)} -> {str(e2)}")
+
+    async def _extract_doc(self, file_path: str) -> ExtractionResult:
+        """Extract content from Word documents using LangChain."""
+        try:
+            loader = Docx2txtLoader(file_path)
+            docs = loader.load()
+            content = "\n".join(doc.page_content for doc in docs)
+
+            metadata = {"extraction_method": "langchain_docx", "doc_count": len(docs)}
+
+            return ExtractionResult(
+                parsed_content=content,
+                metadata=metadata,
+                quality_score=calculate_quality_score(content, metadata),
+            )
+        except Exception as e:
+            # Try UnstructuredFileLoader as fallback
+            try:
+                loader = UnstructuredFileLoader(file_path)
+                docs = loader.load()
+                content = "\n".join(doc.page_content for doc in docs)
+
+                metadata = {
+                    "extraction_method": "langchain_unstructured",
+                    "doc_count": len(docs),
+                }
+
+                return ExtractionResult(
+                    parsed_content=content,
+                    metadata=metadata,
+                    quality_score=calculate_quality_score(content, metadata),
+                )
+            except Exception as e2:
+                raise Exception(
+                    f"Word document extraction failed: {str(e)} -> {str(e2)}"
+                )
+
+    async def _extract_text(self, file_path: str) -> ExtractionResult:
+        """Extract content from text files with encoding detection."""
+        try:
+            # Detect encoding
+            with open(file_path, "rb") as file:
+                raw_data = file.read()
+                result = chardet.detect(raw_data)
+                encoding = result["encoding"]
+                confidence = result["confidence"]
+
+            # Use LangChain's TextLoader
+            loader = TextLoader(file_path, encoding=encoding)
+            docs = loader.load()
+            content = "\n".join(doc.page_content for doc in docs)
+
+            metadata = {
+                "extraction_method": "langchain_text",
+                "encoding": encoding,
+                "encoding_confidence": confidence,
+                "doc_count": len(docs),
+            }
+
+            return ExtractionResult(
+                parsed_content=content,
+                metadata=metadata,
+                quality_score=calculate_quality_score(content, metadata),
+            )
+        except Exception as e:
+            # Fallback to basic file reading
+            try:
+                with open(file_path, "r", encoding=encoding) as file:
+                    content = file.read()
+
+                metadata = {
+                    "extraction_method": "basic_text",
+                    "encoding": encoding,
+                    "encoding_confidence": confidence,
+                }
+
+                return ExtractionResult(
+                    parsed_content=content,
+                    metadata=metadata,
+                    quality_score=calculate_quality_score(content, metadata),
+                )
+            except Exception as e2:
+                raise Exception(f"Text extraction failed: {str(e)} -> {str(e2)}")
+
+    async def _extract_image(self, file_path: str) -> ExtractionResult:
+        """Extract text from images using LangChain."""
+        try:
+            loader = UnstructuredImageLoader(file_path)
+            docs = loader.load()
+            content = "\n".join(doc.page_content for doc in docs)
+
+            metadata = {"extraction_method": "langchain_image", "doc_count": len(docs)}
+
+            return ExtractionResult(
+                parsed_content=content,
+                metadata=metadata,
+                quality_score=calculate_quality_score(content, metadata),
+            )
+        except Exception as e:
+            raise Exception(f"Image extraction failed: {str(e)}")
+
+    async def _extract_fallback(self, file_path: str) -> ExtractionResult:
+        """Fallback extraction using LangChain's UnstructuredFileLoader."""
+        try:
+            loader = UnstructuredFileLoader(file_path)
+            docs = loader.load()
+            content = "\n".join(doc.page_content for doc in docs)
+
+            metadata = {
+                "extraction_method": "langchain_unstructured",
+                "doc_count": len(docs),
+            }
+
+            return ExtractionResult(
+                parsed_content=content,
+                metadata=metadata,
+                quality_score=calculate_quality_score(content, metadata),
+            )
+        except Exception as e:
+            raise Exception(f"Fallback extraction failed: {str(e)}")
+
+    async def _extract_pdf_traditional(
+        self, file_path: str, errors: List[str]
+    ) -> ExtractionResult:
+        """Traditional PDF extraction methods."""
+        # Try PDFPlumber
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                extracted_text = []
+                metadata = {
+                    "page_count": len(pdf.pages),
+                    "pdf_info": pdf.metadata,
+                    "extraction_method": "pdfplumber",
+                }
 
                 for i, page in enumerate(pdf.pages):
                     try:
-                        # Extract text with layout preservation
                         text = page.extract_text(layout=True)
                         if text:
                             extracted_text.append(text)
@@ -212,7 +470,7 @@ class DocumentProcessor:
                         if tables:
                             metadata[f"page_{i+1}_tables"] = len(tables)
                             for table in tables:
-                                if table:  # Check if table exists
+                                if table:
                                     table_text = "\n".join(
                                         [
                                             " | ".join(
@@ -230,233 +488,89 @@ class DocumentProcessor:
                         metadata[f"page_{i+1}_error"] = str(e)
                         continue
 
-            content = "\n\n".join(extracted_text)
-            quality_score = self._calculate_quality_score(content, metadata)
-
-            return ExtractionResult(
-                content=content, metadata=metadata, quality_score=quality_score
-            )
+                content = "\n\n".join(extracted_text)
+                if validate_pdf_content(content, metadata, self.min_content_length):
+                    return ExtractionResult(
+                        parsed_content=post_process_pdf_content(content),
+                        metadata=metadata,
+                        quality_score=calculate_quality_score(content, metadata),
+                    )
         except Exception as e:
-            raise Exception(f"PDFPlumber extraction failed: {str(e)}")
+            errors.append(f"PDFPlumber extraction failed: {str(e)}")
 
-    def _extract_pdf_with_pdfminer(self, file_path: str) -> ExtractionResult:
-        """Extract text using pdfminer.six as fallback."""
-        from pdfminer.high_level import extract_text_to_fp
-        from pdfminer.layout import LAParams
-        from io import StringIO
+        # Try PDFMiner
+        try:
+            from pdfminer.high_level import extract_text_to_fp
+            from pdfminer.layout import LAParams
+            from io import StringIO
 
-        output = StringIO()
-        with open(file_path, "rb") as fp:
-            extract_text_to_fp(
-                fp, output, laparams=LAParams(), output_type="text", codec="utf-8"
-            )
+            output = StringIO()
+            with open(file_path, "rb") as fp:
+                extract_text_to_fp(
+                    fp, output, laparams=LAParams(), output_type="text", codec="utf-8"
+                )
 
-        content = output.getvalue()
-        metadata = {"extraction_method": "pdfminer"}
+            content = output.getvalue()
+            metadata = {"extraction_method": "pdfminer"}
 
-        return ExtractionResult(
-            content=content,
-            metadata=metadata,
-            quality_score=self._calculate_quality_score(content, metadata),
-        )
+            if validate_pdf_content(content, metadata, self.min_content_length):
+                return ExtractionResult(
+                    parsed_content=post_process_pdf_content(content),
+                    metadata=metadata,
+                    quality_score=calculate_quality_score(content, metadata),
+                )
+        except Exception as e:
+            errors.append(f"PDFMiner extraction failed: {str(e)}")
 
-    def _extract_pdf_with_pypdf2(self, file_path: str) -> ExtractionResult:
-        """Extract text using PyPDF2 as fallback."""
-        from PyPDF2 import PdfReader
+        # Try PyPDF2
+        try:
+            from PyPDF2 import PdfReader
 
-        extracted_text = []
-        metadata = {}
+            extracted_text = []
+            metadata = {}
 
-        with open(file_path, "rb") as file:
-            reader = PdfReader(file)
-            metadata["page_count"] = len(reader.pages)
+            with open(file_path, "rb") as file:
+                reader = PdfReader(file)
+                metadata["page_count"] = len(reader.pages)
+                metadata["extraction_method"] = "PyPDF2"
 
-            for i, page in enumerate(reader.pages):
-                try:
-                    text = page.extract_text()
-                    if text.strip():
-                        extracted_text.append(text)
-                except Exception as e:
-                    metadata[f"page_{i+1}_error"] = str(e)
-                    continue
+                for i, page in enumerate(reader.pages):
+                    try:
+                        text = page.extract_text()
+                        if text.strip():
+                            extracted_text.append(text)
+                    except Exception as e:
+                        metadata[f"page_{i+1}_error"] = str(e)
+                        continue
 
-        content = "\n\n".join(extracted_text)
-        metadata["extraction_method"] = "PyPDF2"
+            content = "\n\n".join(extracted_text)
+            if validate_pdf_content(content, metadata, self.min_content_length):
+                return ExtractionResult(
+                    parsed_content=post_process_pdf_content(content),
+                    metadata=metadata,
+                    quality_score=calculate_quality_score(content, metadata),
+                )
+        except Exception as e:
+            errors.append(f"PyPDF2 extraction failed: {str(e)}")
 
-        return ExtractionResult(
-            content=content,
-            metadata=metadata,
-            quality_score=self._calculate_quality_score(content, metadata),
-        )
-
-    def _extract_pdf_with_tika(self, file_path: str) -> ExtractionResult:
-        """Extract text using Apache Tika as last resort."""
+        # Try Tika as last resort
         try:
             from tika import parser
 
             parsed = parser.from_file(file_path)
-
             metadata = parsed.get("metadata", {})
             content = parsed.get("content", "")
+            metadata["extraction_method"] = "tika"
 
-            if not content:
-                raise Exception("No content extracted")
-
-            return ExtractionResult(
-                content=content,
-                metadata=metadata,
-                quality_score=self._calculate_quality_score(content, metadata),
-            )
+            if content and validate_pdf_content(
+                content, metadata, self.min_content_length
+            ):
+                return ExtractionResult(
+                    parsed_content=post_process_pdf_content(content),
+                    metadata=metadata,
+                    quality_score=calculate_quality_score(content, metadata),
+                )
         except Exception as e:
-            raise Exception(f"Tika extraction failed: {str(e)}")
+            errors.append(f"Tika extraction failed: {str(e)}")
 
-    def _validate_pdf_content(self, content: str, metadata: Dict) -> bool:
-        """Validate extracted PDF content quality."""
-        if not content or len(content.strip()) < self.min_content_length:
-            return False
-
-        # Check for common PDF extraction issues
-        if (
-            content.count("\ufffd") > len(content) * 0.1
-        ):  # Too many replacement characters
-            return False
-
-        # Check for reasonable text-to-page ratio if page count available
-        if "page_count" in metadata:
-            avg_chars_per_page = len(content) / metadata["page_count"]
-            if avg_chars_per_page < 100:  # Suspiciously low character count
-                return False
-
-        return True
-
-    def _post_process_pdf_content(self, content: str) -> str:
-        """Enhanced post-processing for PDF content."""
-        if not content:
-            return ""
-
-        # Remove common PDF artifacts
-        content = re.sub(r"(\n\s*){3,}", "\n\n", content)  # Excessive newlines
-        content = re.sub(r"[^\S\n]+", " ", content)  # Multiple spaces
-        content = re.sub(r"[^\x20-\x7E\n]", "", content)  # Non-printable characters
-
-        # Fix common OCR/extraction issues
-        content = re.sub(
-            r"(?<=[a-z])(?=[A-Z])", " ", content
-        )  # Missing spaces between words
-        content = re.sub(r"[\u2018\u2019]", "'", content)  # Smart quotes
-        content = re.sub(r"[\u201C\u201D]", '"', content)  # Smart double quotes
-
-        return content.strip()
-
-    def _generate_base_metadata(self, file_path: str) -> Dict:
-        """Generate base metadata for a file with correct timestamp formats."""
-        print("-----file_path----")
-        print(file_path)
-        path = Path(file_path)
-        stats = path.stat()
-
-        try:
-            # Calculate content hash
-            hash_md5 = hashlib.md5()
-            hash_sha256 = hashlib.sha256()
-
-            with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    hash_md5.update(chunk)
-                    hash_sha256.update(chunk)
-
-            # Convert timestamps to milliseconds integers
-            last_modified_ms = int(stats.st_mtime * 1000)
-            created_at_ms = int(stats.st_ctime * 1000)
-
-            return {
-                "filename": path.name,
-                "extension": path.suffix.lower(),
-                "size": stats.st_size,  # Required field
-                "last_modified": last_modified_ms,  # Integer timestamp in milliseconds
-                "created_at": created_at_ms,  # Integer timestamp in milliseconds
-                "content_hash": hash_sha256.hexdigest(),
-                "file_path": str(path),
-            }
-        except Exception as e:
-            logger.error(f"Error generating metadata for {file_path}: {str(e)}")
-            raise
-
-    def _post_process_content(self, content: str) -> str:
-        """Clean and normalize extracted text."""
-        if not content:
-            return ""
-
-        # Basic cleaning
-        content = content.replace("\x00", "")  # Remove null bytes
-        content = " ".join(content.split())  # Normalize whitespace
-        content = content.strip()
-
-        # Remove very short lines (often headers/footers)
-        lines = [line for line in content.split("\n") if len(line.strip()) > 20]
-        return "\n".join(lines)
-
-    def _calculate_quality_score(self, content: str, metadata: Dict) -> float:
-        """Calculate quality score for extracted content."""
-        if not content:
-            return 0.0
-
-        factors = []
-
-        # Content length score
-        length_score = min(1.0, len(content) / 1000)
-        factors.append(length_score)
-
-        # Word variety score
-        words = content.lower().split()
-        if words:
-            unique_ratio = len(set(words)) / len(words)
-            factors.append(unique_ratio)
-
-        # Format-specific scores
-        if "encoding_confidence" in metadata:
-            factors.append(metadata["encoding_confidence"])
-
-        # Calculate final score
-        return sum(factors) / len(factors) if factors else 0.0
-
-    @staticmethod
-    def _humanize_size(size_bytes: int) -> str:
-        """Convert bytes to human readable format."""
-        for unit in ["B", "KB", "MB", "GB"]:
-            if size_bytes < 1024:
-                return f"{size_bytes:.1f}{unit}"
-            size_bytes /= 1024
-        return f"{size_bytes:.1f}TB"
-
-    def _extract_doc(self, file_path: str) -> ExtractionResult:
-        """Placeholder for Word document extraction."""
-        return ExtractionResult(
-            content="",
-            metadata=self._generate_base_metadata(file_path),
-            quality_score=0.0,
-        )
-
-    def _extract_text(self, file_path: str) -> ExtractionResult:
-        """Placeholder for text file extraction."""
-        return ExtractionResult(
-            content="",
-            metadata=self._generate_base_metadata(file_path),
-            quality_score=0.0,
-        )
-
-    def _extract_image(self, file_path: str) -> ExtractionResult:
-        """Placeholder for image file extraction."""
-        return ExtractionResult(
-            content="",
-            metadata=self._generate_base_metadata(file_path),
-            quality_score=0.0,
-        )
-
-    def _extract_fallback(self, file_path: str) -> ExtractionResult:
-        """Placeholder for fallback extraction method."""
-        return ExtractionResult(
-            content="",
-            metadata=self._generate_base_metadata(file_path),
-            quality_score=0.0,
-        )
+        raise Exception("All traditional PDF extraction methods failed")

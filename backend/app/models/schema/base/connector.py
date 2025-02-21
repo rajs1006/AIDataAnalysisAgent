@@ -1,10 +1,15 @@
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, Union, Dict
 from pydantic import BaseModel, Field, validator
 from pathlib import Path
 from datetime import datetime
 from beanie import Document, Indexed, PydanticObjectId
-from app.models.enums import ConnectorStatusEnum, ConnectorTypeEnum, FileStatusEnum
+from app.models.enums import (
+    ConnectorStatusEnum,
+    ConnectorTypeEnum,
+    FileStatusEnum,
+    ExtensionEnum,
+)
 
 
 class ConnectorBase(BaseModel):
@@ -21,7 +26,7 @@ class ConnectorBase(BaseModel):
     last_sync: Optional[datetime] = None
     status: ConnectorStatusEnum = ConnectorStatusEnum.ACTIVE
     error_message: Optional[str] = None
-    supported_extensions: List[str] = [".pdf", ".doc", ".docx", ".txt"]
+    supported_extensions: List[str] = [".pdf", ".doc", ".docx", ".txt", ".csv"]
 
     @validator("path")
     def validate_path(cls, v, values):
@@ -43,7 +48,7 @@ class ConnectorMetadata(BaseModel):
     last_modified: datetime  # milliseconds timestamp
     created_at: datetime  # milliseconds timestamp
     content_hash: str
-    content: Optional[str] = None
+    content: Optional[Union[str, List[Dict]]] = None
     summary: Optional[dict] = None
     file_path: Optional[str] = None
     status: FileStatusEnum = FileStatusEnum.ACTIVE
@@ -55,7 +60,7 @@ class ConnectorMetadata(BaseModel):
 
     # blob metadata
     blob_file_id: Optional[str] = None
-    blob_content_type: Optional[str] = None
+    blob_mime_type: Optional[str] = None
     blob_size: Optional[int] = None
     blob_filename: Optional[str] = None
     blob_gcs_bucket: Optional[str] = None

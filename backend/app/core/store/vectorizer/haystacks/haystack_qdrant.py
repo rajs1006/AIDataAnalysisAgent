@@ -8,7 +8,7 @@ from qdrant_client.http.models import Distance
 logger = get_logger(__name__)
 
 
-class VectorStore(QdrantDocumentStore):
+class HaystackVectorStore(QdrantDocumentStore):
     """
     Enhanced Qdrant store with multi-tenant support and collection management.
     Implements user isolation through metadata filtering within a single collection.
@@ -47,30 +47,6 @@ class VectorStore(QdrantDocumentStore):
                             else Distance.DOT
                         ),
                     )
-
-                    # # Create essential payload indexes for efficient filtering and querying
-                    # indexes = [
-                    #     ("metadata.user_id", "keyword"),  # For user isolation
-                    #     (
-                    #         "metadata.connector_id",
-                    #         "keyword",
-                    #     ),  # For connector-based filtering
-                    #     ("metadata.file_type", "keyword"),  # For file type filtering
-                    #     ("metadata.indexed_at", "datetime"),  # For time-based queries
-                    # ]
-
-                    # for field_name, field_type in indexes:
-                    #     try:
-                    #         await self.client.create_payload_index(
-                    #             collection_name=self.collection_name,
-                    #             field_name=field_name,
-                    #             field_schema=field_type,
-                    #         )
-                    #     except Exception as idx_error:
-                    #         # Log index creation error but continue with other indexes
-                    #         logger.warning(
-                    #             f"Failed to create index for {field_name}: {str(idx_error)}"
-                    #         )
 
                 self._initialized_collections.add(self.collection_name)
                 logger.info(

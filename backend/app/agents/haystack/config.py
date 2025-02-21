@@ -4,6 +4,7 @@ from datetime import datetime
 from app.core.config.config import settings
 from haystack.utils import Secret
 
+
 class PreprocessingConfig(BaseModel):
     """Configuration for document preprocessing"""
 
@@ -18,7 +19,8 @@ class PreprocessingConfig(BaseModel):
 class EmbeddingConfig(BaseModel):
     """Configuration for embeddings"""
 
-    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    sparse_model_name: str = "Qdrant/bm42-all-minilm-l6-v2-attentions"
+    dense_model_name: str = "BAAI/bge-small-en-v1.5"
     embedding_dim: int = 384
     normalize_embeddings: bool = True
     max_seq_length: int = 256

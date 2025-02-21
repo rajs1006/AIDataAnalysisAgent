@@ -1,9 +1,10 @@
 from beanie import Document, Indexed, PydanticObjectId, Link
 from pydantic import Field
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Union
 from app.models.enums import ConnectorTypeEnum, ConnectorStatusEnum, FileStatusEnum
 from app.models.schema.base.connector import ConnectorMetadata
+from pydantic import validator
 
 
 class FileDocument(Document):
@@ -13,7 +14,7 @@ class FileDocument(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_modified: datetime = Field(default_factory=datetime.utcnow)
     content_hash: str
-    content: Optional[str] = None
+    content: Optional[Union[str, List[Dict]]] = None
     summary: Optional[dict] = None
     file_path: Optional[str] = None
     status: FileStatusEnum = FileStatusEnum.ACTIVE
@@ -73,7 +74,7 @@ class FileDocument(Document):
             error_message=file_data.error_message,
             total_chunks=file_data.total_chunks,
             blob_file_id=file_data.blob_file_id,
-            blob_content_type=file_data.blob_content_type,
+            blob_content_type=file_data.blob_mime_type,
             blob_size=file_data.blob_size,
             blob_filename=file_data.blob_filename,
             blob_gcs_bucket=file_data.blob_gcs_bucket,
@@ -89,7 +90,7 @@ class Connector(Document):
     description: Optional[str] = None
     connector_type: Optional[ConnectorTypeEnum] = None
     config: Optional[Dict] = None
-    supported_extensions: List[str] = [".pdf", ".doc", ".docx", ".txt"]
+    supported_extensions: List[str] = [".pdf", ".doc", ".docx", ".txt", ".csv"]
     enabled: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -97,6 +98,35 @@ class Connector(Document):
     status: str = ConnectorStatusEnum.ACTIVE
     error_message: Optional[str] = None
     files: Optional[List[Link[FileDocument]]] = Field(default_factory=list)
+
+    async def pre_save(self):
+        self.updated_at = datetime.utcnow()
+
+    @validator("files")
+    def validate_file_links(cls, v):
+        if v is not None:
+            converted_files = []
+            for file in v:
+                if isinstance(file, Link):
+                    converted_files.append(file)
+                elif isinstance(file, FileDocument):
+                    converted_files.append(Link(file, document_class=FileDocument))
+                elif isinstance(file, dict):
+                    # If it's a dictionary with an _id, treat it as a reference
+                    if "_id" in file:
+                        converted_files.append(
+                            Link(file["_id"], document_class=FileDocument)
+                        )
+                    else:
+                        raise ValueError(
+                            f"File {file} must be stored as a reference using Link"
+                        )
+                else:
+                    raise ValueError(
+                        f"File {file} must be stored as a reference using Link"
+                    )
+            return converted_files
+        return v
 
     async def pre_save(self):
         self.updated_at = datetime.utcnow()
@@ -142,3 +172,22 @@ class Connector(Document):
             created_at=now,
             updated_at=now,
         )
+
+    async def delete_all_files(self) -> None:
+        """Delete all files associated with this connector"""
+        try:
+            # Fetch all files
+            for file_link in self.files:
+                file_doc = await FileDocument.get(file_link.id)
+                if file_doc:
+                    await file_doc.delete()
+
+            # Clear the files list
+            self.files = []
+            await self.save()
+        except Exception as e:
+            raise
+
+    async def pre_delete(self) -> None:
+        """Pre-delete hook to clean up files before connector deletion"""
+        await self.delete_all_files()

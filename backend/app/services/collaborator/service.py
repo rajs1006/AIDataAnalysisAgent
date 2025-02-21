@@ -350,7 +350,7 @@ class CollaboratorService:
         available_collaborators = (
             await self.collaborator_crud.get_document_collaborators(user_id)
         )
-
+        print(available_collaborators)
         document_collaborators = []
         for collaborator in available_collaborators:
             # Determine collaborator email based on user's role in invite
@@ -361,25 +361,28 @@ class CollaboratorService:
                 # User is invitee, so collaborator is the inviter
                 user = await User.get(collaborator.inviter_id)
             # Find auth role for this document
+
             auth_role = DocumentAccessEnum.NONE
             for access in collaborator.document_access:
                 if (
                     str(access.document_id) == document_id
                     and access.auth_role != DocumentAccessEnum.NONE
                 ):
-                    document_collaborators.append(
-                        CollaboratorResponse(
-                            id=str(collaborator.id),
-                            inviter_id=str(collaborator.inviter_id),
-                            collaborator_email=user.email,
-                            invitee_id=collaborator.invitee_id,
-                            status=collaborator.status,
-                            invited_at=collaborator.invited_at,
-                            expires_at=collaborator.expires_at,
-                            document_id=str(document_id),
-                            auth_role=access.auth_role,
-                        )
-                    )
+                    auth_role = access.auth_role
+
+            document_collaborators.append(
+                CollaboratorResponse(
+                    id=str(collaborator.id),
+                    inviter_id=str(collaborator.inviter_id),
+                    collaborator_email=user.email,
+                    invitee_id=collaborator.invitee_id,
+                    status=collaborator.status,
+                    invited_at=collaborator.invited_at,
+                    expires_at=collaborator.expires_at,
+                    document_id=str(document_id),
+                    auth_role=auth_role,
+                )
+            )
 
         return document_collaborators
 

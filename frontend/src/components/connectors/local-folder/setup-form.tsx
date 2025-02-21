@@ -17,6 +17,12 @@ interface LocalFolderFormProps {
   isSubmitting: boolean;
 }
 
+const ALLOWED_FILE_TYPES = {
+  "application/pdf": "PDF",
+  "text/csv": "CSV",
+  "application/vnd.ms-excel": "CSV", // For some systems that identify CSVs differently
+};
+
 export const LocalFolderForm = ({
   onSubmit,
   isSubmitting,
@@ -31,18 +37,32 @@ export const LocalFolderForm = ({
     arch: window.navigator.userAgent.includes("x64") ? "x64" : "x86",
   };
 
+  const getFileTypeDisplay = (file: File) => {
+    const fileType =
+      ALLOWED_FILE_TYPES[file.type] ||
+      (file.name.endsWith(".csv") ? "CSV" : "Unknown");
+    return fileType;
+  };
+
   const validateAndAddFiles = (newFiles: File[]) => {
-    const pdfFiles = newFiles.filter((file) => file.type === "application/pdf");
+    const validFiles = newFiles.filter((file) => {
+      // Check both mime type and file extension for CSV files
+      const isValidType =
+        ALLOWED_FILE_TYPES[file.type] ||
+        file.name.toLowerCase().endsWith(".csv");
 
-    if (pdfFiles.length !== newFiles.length) {
-      toast({
-        title: "Invalid File Type",
-        description: "Please upload PDF files only",
-        variant: "destructive",
-      });
-    }
+      if (!isValidType) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please upload only PDF or CSV files",
+          variant: "destructive",
+        });
+        return false;
+      }
+      return true;
+    });
 
-    setFiles((prevFiles) => [...prevFiles, ...pdfFiles]);
+    setFiles((prevFiles) => [...prevFiles, ...validFiles]);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,7 +110,7 @@ export const LocalFolderForm = ({
     if (files.length === 0) {
       toast({
         title: "Files Required",
-        description: "Please select at least one PDF file",
+        description: "Please select at least one PDF or CSV file",
         variant: "destructive",
       });
       return false;
@@ -126,7 +146,9 @@ export const LocalFolderForm = ({
       </div>
 
       <div className="space-y-4">
-        <Label className="text-gray-200 text-sm font-medium">Upload PDFs</Label>
+        <Label className="text-gray-200 text-sm font-medium">
+          Upload Files
+        </Label>
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -140,7 +162,7 @@ export const LocalFolderForm = ({
           <input
             type="file"
             multiple
-            accept=".pdf"
+            accept=".pdf,.csv"
             onChange={handleFileSelect}
             className="hidden"
             id="file-upload"
@@ -155,10 +177,10 @@ export const LocalFolderForm = ({
             </div>
             <div className="text-center">
               <p className="text-sm font-medium text-gray-200">
-                Click to upload PDFs
+                Click to upload files
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                or drag and drop PDF files here
+                or drag and drop PDF or CSV files here
               </p>
             </div>
           </label>
@@ -167,7 +189,7 @@ export const LocalFolderForm = ({
         {files.length > 0 && (
           <div className="space-y-3">
             <Label className="text-gray-200 text-sm font-medium">
-              Selected PDFs ({files.length})
+              Selected Files ({files.length})
             </Label>
             <div className="space-y-2">
               {files.map((file, index) => (
@@ -182,7 +204,8 @@ export const LocalFolderForm = ({
                   <div className="flex-1 min-w-0">
                     <div className="truncate text-gray-200">{file.name}</div>
                     <div className="text-xs text-gray-400">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                      {(file.size / 1024 / 1024).toFixed(2)} MB •{" "}
+                      {getFileTypeDisplay(file)}
                     </div>
                   </div>
 

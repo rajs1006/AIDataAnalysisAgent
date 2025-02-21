@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 import json
 import base64
+import re
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
 from langchain_openai import ChatOpenAI
@@ -150,11 +151,18 @@ class DocumentProcessorAgent:
                     ),
                 ]
             )
-            print("===============content==================")
-            print(response.content)
+
+            res_content = response.content
+            print("===============res_content==================")
+            print(res_content)
+
+            cleaned_text = re.sub(r"^```json\s*", "", res_content, flags=re.MULTILINE)
+            cleaned_text = re.sub(r"\s*```$", "", cleaned_text, flags=re.MULTILINE)
+            print("===============cleaned_text==================")
+            print(cleaned_text)
             print("=============================")
             # Parse the content JSON and get metadata
-            content = json.loads(response.content)
+            content = json.loads(cleaned_text)
             metadata = response.response_metadata
 
             return content, metadata
@@ -171,6 +179,7 @@ class DocumentProcessorAgent:
     ) -> ProcessingResponse:
         """Process a document and its extracted text"""
         try:
+            # TODO: clear path processing
             # Convert path to Path object and validate
             path = Path(file_path)
             if not path.exists():

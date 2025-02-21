@@ -31,7 +31,7 @@ class BlobData(BaseModel):
     """Represents raw file blob data."""
 
     file_id: str
-    content_type: str
+    mime_type: str
     filename: str
     gcs_bucket: str
     gcs_path: str
@@ -46,7 +46,7 @@ class BlobData(BaseModel):
 
         return {
             "blob_file_id": result_blob.file_id,
-            "blob_content_type": result_blob.content_type,
+            "blob_mime_type": result_blob.mime_type,
             "blob_size": result_blob.size,
             "blob_filename": result_blob.filename,
             "blob_gcs_bucket": result_blob.gcs_bucket,

@@ -22,25 +22,10 @@ class FileCRUD:
     async def create_file_metadata(
         connector_id: str, file_document: FileDocument
     ) -> Tuple[Connector, FileDocument]:
-        """
-        Update or add file metadata to a connector
-
-        Args:
-            connector_id (str): ID of the connector
-            file_document (FileDocument): File document to create/update
-
-        Returns:
-            Tuple[Connector, FileDocument]: Updated connector and file document
-
-        Raises:
-            HTTPException: If connector not found or operation fails
-        """
         try:
-            # Get the connector
             connector = await Connector.find_one(
-                {"_id": PydanticObjectId(connector_id)}, fetch_links=True
+                {"_id": PydanticObjectId(connector_id)}
             )
-
             if not connector:
                 logger.error(
                     f"Connector not found during file metadata creation. "
@@ -50,10 +35,18 @@ class FileCRUD:
                     status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
                 )
 
-            # Find existing file by file_path
+            # Initialize files list if None
+            if connector.files is None:
+                connector.files = []
+
+            # Find existing file by doc_id
             existing_file = None
             for file_link in connector.files:
-                if file_link.doc_id == file_document.doc_id:
+                # Ensure file_link is a Link object
+                if not isinstance(file_link, Link):
+                    file_link = Link(file_link, document_class=FileDocument)
+                    
+                if hasattr(file_link, 'doc_id') and file_link.doc_id == file_document.doc_id:
                     try:
                         existing_file = await FileDocument.get(file_link.id)
                         break
@@ -64,54 +57,26 @@ class FileCRUD:
                         )
                         continue
 
-            try:
-                if existing_file:
-                    logger.info(
-                        f"Updating existing file metadata. connector_id: {connector_id}, "
-                        f"file_id: {existing_file.id}, doc_id: {file_document.doc_id}"
-                    )
-                    # Update existing file
-                    updates = file_document.dict(exclude_unset=True)
-                    update_count = 0
-                    for field, value in updates.items():
-                        if value is not None:
-                            setattr(existing_file, field, value)
-                            update_count += 1
+            if existing_file:
+                # Update existing file
+                updates = file_document.dict(exclude_unset=True)
+                for field, value in updates.items():
+                    if value is not None:
+                        setattr(existing_file, field, value)
+                await existing_file.save()
+                file_doc = existing_file
+            else:
+                # Save new file document
+                await file_document.save()
+                # Create proper Link object
+                file_link = Link(file_document, document_class=FileDocument)
+                connector.files.append(file_link)
+                file_doc = file_document
 
-                    await existing_file.save()
-                    file_doc = existing_file
-                    logger.info(
-                        f"Updated {update_count} fields in existing file. "
-                        f"connector_id: {connector_id}, file_id: {existing_file.id}"
-                    )
-                else:
-                    logger.info(
-                        f"Creating new file metadata. connector_id: {connector_id}, "
-                        f"doc_id: {file_document.doc_id}"
-                    )
-                    # Save new file document
-                    await file_document.save()
-                    # Add new file link to connector
-                    connector.files.append(
-                        Link(file_document, document_class=FileDocument)
-                    )
-                    file_doc = file_document
+            connector.updated_at = datetime.utcnow()
+            await connector.save()
 
-                connector.updated_at = datetime.utcnow()
-                await connector.save()
-
-                return connector, file_doc
-
-            except Exception as e:
-                logger.exception(
-                    f"Failed to save file metadata. connector_id: {connector_id}, "
-                    f"doc_id: {file_document.doc_id}, error: {str(e)}\n"
-                    f"Traceback: {traceback.format_exc()}"
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to save file metadata: {str(e)}",
-                )
+            return connector, file_doc
 
         except HTTPException:
             raise

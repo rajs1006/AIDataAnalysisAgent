@@ -60,7 +60,7 @@ async def process_agent_query(
 
     except Exception as e:
         logger.exception(
-            "Error processing agent query: {str(e)}",
+            f"Error processing agent query: {str(e)}",
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -3,25 +3,13 @@ from typing import Dict, Any, List, Optional
 import asyncio
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
-from haystack import Pipeline, Document
-from haystack.components.generators import OpenAIGenerator
-from haystack.components.preprocessors import DocumentSplitter
-from haystack_integrations.components.retrievers.qdrant import QdrantHybridRetriever
-from haystack.utils import Secret
-from haystack_integrations.components.embedders.fastembed import (
-    FastembedTextEmbedder,
-    FastembedDocumentEmbedder,
-    FastembedSparseTextEmbedder,
-    FastembedSparseDocumentEmbedder,
-)
+from haystack import Document
 from qdrant_client import models
-from haystack.components.builders import PromptBuilder
 
-from app.agents.haystack_agent.writer import AsyncDocumentWriter
-from app.agents.haystack_agent.base import BasePipeline, PipelineInput, PipelineOutput
-from app.agents.haystack_agent.config import HybridPipelineConfig
+from app.agents.haystack.base import BasePipeline, PipelineInput, PipelineOutput
+from app.agents.haystack.config import HybridPipelineConfig
 from app.agents.prompts.prompt_manager import PromptManager
-
+from app.agents.haystack.builder import PipelineBuilder
 
 logger = get_logger(__name__)
 
@@ -40,7 +28,7 @@ class HaystackRAGPipeline(BasePipeline):
     def reset_state(self):
         """Reset pipeline state"""
         self.document_store = None
-        self.retriever = None
+        # self.retriever = None
         self.indexing_pipeline = None
         self.query_pipeline = None
         self.initialized = False
@@ -52,11 +40,6 @@ class HaystackRAGPipeline(BasePipeline):
             "errors": [],
         }
 
-    async def run_in_executor(self, func, *args, **kwargs):
-        """Run synchronous code in thread executor"""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(self.executor, lambda: func(*args, **kwargs))
-
     async def initialize(self, document_store):
         """Initialize pipeline components with proper error handling"""
         try:
@@ -64,135 +47,40 @@ class HaystackRAGPipeline(BasePipeline):
                 # Store reference
                 self.document_store = document_store
 
-                # Initialize core components
-                await self._init_core_components()
-
+                self.pipeline_builder = PipelineBuilder(
+                    self.document_store, self.config
+                )
                 # Build pipelines
-                await self._build_query_pipeline()
-                await self._build_indexing_pipeline()
+                self.query_pipeline = await self.pipeline_builder.build_query_pipeline(
+                    system_prompt=self.prompt_manager["SYSTEM_PROMPT"]
+                )
+                self.indexing_pipeline = (
+                    await self.pipeline_builder.build_indexing_pipeline()
+                )
 
                 self.initialized = True
                 logger.info("Pipeline initialized successfully")
 
         except Exception as e:
-            logger.error(
-                "Pipeline initialization failed: {str(e)}",
+            logger.exception(
+                f"Pipeline initialization failed: {str(e)}",
             )
             self.reset_state()
             raise
 
-    async def _init_core_components(self):
-        """Initialize core pipeline components"""
-        try:
-            # Initialize retriever
-            self.retriever = QdrantHybridRetriever(
-                document_store=self.document_store,
-                top_k=self.config.retriever.top_k,
-            )
+    async def run_in_executor(self, func, *args, **kwargs):
+        """Run synchronous code in thread executor"""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self.executor, lambda: func(*args, **kwargs))
 
-            self.prompt = PromptBuilder(template=self.prompt_manager["SYSTEM_PROMPT"])
-            # Initialize generator
-            self.generator = OpenAIGenerator(
-                api_key=Secret.from_token(self.config.openai_api_key),
-                model=self.config.generator.model_name,
-                generation_kwargs=self.config.generator.generation_kwargs,
-            )
-
-        except Exception as e:
-            logger.error(
-                "Failed to initialize core components: {str(e)}",
-            )
-            raise
-
-    async def _build_query_pipeline(self):
-        """Build query processing pipeline"""
-        try:
-            self.query_pipeline = Pipeline()
-
-            self.query_pipeline.add_component(
-                "sparse_text_embedder",
-                FastembedSparseTextEmbedder(model="prithvida/Splade_PP_en_v1"),
-            )
-            self.query_pipeline.add_component(
-                "dense_text_embedder",
-                FastembedTextEmbedder(
-                    model="BAAI/bge-small-en-v1.5",
-                    prefix="Represent this sentence for searching relevant passages: ",
-                ),
-            )
-            self.query_pipeline.add_component("retriever", self.retriever)
-            self.query_pipeline.add_component("prompt_builder", self.prompt)
-            self.query_pipeline.add_component("generator", self.generator)
-
-            # Add and connect components
-            self.query_pipeline.connect(
-                "sparse_text_embedder.sparse_embedding",
-                "retriever.query_sparse_embedding",
-            )
-            self.query_pipeline.connect(
-                "dense_text_embedder.embedding", "retriever.query_embedding"
-            )
-            self.query_pipeline.connect("retriever", "prompt_builder.documents")
-            self.query_pipeline.connect("prompt_builder", "generator")
-
-        except Exception as e:
-            logger.error(
-                "Failed to build query pipeline: {str(e)}",
-            )
-            raise
-
-    async def _build_indexing_pipeline(self):
-        """Build document indexing pipeline"""
-        try:
-            self.indexing_pipeline = Pipeline()
-
-            # Create preprocessor
-            preprocessor = DocumentSplitter(
-                split_by=self.config.preprocessing.split_by,
-                split_length=self.config.preprocessing.chunk_size,
-                split_overlap=self.config.preprocessing.chunk_overlap,
-            )
-
-            # Add and connect components
-            self.indexing_pipeline.add_component("preprocessor", preprocessor)
-            self.indexing_pipeline.add_component(
-                "sparse_doc_embedder",
-                FastembedSparseDocumentEmbedder(model="prithvida/Splade_PP_en_v1"),
-            )
-            self.indexing_pipeline.add_component(
-                "dense_doc_embedder",
-                FastembedDocumentEmbedder(model="BAAI/bge-small-en-v1.5"),
-            )
-            self.indexing_pipeline.add_component(
-                "writer", AsyncDocumentWriter(document_store=self.document_store)
-            )
-
-            self.indexing_pipeline.connect("preprocessor", "sparse_doc_embedder")
-            self.indexing_pipeline.connect("sparse_doc_embedder", "dense_doc_embedder")
-            self.indexing_pipeline.connect("dense_doc_embedder", "writer")
-
-        except Exception as e:
-            logger.error(
-                "Failed to build indexing pipeline: {str(e)}",
-            )
-            raise
-
-    async def process(self, input_data: PipelineInput) -> PipelineOutput:
+    async def process(
+        self, input_data: PipelineInput, filters: models.Filter
+    ) -> PipelineOutput:
         """Process query with proper error handling and metrics"""
         start_time = datetime.now()
         try:
-            if not self.initialized:
-                raise ValueError("Pipeline not initialized")
-
-            # Format filters properly for Qdrant
-            filters = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="meta.user_ids",
-                        match=models.MatchAny(any=[input_data.user_id]),
-                    ),
-                ]
-            )
+            if not self.initialize:
+                logger.warning("Pipeline is not initialized")
 
             # Prepare query input for each component
             query_input = {
@@ -209,10 +97,7 @@ class HaystackRAGPipeline(BasePipeline):
             }
 
             # Execute pipeline
-            result = await self.run_in_executor(
-                self.query_pipeline.run,
-                query_input,
-            )
+            result = await self.run_in_executor(self.query_pipeline.run, query_input)
 
             # Process results
             replies = result.get("generator", [])
@@ -228,8 +113,8 @@ class HaystackRAGPipeline(BasePipeline):
             )
 
         except Exception as e:
-            logger.error(
-                "Query processing failed: {str(e)}",
+            logger.exception(
+                f"Query processing failed: {str(e)}",
             )
             self._record_error(str(e))
             raise
@@ -239,8 +124,6 @@ class HaystackRAGPipeline(BasePipeline):
     ) -> Dict[str, Any]:
         """Add documents with proper preprocessing and metadata"""
         try:
-            if not self.initialized:
-                raise ValueError("Pipeline not initialized")
 
             # Enhance documents with metadata
             enhanced_docs = self._enhance_documents(documents, metadata)
@@ -263,33 +146,11 @@ class HaystackRAGPipeline(BasePipeline):
             }
 
         except Exception as e:
-            logger.error(
-                "Document indexing failed: {str(e)}",
+            logger.exception(
+                f"Document indexing failed: {str(e)}",
             )
             self._record_error(str(e))
             raise
-
-    def _process_documents(self, documents: List[Document]) -> List[Dict[str, Any]]:
-        """Process documents with enhanced metadata"""
-        processed_docs = []
-        for idx, doc in enumerate(documents):
-            processed_doc = {
-                "content": doc.content,
-                "metadata": {
-                    **doc.metadata,
-                    "score": getattr(doc, "score", None),
-                    "rank": idx + 1,
-                    "processing_info": {
-                        "processed_at": datetime.utcnow().isoformat(),
-                        "pipeline_version": self.config.version,
-                        "embedding_model": self.config.embedding.model_name,
-                    },
-                },
-                "source": doc.metadata.get("source", "Unknown"),
-                "doc_id": doc.id_,
-            }
-            processed_docs.append(processed_doc)
-        return processed_docs
 
     def _process_answer(self, result: Dict[str, Any]) -> str:
         """Extract and process generator answer"""
@@ -319,8 +180,8 @@ class HaystackRAGPipeline(BasePipeline):
             return (parsed_answer.get("answer", ""), parsed_answer.get("sources", ""))
 
         except json.JSONDecodeError as e:
-            logger.error(
-                "Error parsing JSON response: {str(e)}",
+            logger.exception(
+                f"Error parsing JSON response: {str(e)}",
             )
             return (self._clean_answer(answer_text), "")
 
@@ -342,12 +203,15 @@ class HaystackRAGPipeline(BasePipeline):
     ) -> List[Document]:
         """Enhance documents with additional metadata"""
         enhanced_docs = []
-        for doc in documents:
+        for idx, doc in enumerate(documents):
             doc_metadata = {
                 **doc.meta,
+                "score": getattr(doc, "score", None),
+                "rank": idx + 1,
                 "indexed_at": datetime.utcnow().isoformat(),
                 "pipeline_version": self.config.version,
-                "embedding_model": self.config.embedding.model_name,
+                "sparse_embedding_model": self.config.embedding.sparse_model_name,
+                "dense_embedding_model": self.config.embedding.dense_model_name,
                 "processing_config": {
                     "chunk_size": self.config.preprocessing.chunk_size,
                     "chunk_overlap": self.config.preprocessing.chunk_overlap,
@@ -472,7 +336,8 @@ class HaystackRAGPipeline(BasePipeline):
                 },
                 "embedding": {
                     "config": {
-                        "model": self.config.embedding.model_name,
+                        "sparse_model": self.config.embedding.sparse_model_name,
+                        "dense_model": self.config.embedding.dense_model_name,
                         "dimension": self.config.embedding.embedding_dim,
                         "max_seq_length": self.config.embedding.max_seq_length,
                     }
@@ -483,7 +348,6 @@ class HaystackRAGPipeline(BasePipeline):
                         "min_score": self.config.retriever.min_score,
                         "timeout": self.config.retriever.timeout,
                     },
-                    "status": "active" if self.retriever else "inactive",
                 },
                 # "reranking": {
                 #     "config": {
@@ -500,7 +364,6 @@ class HaystackRAGPipeline(BasePipeline):
                         "max_tokens": self.config.generator.max_tokens,
                         "temperature": self.config.generator.temperature,
                     },
-                    "status": "active" if self.generator else "inactive",
                 },
             }
 
@@ -536,8 +399,8 @@ class HaystackRAGPipeline(BasePipeline):
             }
 
         except Exception as e:
-            logger.error(
-                "Failed to gather pipeline stats: {str(e)}",
+            logger.exception(
+                f"Failed to gather pipeline stats: {str(e)}",
             )
             return {
                 "status": {
@@ -550,37 +413,39 @@ class HaystackRAGPipeline(BasePipeline):
     async def cleanup(self):
         """Cleanup pipeline resources"""
         try:
+            if self.pipeline:
+                await self.pipeline.cleanup()
             # Shutdown thread executor
             if hasattr(self, "executor") and self.executor:
                 self.executor.shutdown(wait=True)
 
             # Clean up individual components that might have cleanup methods
-            components_to_cleanup = [
-                self.generator,
-                self.retriever,
-                self.ranker,
-                self.doc_embedder,
-            ]
+            # components_to_cleanup = [
+            #     self.generator,
+            #     self.retriever,
+            #     self.ranker,
+            #     self.doc_embedder,
+            # ]
 
-            for component in components_to_cleanup:
-                if component and hasattr(component, "cleanup"):
-                    try:
-                        if asyncio.iscoroutinefunction(component.cleanup):
-                            await component.cleanup()
-                        else:
-                            component.cleanup()
-                    except Exception as e:
-                        logger.warning(
-                            f"Error cleaning up component {component.__class__.__name__}: {str(e)}"
-                        )
+            # for component in components_to_cleanup:
+            #     if component and hasattr(component, "cleanup"):
+            #         try:
+            #             if asyncio.iscoroutinefunction(component.cleanup):
+            #                 await component.cleanup()
+            #             else:
+            #                 component.cleanup()
+            #         except Exception as e:
+            #             logger.warning(
+            #                 f"Error cleaning up component {component.__class__.__name__}: {str(e)}"
+            #             )
 
             # Reset pipeline state
             self.reset_state()
             logger.info("Pipeline cleaned up successfully")
 
         except Exception as e:
-            logger.error(
-                "Cleanup failed: {str(e)}",
+            logger.exception(
+                f"Cleanup failed: {str(e)}",
             )
 
     def __del__(self):
@@ -589,6 +454,6 @@ class HaystackRAGPipeline(BasePipeline):
             try:
                 self.executor.shutdown(wait=False)
             except Exception as e:
-                logger.error(
-                    "Error during executor shutdown: {str(e)}",
+                logger.exception(
+                    f"Error during executor shutdown: {str(e)}",
                 )

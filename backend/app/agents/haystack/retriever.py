@@ -6,9 +6,10 @@ from haystack_integrations.components.retrievers.qdrant import QdrantEmbeddingRe
 from haystack.components.joiners import DocumentJoiner
 
 
+logger = get_logger(__name__)
+
 
 @component
-logger = get_logger(__name__)
 class EnhancedHybridRetriever:
     """Enhanced hybrid retriever combining dense and sparse retrieval"""
 
@@ -71,7 +72,9 @@ class EnhancedHybridRetriever:
             }
 
         except Exception as e:
-            logger.error("Hybrid retrieval failed: {str(e)}", )
+            logger.error(
+                "Hybrid retrieval failed: {str(e)}",
+            )
             raise
 
     def _weighted_join(

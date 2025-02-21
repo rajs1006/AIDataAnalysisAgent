@@ -209,6 +209,9 @@ class ConnectorCRUD:
                 Connector.status == ConnectorStatusEnum.ACTIVE,
             ).to_list()
 
+            for connector in connectors:
+                await connector.fetch_all_links()
+
             if not connectors:
                 logger.warning(f"No active connectors found for user {user_id}")
                 raise HTTPException(
@@ -219,6 +222,9 @@ class ConnectorCRUD:
             logger.info(
                 f"Retrieved {len(connectors)} active connectors for user {user_id}"
             )
+            print("=====================connectors=================================")
+            print(connectors)
+            print("=====================connectors=================================")
             return connectors
 
         except HTTPException:

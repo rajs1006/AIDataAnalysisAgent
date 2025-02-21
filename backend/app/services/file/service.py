@@ -35,6 +35,7 @@ from app.core.exceptions.collaborator_exceptions import (
     DuplicateCollaboratorInviteError,
     MaxCollaboratorInvitesError,
 )
+from app.core.files.blob_storage import BlobStorage
 from app.core.exceptions.connector_exceptions import FileNotFoundException
 from app.crud.collaborator import CollaboratorCRUD
 from app.core.exceptions.auth_exceptions import AccountDisabledError, EmailDeliveryError
@@ -54,7 +55,7 @@ class FileService:
         file_crud: FileCRUD,
         connector_crud: ConnectorCRUD,
         collaborator_crud: CollaboratorCRUD,
-        rag_service: RagService
+        rag_service: RagService,
     ):
         self.file_crud = file_crud
         self.connector_crud = connector_crud
@@ -76,6 +77,8 @@ class FileService:
             connectors = await self.connector_crud.get_user_active_connectors(
                 user_id=user_id
             )
+            print("Hierarchy connectors=====================")
+            print(connectors)
             collaborators = await self.collaborator_crud.get_document_invitee(
                 user_id=user_id
             )
@@ -299,6 +302,9 @@ class FileService:
                 user_id=user_id, connector_id=connector_id, doc_id=doc_id
             )
 
+            # Delete documents from GCP
+            await BlobStorage.delete_blob(file_id=doc_id)
+
             logger.info(
                 f"Successfully deleted file and associated resources. user_id: {user_id}, "
                 f"connector_id: {connector_id}, doc_id: {doc_id}"
@@ -311,7 +317,7 @@ class FileService:
             }
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error deleting file. user_id: {user_id}, connector_id: {connector_id}, "
                 f"doc_id: {doc_id}, error: {str(e)}"
             )

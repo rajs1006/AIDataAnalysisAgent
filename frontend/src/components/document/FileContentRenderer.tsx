@@ -8,6 +8,7 @@ import { FileNode } from "@/lib/types/files";
 // });
 import { ImageViewer } from "./ImageViewer";
 import { TextViewer } from "./TextViewer";
+import { CSVViewer } from "./CSVViewer";
 
 import dynamic from "next/dynamic";
 
@@ -51,9 +52,12 @@ export function FileContentRenderer({
     case "txt":
     case "md":
     case "json":
-    case "csv":
     case "log":
       return <TextViewer blob={blob} />;
+
+    case "csv":
+    case ".csv":
+      return <CSVViewer blob={blob} />;
 
     default:
       return (

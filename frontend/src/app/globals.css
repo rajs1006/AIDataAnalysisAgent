@@ -116,3 +116,4 @@ body {
 .disabled {
   @apply opacity-50 cursor-not-allowed;
 }
+

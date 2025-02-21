@@ -35,10 +35,7 @@ class ConnectorStatusEnum(str, Enum):
 
 
 class ExtensionEnum(str, Enum):
-    PDF = "pdf"
-    DOC = "doc"
-    DOCX = "docx"
-    TXT = "txt"
+    EXT = [".pdf", ".doc", ".docx", ".txt", ".csv"]
 
 
 class FileStatusEnum(str, Enum):
