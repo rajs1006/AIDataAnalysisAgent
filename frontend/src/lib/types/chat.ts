@@ -1,58 +1,53 @@
-export interface Message {
+import { ReactNode } from 'react';
+
+export interface ChatMessage {
   id: string;
-  type: "user" | "assistant";
   content: string;
-  sources?: string[];
-  timestamp: Date;
+  role: 'user' | 'assistant';
+  created_at: string | Date;
+  type?: 'user' | 'ai';
+  documentContext?: {
+    docId: string;
+    docName: string;
+    snippet?: string;
+  };
 }
 
-export interface Conversation {
+export interface Chat {
   id: string;
   title: string;
-  created_at: string;
-  updated_at: string;
-  messages: Message[];
+  created_at: string | Date;
+  messages: ChatMessage[];
 }
 
-export interface ConversationCreate {
-  title?: string;
+export interface ChatHistoryEntry extends Chat {
+  preview?: string;
+  date?: Date | string;
+  tags?: string[];
+  documentContext?: {
+    name: string;
+    type: string;
+  };
+  isPinned?: boolean;
 }
 
 export interface ChatState {
-  messages: Message[];
-  isLoading: boolean;
-  error: string | null;
+  mode: 'bubble' | 'panel' | 'modal';
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  isMinimized: boolean;
 }
 
-export interface Source {
-  file_name: string;
-  content: string;
-  relevance_score: number;
+export interface Connector {
+  id: string;
+  name: string;
+  icon: ReactNode;
+  description: string;
+  color: string;
 }
 
-export interface ImageData {
-  content: string; // base64 encoded image
-  mime_type: string; // e.g., "image/jpeg"
-  filename: string; // original file name
+export interface DocumentInsight {
+  keyTopics: string[];
+  summary: string;
+  actionItems: string[];
 }
-
-export interface QueryRequest {
-  query: string;
-  conversation_id?: string;
-  model: string;
-  temperature: number;
-  max_tokens: number;
-  image_data?: ImageData | null;
-}
-
-export interface QueryResponse {
-  answer: string;
-  sources: string[];
-}
-
-// Extend the RootState type to include chat state
-// declare module "@/lib/store/store" {
-//   export interface RootState {
-//     chat: ChatState;
-//   }
-// }

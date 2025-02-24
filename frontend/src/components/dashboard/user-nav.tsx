@@ -1,6 +1,5 @@
 // src/components/dashboard/user-nav.tsx
-import { useAppDispatch } from "@/lib/store/store";
-import { logout } from "@/lib/store/auth";
+import { useAuthStore } from "@/lib/store/auth";
 import { User } from "@/lib/types/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,10 +17,10 @@ interface UserNavProps {
 }
 
 export function UserNav({ user }: UserNavProps) {
-  const dispatch = useAppDispatch();
+  const { logout } = useAuthStore();
 
   const handleLogout = () => {
-    dispatch(logout());
+    logout();
   };
 
   if (!user) return null;
@@ -29,9 +28,12 @@ export function UserNav({ user }: UserNavProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full border-spacing-5">
+        <Button
+          variant="ghost"
+          className="relative h-8 w-8 rounded-full border-spacing-5"
+        >
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar_url} alt={user.full_name} />
+            <AvatarImage src={user.avatar} alt={user.full_name} />
             <AvatarFallback>
               {user.full_name?.substring(0, 2).toUpperCase()}
             </AvatarFallback>

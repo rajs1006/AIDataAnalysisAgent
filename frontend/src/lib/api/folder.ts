@@ -1,5 +1,8 @@
 import { authService } from "./auth";
-import { CreateConnectorDto, ConnectorMetrics } from "../types/connectors";
+import {
+  CreateConnectorDto,
+  ConnectorMetrics,
+} from "../store/types/connectors";
 import { API_URL } from "../utils";
 
 class FolderService {

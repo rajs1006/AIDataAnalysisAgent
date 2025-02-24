@@ -1,3 +1,4 @@
+from app.core.logging_config import get_logger
 from fastapi import (
     APIRouter,
     Depends,
@@ -16,10 +17,11 @@ from app.core.dependencies import (
 from app.services.connectors.folder.service import FolderConnectorService
 from app.models.schema.connectors.folder import FolderCreate
 from typing import List
-import logging
 import json
+from app.core.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
 router = APIRouter()
 
 
@@ -44,7 +46,9 @@ async def create_connector(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error creating connector: {str(e)}")
+        logger.error(
+            "Error creating connector: {str(e)}",
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create connector: {str(e)}",
@@ -64,7 +68,9 @@ async def watch_event(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error processing watch event: {str(e)}")
+        logger.error(
+            "Error processing watch event: {str(etypes)}",
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process watch event: {str(e)}",
@@ -84,30 +90,34 @@ async def check_connector_status(
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error checking connector status: {str(e)}")
+        logger.error(
+            "Error checking connector status: {str(e)}",
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to check connector status: {str(e)}",
         )
 
 
-@router.put("/{connector_id}")
-async def update_connector_status(
-    connector_id: str,
-    status: str,
-    current_user=Depends(get_current_user),
-    folder_service: FolderConnectorService = Depends(get_folder_service),
-):
-    """Update connector status"""
-    try:
-        return await folder_service.update_connector_status(
-            connector_id, status, current_user.id
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating connector status: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update connector status: {str(e)}",
-        )
+# @router.put("/{connector_id}")
+# async def update_connector_status(
+#     connector_id: str,
+#     status: str,
+#     current_user=Depends(get_current_user),
+#     folder_service: FolderConnectorService = Depends(get_folder_service),
+# ):
+#     """Update connector status"""
+#     try:
+#         return await folder_service.update_connector_status(
+#             connector_id, status, current_user.id
+#         )
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(
+#             "Error updating connector status: {str(e)}",
+#         )
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Failed to update connector status: {str(e)}",
+#         )

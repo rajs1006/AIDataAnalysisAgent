@@ -1,13 +1,13 @@
+from app.core.logging_config import get_logger
 from typing import Dict, Any, Optional
-import logging
 import json
 import uuid
 from datetime import datetime
 from langchain_openai import ChatOpenAI
 from app.core.config import settings
 
-logger = logging.getLogger(__name__)
 
+logger = get_logger(__name__)
 class ImageProcessor:
     """Dynamic image processing with GPT-4 Vision"""
     
@@ -65,7 +65,7 @@ class ImageProcessor:
             }
             
         except Exception as e:
-            logger.error(f"Error in image analysis: {str(e)}")
+            logger.error("Error in image analysis: {str(e)}", )
             raise
     
     async def _call_vision_api(self, image_data: bytes, prompt: str) -> str:
@@ -83,7 +83,7 @@ class ImageProcessor:
             return response.content
             
         except Exception as e:
-            logger.error(f"Vision API call failed: {str(e)}")
+            logger.error("Vision API call failed: {str(e)}", )
             raise
     
     def _generate_searchable_text(self, analysis_result: Dict) -> str:

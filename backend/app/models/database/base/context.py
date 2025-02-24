@@ -3,7 +3,7 @@ from pydantic import Field
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 from app.models.schema.base.context import ContextStatus
-from app.models.schema.base.connector import ConnectorType
+from app.models.schema.base.connector import ConnectorTypeEnum
 
 
 class BaseContext(Document):

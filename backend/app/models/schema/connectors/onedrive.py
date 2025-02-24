@@ -2,7 +2,11 @@ from enum import Enum
 from typing import Optional, Dict, List
 from datetime import datetime
 from pydantic import BaseModel, Field
-from app.models.schema.base.connector import ConnectorBase, ConnectorMetadata, FileStatus
+from app.models.schema.base.connector import (
+    ConnectorBase,
+    ConnectorMetadata,
+    FileStatusEnum,
+)
 
 
 class SyncMode(str, Enum):

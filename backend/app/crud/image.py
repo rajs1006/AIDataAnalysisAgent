@@ -1,16 +1,16 @@
+from app.core.logging_config import get_logger
 from datetime import datetime
 from beanie import PydanticObjectId
 from fastapi import HTTPException, status
 from typing import Optional, Tuple
-import logging
-
 from app.models.database.context.image import ImageContext
 from app.models.schema.context.image import ImageMetadata
 from app.models.database.users import User
-from app.models.schema.base.connector import ConnectorType
+from app.models.schema.base.connector import ConnectorTypeEnum
 from app.models.schema.base.context import ContextStatus
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class ImageAgentCRUD:
@@ -73,7 +73,9 @@ class ImageAgentCRUD:
                 connector.updated_at = datetime.utcnow()
                 await connector.save()
         except Exception as e:
-            logger.error(f"Failed to log error for connector {connector_id}: {str(e)}")
+            logger.error(
+                "Failed to log error for connector {connector_id}: {str(e)}",
+            )
 
     @staticmethod
     async def update_context_metadata(
@@ -98,7 +100,9 @@ class ImageAgentCRUD:
             return connector, image_metadata
 
         except Exception as e:
-            logger.error(f"Error updating image metadata: {str(e)}")
+            logger.error(
+                "Error updating image metadata: {str(e)}",
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to update image metadata: {str(e)}",

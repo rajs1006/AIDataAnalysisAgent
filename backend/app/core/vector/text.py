@@ -1,12 +1,12 @@
+from app.core.logging_config import get_logger
 from typing import Dict, Any, Optional, List, Union
 import numpy as np
-import logging
 from .document import BaseVectorizer
 
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class TextVectorizer(BaseVectorizer):
     """Handles vectorization of text chunks"""
 
@@ -59,7 +59,7 @@ class TextVectorizer(BaseVectorizer):
             return zip(texts, embeddings, chunk_metadata)
 
         except Exception as e:
-            logger.error(f"Failed to create embeddings: {str(e)}")
+            logger.error("Failed to create embeddings: {str(e)}", )
             raise
 
     def _create_chunks(

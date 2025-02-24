@@ -1,1 +1,1 @@
-from .haystack_qdrant import VectorStore
+# from app.core.store.vectorizer.haystacks import HaystackVectorStore

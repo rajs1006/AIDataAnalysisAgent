@@ -1,6 +1,6 @@
+from app.core.logging_config import get_logger
 from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field
-import logging
 from difflib import get_close_matches
 import re
 import json
@@ -9,9 +9,9 @@ from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain_core.agents import AgentAction, AgentFinish
 from app.models.schema.agent import SearchResult, AnalysisResult, SuggestedCorrection
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class ParserUtils(OpenAIFunctionsAgentOutputParser):
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
         """Parse with enforced termination on FINAL ANSWER"""
@@ -78,7 +78,7 @@ class ParserUtils(OpenAIFunctionsAgentOutputParser):
                         log=cleaned_output,
                     )
                 except (json.JSONDecodeError, ValueError) as e:
-                    logger.error(f"Action parsing error: {e}")
+                    logger.error("Action parsing error: {e}", )
                     return AgentFinish(
                         return_values={
                             "output": f"FINAL ANSWER: Error in action format - {str(e)}"
@@ -93,7 +93,7 @@ class ParserUtils(OpenAIFunctionsAgentOutputParser):
             )
 
         except Exception as e:
-            logger.error(f"Parser error: {e}")
+            logger.error("Parser error: {e}", )
             return AgentFinish(
                 return_values={
                     "output": f"FINAL ANSWER: Error in processing - {str(e)}"
@@ -469,7 +469,7 @@ class ReActTools:
                         total_score += result.score
 
                 except Exception as e:
-                    logger.error(f"Error in search variation {variation}: {str(e)}")
+                    logger.error("Error in search variation {variation}: {str(e)}", )
                     continue
 
             # If no results found after all variations, return clarification
@@ -505,7 +505,7 @@ class ReActTools:
             return final_results
 
         except Exception as e:
-            logger.error(f"Search error: {str(e)}")
+            logger.error("Search error: {str(e)}", )
             return {
                 "error": str(e),
                 "results": [],
@@ -569,7 +569,7 @@ class ReActTools:
             )
 
         except Exception as e:
-            logger.error(f"Formatting error: {str(e)}")
+            logger.error("Formatting error: {str(e)}", )
             return "Error formatting response"
 
     def should_refine_search(

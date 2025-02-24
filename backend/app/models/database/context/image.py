@@ -2,7 +2,7 @@ from beanie import Document, Indexed, PydanticObjectId
 from pydantic import Field
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
-from app.models.schema.base.connector import ConnectorType
+from app.models.schema.base.connector import ConnectorTypeEnum
 from app.models.schema.context.image import ImageMetadata
 from ..base.context import BaseContext
 

@@ -14,7 +14,7 @@ export interface Connector {
   supported_extensions: string[];
   updated_at: string;
   user_id: string;
-  _id: string;
+  connector_id: string;
 }
 
 export interface PlatformInfo {

@@ -14,6 +14,8 @@ from app.core.dependencies.cruds import (
     get_image_agent_crud,
     get_billing_crud,
     get_model_pricing_crud,
+    get_collaborator_crud,
+    get_file_crud,
 )
 from app.core.dependencies.rag import get_rag_pipeline
 from app.core.dependencies.vector import get_vector_store
@@ -24,16 +26,20 @@ from app.crud.agent import AgentCRUD
 from app.crud.conversation import ConversationCRUD
 from app.crud.onedrive import OneDriveCRUD
 from app.crud.connector import ConnectorCRUD
+from app.crud.file import FileCRUD
 from app.crud.folder import FolderConnectorCRUD
 from app.crud.image import ImageAgentCRUD
 from app.crud.user import UserCRUD
 from app.crud.billing import BillingCRUD, ModelPricingCRUD
+from app.crud.collaborator import CollaboratorCRUD
 from app.services.agent.service import AgentService
-from app.services.connectors.base import ConnectorService
+from app.services.connectors.service import ConnectorService
 from app.services.agent.image.service import ImageService
 from app.services.agent.rag.service import RagService
-from app.agents.haystack_agent.pipeline import HaystackRAGPipeline
 from app.services.billing.service import BillingService
+from app.services.email.smtp import EmailService
+from app.services.collaborator.service import CollaboratorService
+from app.services.file.service import FileService
 
 
 def get_billing_service(
@@ -49,19 +55,34 @@ def get_billing_service(
 
 def get_rag_service(
     vector_store: VectorStore = Depends(get_vector_store),
-    rag_pipeline: HaystackRAGPipeline = Depends(get_rag_pipeline),
 ) -> RagService:
     return RagService(
         vector_store=vector_store,
-        pipeline=rag_pipeline,
+    )
+
+
+def get_file_service(
+    file_crud: FileCRUD = Depends(get_file_crud),
+    connector_crud: ConnectorCRUD = Depends(get_connector_crud),
+    collaborator_crud: CollaboratorCRUD = Depends(get_collaborator_crud),
+    rag_service: RagService = Depends(get_rag_service),
+) -> FileService:
+    return FileService(
+        file_crud=file_crud,
+        connector_crud=connector_crud,
+        collaborator_crud=collaborator_crud,
+        rag_service=rag_service,
     )
 
 
 def get_connector_service(
     connector_crud: ConnectorCRUD = Depends(get_connector_crud),
-    rag_service: RagService = Depends(get_rag_service),
+    file_service: FileService = Depends(get_file_service),
 ) -> ConnectorService:
-    return ConnectorService(crud=connector_crud, rag_service=rag_service)
+    return ConnectorService(
+        crud=connector_crud,
+        file_service=file_service,
+    )
 
 
 def get_conversation_service(
@@ -101,13 +122,35 @@ def get_onedrive_service(
 
 
 def get_folder_service(
-    folder_crud: FolderConnectorCRUD = Depends(get_folder_crud),
+    folder_crud: CollaboratorCRUD = Depends(get_connector_crud),
+    file_crud: FileCRUD = Depends(get_file_crud),
     rag_service: RagService = Depends(get_rag_service),
 ) -> FolderConnectorService:
-    return FolderConnectorService(crud=folder_crud, rag_service=rag_service)
+    return FolderConnectorService(
+        crud=folder_crud, file_crud=file_crud, rag_service=rag_service
+    )
+
+
+def get_email_service() -> EmailService:
+    return EmailService()
 
 
 def get_auth_service(
     user_crud: UserCRUD = Depends(get_user_crud),
+    email_service: EmailService = Depends(get_email_service),
 ) -> AuthService:
-    return AuthService(user_crud=user_crud)
+    return AuthService(user_crud=user_crud, email_service=email_service)
+
+
+def get_collaborator_service(
+    user_crud: UserCRUD = Depends(get_user_crud),
+    collaborator_crud: CollaboratorCRUD = Depends(get_collaborator_crud),
+    email_service: EmailService = Depends(get_email_service),
+    rag_service: EmailService = Depends(get_rag_service),
+) -> CollaboratorService:
+    return CollaboratorService(
+        user_crud=user_crud,
+        collaborator_crud=collaborator_crud,
+        email_service=email_service,
+        rag_service=rag_service,
+    )

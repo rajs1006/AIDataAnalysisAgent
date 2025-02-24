@@ -1,3 +1,4 @@
+from app.core.logging_config import get_logger
 from fastapi import APIRouter, Depends, status, Request, HTTPException
 from typing import List
 from app.core.dependencies import (
@@ -5,33 +6,29 @@ from app.core.dependencies import (
     get_connector_crud,
     get_connector_service,
 )
-from app.services.connectors.base import ConnectorService
-from app.models.database.connectors.connector import Connectors
+from app.services.connectors.service import ConnectorService
+from app.models.database.connectors.connector import Connector
 from app.crud.connector import ConnectorCRUD
-from app.models.schema.base.connector import ConnectorUpdate
-import logging
+from app.models.schema.base.connector import ConnectorUpdate, ConnectorFrontend
+from app.core.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
-# class service:
-#     def __init__(self, connector_crud: ConnectorCRUD):
-#         self.service = ConnectorService(connector_crud)
+logger = get_logger(__name__)
 
 
-@router.get("/", response_model=List[Connectors])
+@router.get("/", response_model=List[ConnectorFrontend])
 async def list_connectors(
     current_user=Depends(get_current_user),
-    # connector_crud: ConnectorCRUD = Depends(get_connector_crud),
     connector_service: ConnectorService = Depends(get_connector_service),
 ):
     """List all active folder connectors for the current user"""
     try:
-        # endpoint = service(connector_crud)
         return await connector_service.list_connectors(current_user.id)
     except Exception as e:
-        logger.error(f"Error listing connectors: {str(e)}")
+        logger.error(
+            f"Error listing connectors: {str(e)}",
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve connectors",
@@ -46,13 +43,13 @@ async def update_connector_status(
 ):
     """Update connector status"""
     try:
-        # endpoint = service(connector_crud)
         await connector_service.update_connector_status(connector, current_user.id)
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating connector status: {str(e)}")
+        logger.error(
+            f"Error updating connector status: {str(e)}",
+        )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update connector status: {str(e)}",
         )

@@ -1,6 +1,5 @@
+from app.core.logging_config import get_logger
 from fastapi import APIRouter, Depends, HTTPException, status
-import logging
-
 from app.core.dependencies import (
     get_current_user,
     get_agent_service,
@@ -8,8 +7,10 @@ from app.core.dependencies import (
 from app.services.agent.service import AgentService
 from app.models.schema.agent import QueryRequest, QueryResponse
 from app.models.database.users import User
+from app.core.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
 router = APIRouter()
 
 
@@ -58,7 +59,9 @@ async def process_agent_query(
         return response
 
     except Exception as e:
-        logger.exception(f"Error processing agent query: {str(e)}")
+        logger.exception(
+            f"Error processing agent query: {str(e)}",
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process query: {str(e)}",

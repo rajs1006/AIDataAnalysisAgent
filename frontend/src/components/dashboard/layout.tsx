@@ -1,72 +1,73 @@
-import { Header } from "./header";
-import { ConnectorGrid } from "../connectors/base/connector-grid";
 import { motion } from "framer-motion";
-import { useAppSelector } from "@/lib/store/store";
-import { EnhancedChatButton } from "../chat/chat-button";
+import { useState } from "react";
+import MainLayout  from "@/components/layouts/MainLayout";
+import { DocumentViewer } from "@/components/document/DocumentViewer";
+import { DocumentEditor } from "@/components/document/DocumentEditor";
+import { DocumentToolbar } from "@/components/document/DocumentToolbar";
+import { DocumentTabs } from "@/components/document/DocumentTabs";
+import { BreadcrumbNav } from "@/components/document/BreadcrumbNav";
+import type { JSONContent } from "@tiptap/core";
+
+interface Document {
+  id: string;
+  title: string;
+  content: JSONContent;
+}
 
 export function DashboardLayout() {
-  const handleOpenChat = () => {
-    const token = localStorage.getItem("token") || "";
-    window.open(`https://chat.andrual.com/#/auth?token=${token}`, "_blank");
-  };
+  //   const [activeDocumentId, setActiveDocumentId] = useState<string>();
+  //   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
+  //   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
+  //   const [documents] = useState<Document[]>([
+  //     {
+  //       id: "1",
+  //       title: "Getting Started.docx",
+  //       content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Welcome to your document!" }] }] }
+  //     }
+  //   ]);
+
+  //   const [breadcrumbs] = useState([
+  //     { id: "docs", label: "Documents", type: "folder" as const },
+  //     { id: "1", label: "Getting Started.docx", type: "document" as const }
+  //   ]);
+
+  //   const handleTabChange = (tabId: string) => {
+  //     setActiveDocumentId(tabId);
+  //   };
+
+  //   const handleNavigate = (itemId: string) => {
+  //     console.log("Navigating to:", itemId);
+  //   };
+
+  //   const handleDocumentSave = async (documentId: string, content: JSONContent) => {
+  //     console.log("Saving document:", documentId, content);
+  //   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden flex-col bg-gray-900">
-      <Header />
+    <MainLayout>
+      {/* <div className="flex flex-col h-full"> */}
+      {/* <div className="flex-none px-4 py-2">
+          <DocumentTabs onTabChange={handleTabChange} />
+          <BreadcrumbNav items={breadcrumbs} onNavigate={handleNavigate} />
+          <DocumentToolbar />
+        </div> */}
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex-1 flex overflow-hidden pt-16"
-      >
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-hidden p-6">
-            <div className="max-w-[1200px] mx-auto h-full flex gap-6">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-                className="flex-1"
-              >
-                {/* Content area */}
-                <div className="h-full rounded-xl bg-gray-800/50 p-6">
-                  <div className="mb-8">
-                    <h2 className="text-2xl font-bold text-gray-100">
-                      Welcome to Your Dashboard
-                    </h2>
-                    <p className="text-gray-400 mt-2">
-                      Connect your data sources and start exploring
-                    </p>
-                  </div>
-                  <div>
-                    <EnhancedChatButton onClick={handleOpenChat} />
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-
+      {/* <div className="flex-1 overflow-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="border-t border-gray-800 p-6 bg-gray-900"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="h-full"
           >
-            <div className="max-w-[1200px] mx-auto">
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-100 mb-2">
-                  Data Connectors
-                </h2>
-                <p className="text-gray-400">
-                  Configure and manage your data sources
-                </p>
-              </div>
-              <ConnectorGrid />
-            </div>
+            <DocumentViewer
+              documents={documents}
+              activeDocumentId={activeDocumentId}
+              onDocumentChange={handleTabChange}
+              onDocumentSave={handleDocumentSave}
+            />
           </motion.div>
-        </div>
-      </motion.div>
-    </div>
+        </div> */}
+      {/* </div> */}
+    </MainLayout>
   );
 }

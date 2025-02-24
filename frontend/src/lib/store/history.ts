@@ -1,38 +1,40 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { ChatHistory } from "@/lib/api/history";
+
+interface HistoryEntry {
+  id: string;
+  title: string;
+  timestamp: Date;
+  type: 'document' | 'chat' | 'search';
+}
 
 interface HistoryState {
-  chats: ChatHistory[];
-  activeChat: string | null;
+  entries: HistoryEntry[];
+  isLoading: boolean;
 }
 
 const initialState: HistoryState = {
-  chats: [],
-  activeChat: null,
+  entries: [],
+  isLoading: false,
 };
 
 const historySlice = createSlice({
   name: "history",
   initialState,
   reducers: {
-    setChats: (state, action: PayloadAction<ChatHistory[]>) => {
-      state.chats = action.payload;
+    addEntry: (state, action: PayloadAction<HistoryEntry>) => {
+      state.entries.unshift(action.payload);
     },
-    addChat: (state, action: PayloadAction<ChatHistory>) => {
-      state.chats.unshift(action.payload);
-      state.activeChat = action.payload.id;
+    removeEntry: (state, action: PayloadAction<string>) => {
+      state.entries = state.entries.filter(entry => entry.id !== action.payload);
     },
-    removeChat: (state, action: PayloadAction<string>) => {
-      state.chats = state.chats.filter(chat => chat.id !== action.payload);
-      if (state.activeChat === action.payload) {
-        state.activeChat = state.chats[0]?.id || null;
-      }
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
     },
-    setActiveChat: (state, action: PayloadAction<string>) => {
-      state.activeChat = action.payload;
+    clearHistory: (state) => {
+      state.entries = [];
     },
   },
 });
 
-export const { setChats, addChat, removeChat, setActiveChat } = historySlice.actions;
+export const { addEntry, removeEntry, setLoading, clearHistory } = historySlice.actions;
 export default historySlice.reducer;

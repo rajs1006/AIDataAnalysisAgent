@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { OneDriveAuth, OneDriveFolderInfo } from "../types/onedrive";
+import { OneDriveAuth, OneDriveFolderInfo } from "./types/onedrive";
 
 interface OneDriveState {
   auth: OneDriveAuth | null;

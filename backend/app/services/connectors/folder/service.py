@@ -1,89 +1,196 @@
-import logging
 import tempfile
 from pathlib import Path
 import os
+from typing import List
 from datetime import datetime
+from app.models.database.connectors.connector import Connector, FileDocument
+from app.models.enums import ConnectorTypeEnum, ConnectorStatusEnum
 from fastapi import HTTPException, status
 from haystack.dataclasses import Document
 
 from app.services.agent.rag.service import RagService
 from app.crud.folder import FolderConnectorCRUD
+from app.crud.connector import ConnectorCRUD
+from app.crud.file import FileCRUD
 from app.models.schema.connectors.folder import FileEvent
-from app.models.schema.base.connector import FileStatus
+from app.models.schema.base.connector import FileStatusEnum
 from app.models.schema.connectors.folder import FolderCreate, FileMetadata
 from app.models.database.users import User
 from app.utils.tools import get_content_hash
 from app.core.files.processor import DocumentProcessor
+from app.core.logging_config import get_logger
+from app.models.schema.base.hierarchy import BlobData
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class FolderConnectorService:
 
-    def __init__(self, crud: FolderConnectorCRUD, rag_service: RagService):
+    def __init__(
+        self, crud: ConnectorCRUD, file_crud: FileCRUD, rag_service: RagService
+    ):
         self.rag_service = rag_service
         self.crud = crud
-
-    async def list_connectors(self, user_id: str):
-        return await self.crud.get_user_connectors(user_id)
+        self.file_crud = file_crud
 
     async def create_connector(self, connector_data: FolderCreate, current_user: User):
+        """
+        Create a connector and process its files.
+
+        Args:
+            connector_data: Data for creating the connector, including files
+            current_user: Current user creating the connector
+
+        Returns:
+            dict: Contains connector_id and processed_files information
+
+        Raises:
+            HTTPException: If connector creation fails
+        """
+        processed_files = []
+        documents = []
+        connector = None
+
         try:
             # Create connector in database
-            now = int(datetime.utcnow().timestamp() * 1000)
-            connector = await self.crud.create_connector(connector_data, current_user)
+            now = datetime.utcnow()
+            connector = await self.crud.create_connector(
+                Connector.from_request_data(connector_data, str(current_user.id)),
+                current_user,
+            )
 
             for file in connector_data.files:
-                content = await file.read()
-
-                # Save to temporary file for DocumentProcessor
-                with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=Path(file.filename).suffix
-                ) as temp_file:
-                    temp_file.write(content)
-                    temp_path = temp_file.name
-
                 try:
-                    # Process with DocumentProcessor
-                    processor = DocumentProcessor()
-                    result = processor.process_file(temp_path)
-                    if result.error:
-                        raise HTTPException(status_code=500, detail=result.error)
+                    # Validate file extension
+                    extension = Path(file.filename).suffix.lower()
+                    if extension not in connector.supported_extensions:
+                        processed_files.append(
+                            {
+                                "filename": file.filename,
+                                "error": f"Extension {extension} is not supported",
+                            }
+                        )
+                        continue
 
-                    result_content = result.content
+                    # Read and process file
+                    content = await file.read()
+                    content_hash = get_content_hash(content=content)
+                    doc_id = f"{connector.id}_{content_hash}"
 
-                finally:
-                    # Clean up temp file
-                    os.unlink(temp_path)
+                    print("=================doc_id==================")
+                    print(doc_id)
 
-                # Read file content
-                metadata = FileMetadata(
-                    filename=file.filename,
-                    file_path=file.filename,
-                    content_hash=get_content_hash(content=content),
-                    size=len(content),
-                    mime_type=file.content_type or "application/octet-stream",
-                    last_modified=now,
-                    created_at=now,  # milliseconds timestamp
-                    extension=Path(file.filename).suffix,
-                )
+                    # Create temporary file for processing
+                    with tempfile.NamedTemporaryFile(
+                        delete=False, suffix=extension
+                    ) as temp_file:
+                        temp_file.write(content)
+                        temp_path = temp_file.name
 
-                # Create watch event
-                event = FileEvent(
+                    try:
+                        # Process document
+                        processor = DocumentProcessor()
+                        result = await processor.process_file(
+                            temp_path, extension=extension
+                        )
+
+                        if result.error:
+                            logger.error(
+                                "Error processing file",
+                                extra={
+                                    "filename": file.filename,
+                                    "error_details": result.error,
+                                },
+                            )
+                            processed_files.append(
+                                {"filename": file.filename, "error": str(result.error)}
+                            )
+                            continue
+
+                    finally:
+                        # Clean up temp file
+                        os.unlink(temp_path)
+
+                    # Create metadata
+                    metadata = FileMetadata(
+                        filename=file.filename,
+                        file_path=file.filename,
+                        content=result.content,
+                        content_hash=content_hash,
+                        size=len(content),
+                        mime_type=file.content_type or "application/octet-stream",
+                        last_modified=now,
+                        created_at=now,
+                        extension=extension,
+                        summary=result.metadata["summary"],
+                        ai_metadata=result.metadata["ai_metadata"],
+                        file_id=doc_id,
+                        doc_id=doc_id,
+                        status=FileStatusEnum.ACTIVE,
+                        last_indexed=now,
+                        **BlobData.from_class(result.blob_data),
+                    )
+
+                    # Store metadata
+                    await self.file_crud.create_file_metadata(
+                        str(connector.id),
+                        FileDocument.from_embedded_data(metadata),
+                    )
+
+                    # Prepare document for vector store
+                    if result.content:
+                        documents.append(
+                            {
+                                "content": result.parsed_content,
+                                "file_id": doc_id,
+                                "file_path": metadata.file_path,
+                                "file_type": metadata.extension,
+                                "file_name": metadata.filename,
+                                "file_summary": metadata.summary,
+                            }
+                        )
+
+                    processed_files.append(
+                        {"filename": file.filename, "status": "success"}
+                    )
+
+                except Exception as file_error:
+                    logger.exception(
+                        "Error processing file",
+                        extra={
+                            "filename": file.filename,
+                            "error_details": str(file_error),
+                        },
+                    )
+                    processed_files.append(
+                        {"filename": file.filename, "error": str(file_error)}
+                    )
+
+            # Add documents to vector store if any were processed successfully
+            if documents:
+                await self.rag_service.add_documents(
+                    documents=documents,
+                    user_id=str(connector.user_id),
                     connector_id=str(connector.id),
-                    event_type="created",  # or whatever event type you need
-                    metadata=metadata,
-                    content=result_content,
-                    timestamp=now,
                 )
-                # return await self._handle_file_update(connector, connector_data)
-                await self._handle_file_update(connector, event)
+
+            return {
+                "connector_id": str(connector.id),
+                "processed_files": processed_files,
+            }
 
         except Exception as e:
-            error_message = f"Failed to create connector: {str(e)}"
-            if "connector" in locals():
+            if connector:
                 await connector.delete()
-            logger.exception(error_message)
+
+            error_message = f"Failed to create connector: {str(e)}"
+            logger.exception(
+                "Connector creation failed",
+                extra={
+                    "error_details": error_message,
+                    "processed_files_count": len(processed_files),
+                },
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=error_message,
@@ -119,126 +226,26 @@ class FolderConnectorService:
             {"active": connector.status == "active"} if connector else {"active": False}
         )
 
-    async def update_connector_status(
-        self, connector_id: str, new_status: str, user_id: str
+    async def _handle_file_update(
+        self, connector: Connector, documents: List[Document]
     ):
-        """Update connector status"""
-        connector = await self.crud.get_connector(connector_id, user_id)
-        if not connector:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found"
-            )
-
-        await self.crud.update_connector_status(connector_id, new_status)
-        return {"status": new_status}
-
-    async def _handle_file_update(self, connector, event: FileEvent):
         """Handle file updates using Haystack components"""
         try:
-            # Check file extension
-            if not any(
-                event.metadata.file_path.lower().endswith(ext)
-                for ext in connector.supported_extensions
-            ):
-                return {
-                    "status": "skipped",
-                    "message": f"Unsupported file type: {event.metadata.extension}",
-                }
+            return await self.rag_service.add_documents(
+                documents=Document,
+                user_id=str(connector.user_id),
+                connector_id=str(connector.id),
+                # metadata=event.metadata.dict(),
+            )
 
-            doc_id = f"{connector.id}_{event.metadata.content_hash}"
-
-            if event.content:
-                # Create document metadata
-                doc_metadata = {
-                    "user_id": str(connector.user_id),
-                    "connector_id": str(connector.id),
-                    "file_path": event.metadata.file_path,
-                    "parent_doc_id": doc_id,
-                    "file_type": event.metadata.extension,
-                    "file_name": event.metadata.filename,
-                    "content_hash": event.metadata.content_hash,
-                    **event.metadata.dict(),
-                }
-
-                # Add document using RAG service
-                await self.rag_service.add_documents(
-                    documents=[
-                        {
-                            "content": event.content,
-                            "doc_id": doc_id,
-                            "file_path": event.metadata.file_path,
-                            "file_type": event.metadata.extension,
-                            "file_name": event.metadata.filename,
-                        }
-                    ],
-                    user_id=str(connector.user_id),
-                    connector_id=str(connector.id),
-                    metadata=doc_metadata,
-                )
-
-                # Update metadata for tracking
-                event.metadata.content = event.content
-                event.metadata.doc_id = doc_id
-                event.metadata.status = FileStatus.ACTIVE
-                event.metadata.last_indexed = datetime.utcnow()
-
-                # Update connector metadata
-                await self.crud.update_file_metadata(str(connector.id), event.metadata)
-
-                return {"status": "success", "doc_id": doc_id}
+            # return {"status": "success", "doc_id": doc_id}
 
         except Exception as e:
-            logger.error(f"Error processing file update: {str(e)}")
-            event.metadata.status = FileStatus.ERROR
-            event.metadata.error_message = str(e)
-            await self.crud.update_file_metadata(str(connector.id), event.metadata)
+            logger.exception(
+                "Error adding file to Rag",
+                # extra={"file_metadata": event.metadata.dict(), "error_details": str(e)},
+            )
             raise
-
-    # async def _handle_file_update(self, connector, event: FileEvent):
-    #     try:
-    #         if not any(
-    #             event.metadata.file_path.lower().endswith(ext)
-    #             for ext in connector.supported_extensions
-    #         ):
-    #             return {
-    #                 "status": "skipped",
-    #                 "message": f"Unsupported file type: {event.metadata.extension}",
-    #             }
-
-    #         doc_id = f"{connector.id}_{event.metadata.content_hash}"
-    #         if event.content:
-
-    #             point_ids = await self.vector_store.store_document(
-    #                 collection_name=str(connector.user_id),
-    #                 doc_id=doc_id,
-    #                 content=event.content,
-    #                 metadata={
-    #                     "user_id": str(connector.user_id),
-    #                     "connector_id": str(connector.id),
-    #                     "file_path": event.metadata.file_path,
-    #                     "parent_doc_id": doc_id,
-    #                     **event.metadata.dict(),
-    #                 },
-    #             )
-
-    #             # Update metadata for each chunk
-    #             event.metadata.content = event.content
-    #             event.metadata.doc_id = doc_id
-    #             event.metadata.status = FileStatus.ACTIVE
-    #             event.metadata.last_indexed = datetime.utcnow()
-    #             event.metadata.vector_ids = point_ids  # Store all chunk IDs
-    #             event.metadata.total_chunks = len(point_ids)
-
-    #             await self.crud.update_file_metadata(str(connector.id), event.metadata)
-
-    #         return {"status": "success", "doc_id": doc_id}
-
-    #     except Exception as e:
-    #         logger.error(f"Error processing file update: {str(e)}")
-    #         event.metadata.status = FileStatus.ERROR
-    #         event.metadata.error_message = str(e)
-    #         await self.crud.update_file_metadata(str(connector.id), event.metadata)
-    #         raise
 
     async def _handle_file_deletion(self, connector, event: FileEvent):
         try:
@@ -257,5 +264,8 @@ class FolderConnectorService:
             return {"status": "success", "message": "File deleted successfully"}
 
         except Exception as e:
-            logger.error(f"Error processing file deletion: {str(e)}")
+            logger.exception(
+                "Error processing file deletion",
+                extra={"file_path": event.metadata.file_path, "error_details": str(e)},
+            )
             raise

@@ -1,4 +1,4 @@
-import logging
+from app.core.logging_config import get_logger
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import aiohttp
@@ -12,11 +12,12 @@ from app.models.schema.connectors.onedrive import (
     OneDriveAuth,
     OneDriveFileMetadata,
 )
-from app.models.schema.base.connector import FileStatus
+from app.models.schema.base.connector import FileStatusEnum
 from app.core.security.oauth import OneDriveOAuth
 from app.core.files.processor import DocumentProcessor
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class OneDriveClient:
@@ -50,7 +51,9 @@ class OneDriveClient:
                 )
 
             except Exception as e:
-                logger.error(f"Token refresh failed: {str(e)}")
+                logger.error(
+                    "Token refresh failed: {str(e)}",
+                )
                 raise HTTPException(
                     status_code=401, detail="Authentication failed during token refresh"
                 )
@@ -93,7 +96,9 @@ class OneDriveClient:
                 return await response.json()
 
         except Exception as e:
-            logger.error(f"OneDrive API request failed: {str(e)}")
+            logger.error(
+                "OneDrive API request failed: {str(e)}",
+            )
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to communicate with OneDrive: {str(e)}",
@@ -150,7 +155,7 @@ class OneDriveClient:
             try:
                 # Process with DocumentProcessor
                 processor = DocumentProcessor()
-                result = processor.process_file(temp_path)
+                result = await processor.process_file(temp_path)
 
                 if result.error:
                     raise HTTPException(status_code=500, detail=result.error)
@@ -162,7 +167,9 @@ class OneDriveClient:
                 os.unlink(temp_path)
 
         except Exception as e:
-            logger.error(f"File content extraction failed: {str(e)}")
+            logger.error(
+                "File content extraction failed: {str(e)}",
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     async def create_subscription(
@@ -210,9 +217,17 @@ class OneDriveClient:
             file_path=item.get("parentReference", {}).get("path", ""),
             drive_id=item["parentReference"]["driveId"],
             size=item.get("size", 0),
-            last_modified=int(datetime.fromisoformat(item["createdDateTime"].replace("Z", "")).timestamp()),
-            created_at = int(datetime.fromisoformat(item["createdDateTime"].replace("Z", "")).timestamp()),
+            last_modified=int(
+                datetime.fromisoformat(
+                    item["createdDateTime"].replace("Z", "")
+                ).timestamp()
+            ),
+            created_at=int(
+                datetime.fromisoformat(
+                    item["createdDateTime"].replace("Z", "")
+                ).timestamp()
+            ),
             content_hash=item.get("file", {}).get("hashes", {}).get("sha1Hash", ""),
             web_url=item["webUrl"],
-            status=FileStatus.PROCESSING,
+            status=FileStatusEnum.PROCESSING,
         )

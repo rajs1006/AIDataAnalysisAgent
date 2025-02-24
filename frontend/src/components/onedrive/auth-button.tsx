@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch } from "@/lib/store/store";
 import { onedriveService } from "@/lib/api/onedrive";
-import { OneDriveAuth } from "@/lib/types/onedrive";
+import { OneDriveAuth } from "@/lib/store/types/onedrive";
 import { setIsAuthenticating, setError } from "@/lib/store/onedrive";
 import { useToast } from "@/components/ui/use-toast";
 

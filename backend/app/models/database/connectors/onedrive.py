@@ -1,15 +1,15 @@
 from pydantic import Field
 from datetime import datetime
 from typing import Optional, Dict, List
-from app.models.schema.base.connector import ConnectorType
+from app.models.schema.base.connector import ConnectorTypeEnum
 from app.models.schema.connectors.onedrive import (
     OneDriveFileMetadata,
 )
-from ..base.connector import BaseConnector
+from .connector import Connector
 
 
-class OneDriveConnector(BaseConnector):
-    connector_type: ConnectorType = ConnectorType.ONEDRIVE
+class OneDriveConnector(Connector):
+    connector_type: ConnectorTypeEnum = ConnectorTypeEnum.ONEDRIVE
     files: List[OneDriveFileMetadata] = Field(default_factory=list)
 
     # class Settings:

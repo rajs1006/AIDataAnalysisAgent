@@ -1,16 +1,16 @@
+from app.core.logging_config import get_logger
 from datetime import datetime, timedelta
 import aiohttp
 from fastapi import HTTPException
 from typing import Dict, Any
-import logging
 from urllib.parse import urlencode
 
 from app.core.config import settings
 from app.models.schema.connectors.onedrive import OneDriveAuth
 
-logger = logging.getLogger(__name__)
 
 
+logger = get_logger(__name__)
 class OneDriveOAuth:
     """Handle OneDrive OAuth flow"""
 
@@ -70,7 +70,7 @@ class OneDriveOAuth:
                     )
 
         except Exception as e:
-            logger.error(f"Token exchange failed: {str(e)}")
+            logger.error("Token exchange failed: {str(e)}", )
             raise HTTPException(
                 status_code=500, detail=f"Failed to exchange code for tokens: {str(e)}"
             )
@@ -101,7 +101,7 @@ class OneDriveOAuth:
                     return await response.json()
 
         except Exception as e:
-            logger.error(f"Token refresh failed: {str(e)}")
+            logger.error("Token refresh failed: {str(e)}", )
             raise HTTPException(
                 status_code=500, detail=f"Failed to refresh token: {str(e)}"
             )

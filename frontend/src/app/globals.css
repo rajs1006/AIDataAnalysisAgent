@@ -2,173 +2,118 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 225 9% 9%;
-    --foreground: 210 40% 98%;
-
-    --card: 228 9% 11%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 228 9% 11%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 252 100% 69%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 228 9% 15%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 228 9% 15%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 228 9% 15%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 228 9% 15%;
-    --input: 228 9% 15%;
-    --ring: 252 100% 69%;
-
-    --radius: 0.5rem;
-  }
+:root {
+  --background-dark: #0a0a0a;
+  --background-gray-900: #111827;
+  --background-gray-800: #1f2937;
+  --background-gray-700: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --border-color: #374151;
+  --primary-color: #3b82f6;
+  --secondary-color: #10b981;
 }
 
 body {
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
+  @apply bg-gray-950 text-gray-100;
   font-family: "Inter", sans-serif;
   line-height: 1.6;
 }
 
-.card {
-  background-color: hsl(var(--card));
-  color: hsl(var(--card-foreground));
-  border: 1px solid hsl(var(--border));
-  box-shadow: 0 4px 6px hsla(var(--card) / 0.1);
-  border-radius: var(--radius);
-}
-
-.auth-container {
-  background: linear-gradient(
-    to bottom right,
-    hsl(252, 100%, 69%, 0.1),
-    hsl(252, 100%, 69%, 0.05)
-  );
-}
-
-.input-dark {
-  background-color: hsl(var(--secondary));
-  color: hsl(var(--foreground));
-  border: 1px solid hsl(var(--border));
-}
-
-.input-dark:focus {
-  border-color: hsl(var(--ring));
-  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
-}
-
-.button-primary {
-  background: linear-gradient(
-    to right,
-    hsl(252, 100%, 69%),
-    hsl(252, 100%, 60%)
-  );
-  color: hsl(var(--primary-foreground));
-  transition: all 0.2s ease;
-}
-
-.button-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-/* Dashboard specific styles */
-.dashboard-header {
-  background: hsl(var(--card));
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.dashboard-sidebar {
-  background: hsl(var(--card));
-  border-right: 1px solid hsl(var(--border));
-}
-
-/* Scrollbar Styling */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--secondary));
+  @apply bg-gray-900;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground));
-  border-radius: 4px;
+  @apply bg-gray-700 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary));
+  @apply bg-gray-600;
 }
 
-@layer base {
-  .toast-root {
-    @apply fixed flex items-center justify-between gap-4 p-4 rounded-lg shadow-lg;
-    @apply bg-background border border-border;
-    @apply data-[state=open]:animate-in data-[state=closed]:animate-out;
-    @apply data-[swipe=end]:animate-out data-[state=closed]:fade-out-80;
-    @apply slide-in-from-right-full slide-out-to-right-full;
-    @apply duration-300;
-  }
-
-  .toast-viewport {
-    @apply fixed top-0 right-0 flex flex-col gap-2 p-4 w-[420px] max-w-[100vw] m-0 list-none z-[9999];
-    @apply outline-none;
-  }
-
-  .toast-title {
-    @apply text-sm font-semibold;
-  }
-
-  .toast-description {
-    @apply text-sm opacity-90;
-  }
-
-  .toast-close {
-    @apply absolute right-2 top-2 rounded-md p-1;
-    @apply text-gray-500 opacity-0 transition-opacity;
-    @apply hover:text-gray-700 focus:opacity-100;
-    @apply group-hover:opacity-100;
-  }
-
-  /* Variant specific styles */
-  .toast-root[data-variant='destructive'] {
-    @apply bg-destructive text-white border-red-800;
-    @apply group relative;
-  }
-
-  .toast-root[data-variant='destructive'] .toast-close {
-    @apply text-white/70 hover:text-white;
-    @apply focus:ring-2 focus:ring-red-500;
-  }
-
-  /* Progress bar for long duration toasts */
-  .toast-root[data-variant='destructive']::after {
-    content: '';
-    @apply absolute bottom-0 left-0 h-1 bg-white/20;
-    animation: progress 60s linear;
-  }
+/* Gradient backgrounds */
+.gradient-blue {
+  @apply bg-gradient-to-r from-blue-500 to-purple-500;
 }
 
-@keyframes progress {
-  from {
-    width: 100%;
-  }
-  to {
-    width: 0%;
-  }
+.gradient-green {
+  @apply bg-gradient-to-r from-green-500 to-teal-500;
 }
+
+/* Shadcn UI overrides */
+.dark .dark\:border-gray-800 {
+  border-color: var(--background-gray-800);
+}
+
+/* Tailwind prose plugin customizations */
+.prose {
+  @apply text-gray-300;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  @apply text-gray-100;
+}
+
+.prose a {
+  @apply text-blue-400 hover:text-blue-300;
+}
+
+/* Drag and drop styles */
+.drag-over {
+  @apply border-2 border-blue-500 bg-blue-500/10;
+}
+
+/* Transition and animation utilities */
+.transition-fast {
+  transition: all 0.2s ease-in-out;
+}
+
+.transition-medium {
+  transition: all 0.3s ease-in-out;
+}
+
+.transition-slow {
+  transition: all 0.5s ease-in-out;
+}
+
+/* Backdrop blur utility */
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+
+.backdrop-blur-md {
+  backdrop-filter: blur(8px);
+}
+
+/* Glassmorphism effect */
+.glassmorphism {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Subtle hover effect */
+.hover-lift {
+  transition: transform 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+}
+
+/* Disabled state */
+.disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+

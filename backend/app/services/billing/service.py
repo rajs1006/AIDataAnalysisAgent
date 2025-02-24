@@ -1,6 +1,6 @@
+from app.core.logging_config import get_logger
 from datetime import datetime, timedelta
 from typing import Dict, Optional, List
-import logging
 from fastapi import HTTPException, status
 
 from app.crud.billing import BillingCRUD, ModelPricingCRUD
@@ -20,7 +20,8 @@ from app.models.schema.billing import (
 )
 from app.models.database.billing import ModelPricing
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class BillingService:
@@ -55,7 +56,7 @@ class BillingService:
             monthly_data = await self._get_monthly_analytics(
                 user_id, start_date, end_date, model_pricing
             )
-            
+
             # Calculate overall stats
             overall_stats = self._calculate_overall_stats(daily_data)
 
@@ -67,7 +68,7 @@ class BillingService:
             )
 
         except Exception as e:
-            logger.exception(f"Error getting usage analytics", e)
+            logger.exception("Error getting usage analytics", e)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to get usage analytics: {str(e)}",
@@ -88,7 +89,9 @@ class BillingService:
             # Create new pricing
             return await self.pricing_crud.create(data.dict())
         except Exception as e:
-            logger.error(f"Error creating model pricing: {str(e)}")
+            logger.error(
+                "Error creating model pricing: {str(e)}",
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to create model pricing: {str(e)}",
@@ -111,7 +114,9 @@ class BillingService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error updating model pricing: {str(e)}")
+            logger.error(
+                "Error updating model pricing: {str(e)}",
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to update model pricing: {str(e)}",
@@ -134,7 +139,9 @@ class BillingService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error updating model pricing status: {str(e)}")
+            logger.error(
+                "Error updating model pricing status: {str(e)}",
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to update model pricing status: {str(e)}",
@@ -145,7 +152,9 @@ class BillingService:
         try:
             return await self.pricing_crud.get_pricing_history(model_name)
         except Exception as e:
-            logger.error(f"Error getting pricing history: {str(e)}")
+            logger.error(
+                "Error getting pricing history: {str(e)}",
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to get pricing history: {str(e)}",
@@ -185,7 +194,7 @@ class BillingService:
         """Get daily usage analytics"""
         daily_usage = await self.crud.get_daily_usage(user_id, start_date, end_date)
         daily_entries = []
-        
+
         current_date = start_date
         while current_date <= end_date:
             date_str = current_date.strftime("%Y-%m-%d")
