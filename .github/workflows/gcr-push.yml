@@ -38,17 +38,17 @@ jobs:
       run: |
         gcloud auth configure-docker europe-west10-docker.pkg.dev --quiet
     
-    - name: Build and push Chat Frontend Docker image
-      run: |
-        docker build --build-arg VITE_API_URL=/dataagent/api/v1 ./ai-chat -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:latest -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:${{ github.sha }}
-        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:latest
-        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:${{ github.sha }}
+    # - name: Build and push Chat Frontend Docker image
+    #   run: |
+    #     docker build --build-arg VITE_API_URL=/dataagent/api/v1 ./ai-chat -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:latest -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:${{ github.sha }}
+    #     docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:latest
+    #     docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/chat-frontend:${{ github.sha }}
     
-    - name: Build and push Frontend Docker image
-      run: |
-        docker build ./frontend -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:latest -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:${{ github.sha }}
-        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:latest
-        docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:${{ github.sha }}
+    # - name: Build and push Frontend Docker image
+    #   run: |
+    #     docker build ./frontend -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:latest -t europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:${{ github.sha }}
+    #     docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:latest
+    #     docker push europe-west10-docker.pkg.dev/$PROJECT_ID/datanalysisagent/frontend:${{ github.sha }}
     
     - name: Build and push Backend Docker image
       run: |
